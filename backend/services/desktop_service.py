@@ -6,16 +6,28 @@ import io
 from PIL import Image
 import os
 import json
+import platform
+import ctypes
+import time
 
 class DesktopService:
     def __init__(self):
         # Initialize EasyOCR reader (loads model into memory)
-        # Using 'en' for English. gpu=False ensures compatibility if no CUDA.
         print("Initializing Desktop Ghost Operator (EasyOCR)...")
         self.reader = easyocr.Reader(['en'], gpu=False)
         
-        # PyAutoGUI safety
+        # PyAutoGUI safety & reliability settings
         pyautogui.FAILSAFE = True
+        pyautogui.PAUSE = 0.5  # Add 0.5s cooldown after each PyAutoGUI call
+        
+        # Windows DPI Scaling Fix
+        # This ensures that coordinates from screenshots match mouse coordinates
+        if platform.system() == "Windows":
+            try:
+                ctypes.windll.user32.SetProcessDPIAware()
+                print("Windows DPI Awareness set for accurate coordinate mapping.")
+            except Exception as e:
+                print(f"Warning: Failed to set DPI awareness: {e}")
         
         # Screen size
         self.screen_width, self.screen_height = pyautogui.size()
@@ -80,6 +92,7 @@ class DesktopService:
                 x = data.get("x")
                 y = data.get("y")
                 if x is not None and y is not None:
+                    # Move duration allows visual tracking
                     pyautogui.moveTo(x, y, duration=0.5)
                     pyautogui.click()
                     return f"Clicked at ({x}, {y})"
@@ -87,6 +100,7 @@ class DesktopService:
             elif action_type == "type":
                 text = data.get("text")
                 if text:
+                    # Interval mimics human typing speed
                     pyautogui.write(text, interval=0.05)
                     return f"Typed: '{text}'"
             
