@@ -1,6 +1,8 @@
 import os
 import datetime
 import asyncio
+import psutil
+from github import Github
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 from dotenv import load_dotenv
@@ -8,13 +10,86 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# --- Tool Definitions ---
+# --- Tool Definitions (Real Action Tools) ---
+
 def get_server_time():
     """Returns the current server time."""
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+def get_system_health():
+    """
+    Retrieves real-time system metrics (CPU, RAM, Disk) from the hosting server.
+    Useful for SRE tasks or checking infrastructure load.
+    """
+    try:
+        # Interval of 0.1s to get an immediate reading
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        return {
+            "status": "online",
+            "cpu_usage_percent": cpu_percent,
+            "memory_total_gb": round(memory.total / (1024**3), 2),
+            "memory_available_gb": round(memory.available / (1024**3), 2),
+            "memory_used_percent": memory.percent,
+            "disk_usage_percent": disk.percent
+        }
+    except Exception as e:
+        return f"Error reading system stats: {str(e)}"
+
+def update_github_file(repo_name: str, file_path: str, content: str, commit_message: str = "Update via Proxi"):
+    """
+    Updates a file in a GitHub repository. If the file doesn't exist, it creates it.
+    Args:
+        repo_name: The full repository name (e.g., 'username/repo').
+        file_path: The path to the file within the repository.
+        content: The new content for the file.
+        commit_message: The commit message for the update.
+    """
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return "Error: GITHUB_TOKEN environment variable is missing."
+
+    try:
+        g = Github(token)
+        repo = g.get_repo(repo_name)
+        
+        try:
+            # Try to get the file to update it
+            file_content = repo.get_contents(file_path)
+            repo.update_file(file_path, commit_message, content, file_content.sha)
+            return f"Successfully updated '{file_path}' in '{repo_name}'."
+        except Exception:
+            # File likely doesn't exist, create it
+            repo.create_file(file_path, commit_message, content)
+            return f"Successfully created new file '{file_path}' in '{repo_name}'."
+            
+    except Exception as e:
+        return f"GitHub Action Failed: {str(e)}"
+
+def create_github_issue(repo_name: str, title: str, body: str):
+    """
+    Creates a new issue in a GitHub repository.
+    Args:
+        repo_name: The full repository name (e.g., 'username/repo').
+        title: The title of the issue.
+        body: The detailed description of the issue.
+    """
+    token = os.getenv("GITHUB_TOKEN")
+    if not token:
+        return "Error: GITHUB_TOKEN environment variable is missing."
+
+    try:
+        g = Github(token)
+        repo = g.get_repo(repo_name)
+        issue = repo.create_issue(title=title, body=body)
+        return f"Issue created successfully. URL: {issue.html_url}"
+    except Exception as e:
+        return f"GitHub Action Failed: {str(e)}"
+
 def run_diagnostic(service_name: str):
-    """Runs a diagnostic check on a specific service."""
+    """Runs a simulated diagnostic check on a specific service (Mock)."""
     if service_name.lower() == "database":
         return "Database latency: 12ms. Connection pool: 80%."
     elif service_name.lower() == "api":
@@ -22,32 +97,16 @@ def run_diagnostic(service_name: str):
     else:
         return f"Service {service_name} is running normally."
 
-def get_cloud_status():
-    """Returns a snapshot of the current cloud infrastructure health."""
-    return {"clusters": "Healthy", "load_balancer": "High Traffic", "active_incidents": 0}
-
-def restart_service(service_name: str):
-    """Restarts a specific service on the production cluster."""
-    return f"Service {service_name} has been successfully restarted on the production cluster."
-
-def list_github_prs(repo: str = "current"):
-    """Lists active Pull Requests for the repository."""
-    return [
-        {"id": 101, "title": "feat: Add JWT Auth", "author": "jdoe", "status": "open"},
-        {"id": 102, "title": "fix: Database connection timeout", "author": "smithe", "status": "review_needed"},
-        {"id": 105, "title": "chore: Update dependencies", "author": "bot", "status": "open"}
-    ]
-
 class GeminiService:
     """
     Service layer for interacting with Google AI Studio (Gemini) using Tiered Compute.
     """
     
     # Tiered Model Constants
-    AUDIO_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025" # The Interface
-    FAST_TEXT_MODEL = "gemini-3-flash-preview"                  # The Reflex
-    SMART_TEXT_MODEL = "gemini-3-pro-preview"                   # The Brain
-    VISION_MODEL = "gemini-3-pro-image-preview"                 # The Eyes
+    AUDIO_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025" 
+    FAST_TEXT_MODEL = "gemini-3-flash-preview"                  
+    SMART_TEXT_MODEL = "gemini-3-pro-preview"                   
+    VISION_MODEL = "gemini-3-pro-image-preview"                 
 
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
@@ -56,8 +115,14 @@ class GeminiService:
         else:
             genai.configure(api_key=self.api_key)
         
-        # Register Tools
-        self.tools = [get_server_time, run_diagnostic, get_cloud_status, restart_service, list_github_prs]
+        # Register Tools - Mixing Real SRE/GitHub tools with some essential mocks
+        self.tools = [
+            get_server_time, 
+            get_system_health, 
+            update_github_file, 
+            create_github_issue,
+            run_diagnostic
+        ]
 
     async def generate_audio_response(self, audio_stream: bytes) -> str:
         """
@@ -95,6 +160,7 @@ class GeminiService:
             # Initialize model with tools
             model = genai.GenerativeModel(model_name=self.SMART_TEXT_MODEL, tools=self.tools)
             
+            # Enable automatic function calling
             chat = model.start_chat(enable_automatic_function_calling=True)
             config = GenerationConfig(temperature=0.7)
             
