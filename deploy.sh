@@ -1,73 +1,52 @@
 #!/bin/bash
 
-# Proxi Deployment Script
+# Master Deployment Script for Proxi
+# Usage: ./deploy.sh
 
-echo "Starting Deployment..."
+set -e # Exit immediately if a command exits with a non-zero status.
 
-# 1. Frontend Build
-# Check if 'frontend' directory exists (repo structure) vs root (flat structure)
-if [ -d "frontend" ]; then
-    echo "Entering frontend directory..."
-    cd frontend
-fi
+echo "========================================"
+echo "   🚀 PROXI PRODUCTION DEPLOYMENT"
+echo "========================================"
 
-echo "Installing frontend dependencies..."
-# Force development environment to ensure devDependencies (like Vite) are installed
-# This overrides any global NODE_ENV=production setting in Cloud Shell
-export NODE_ENV=development
-npm install
+# 1. Pull latest code
+echo "[1/4] Pulling latest changes from git..."
+git pull origin main
 
-if [ $? -ne 0 ]; then
-    echo "Error: npm install failed."
-    exit 1
-fi
+# 2. Rebuild and restart containers
+echo "[2/4] Updating Docker containers..."
+docker compose up -d --build
 
-echo "Building frontend..."
-npm run build
+# 3. Sync Nginx Infrastructure
+echo "[3/4] Configuring Nginx..."
 
-if [ ! -d "dist" ]; then
-    echo "Error: dist/ directory not found. Build failed."
-    exit 1
-fi
+NGINX_CONF_SRC="./deploy/proxi.conf"
+NGINX_AVAIL="/etc/nginx/sites-available/proxi"
+NGINX_ENABLED="/etc/nginx/sites-enabled/proxi"
 
-# If we entered a subdirectory, move back to root to access backend
-if [ -f "../backend/main.py" ]; then
-    cd ..
-fi
+if [ -f "$NGINX_CONF_SRC" ]; then
+    # Copy config
+    echo " -> Copying configuration to $NGINX_AVAIL"
+    sudo cp "$NGINX_CONF_SRC" "$NGINX_AVAIL"
 
-# 2. Backend Prep
-echo "Preparing backend static files..."
-mkdir -p backend/static
+    # Link if not exists
+    if [ ! -L "$NGINX_ENABLED" ]; then
+        echo " -> Creating symlink to $NGINX_ENABLED"
+        sudo ln -s "$NGINX_AVAIL" "$NGINX_ENABLED"
+    fi
 
-# Clean old files
-rm -rf backend/static/*
+    # Test Nginx
+    echo " -> Testing Nginx configuration..."
+    sudo nginx -t
 
-# Copy build artifacts to backend
-if [ -d "frontend/dist" ]; then
-    cp -r frontend/dist/* backend/static/
-elif [ -d "dist" ]; then
-    cp -r dist/* backend/static/
+    # Reload
+    echo " -> Reloading Nginx service..."
+    sudo systemctl reload nginx
 else
-    echo "Error: Could not locate dist folder to copy."
+    echo "❌ Error: Nginx config file not found at $NGINX_CONF_SRC"
     exit 1
 fi
 
-# 3. Python Dependencies
-echo "Installing Python dependencies..."
-pip install -r backend/requirements.txt -q
-
-# 4. Execution
-echo "Restarting application..."
-
-# Kill any existing process on port 8080
-if command -v fuser >/dev/null; then
-    fuser -k 8080/tcp > /dev/null 2>&1
-else
-    # Fallback if fuser is missing
-    echo "Warning: fuser not found, skipping port kill."
-fi
-
-# Start uvicorn in background
-nohup python3 -m uvicorn backend.main:app --host 0.0.0.0 --port 8080 > server.log 2>&1 &
-
-echo "Proxi is Live! Monitor logs with: tail -f server.log"
+echo "========================================"
+echo "   ✅ Deployment Complete."
+echo "========================================"
