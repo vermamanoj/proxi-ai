@@ -12,7 +12,14 @@ if [ -d "frontend" ]; then
 fi
 
 echo "Installing frontend dependencies..."
-npm install > /dev/null 2>&1
+# Use --production=false to ensure devDependencies (like Vite) are installed
+# Removed output suppression to allow debugging errors
+npm install --production=false
+
+if [ $? -ne 0 ]; then
+    echo "Error: npm install failed."
+    exit 1
+fi
 
 echo "Building frontend..."
 npm run build
