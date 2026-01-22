@@ -22,6 +22,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+async def root():
+    """Root endpoint to verify backend is running."""
+    return {"message": "Proxi Backend is running", "status": "online"}
+
 @app.get("/api/health")
 async def health_check():
     return {"message": "Proxi System Online", "status": "operational"}

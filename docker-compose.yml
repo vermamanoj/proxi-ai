@@ -7,21 +7,21 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./.env:/app/.env
-    # Container runs on 8000 internally
+    # Install dependencies and start server
     command: sh -c "pip install -r backend/requirements.txt && uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
-      - "4000:8000" # Host: 4000 -> Container: 8000
+      - "4000:8000"
     env_file:
       - .env
 
   frontend:
-    image: node:20-alpine
-    working_dir: /app/frontend
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
     volumes:
-      - ./frontend:/app/frontend
-    # Container runs on 5173 internally
-    command: sh -c "npm install && npm run dev -- --host"
+      - ./frontend:/app
+      - /app/node_modules # Anonymous volume to prevent host sync issues
     ports:
-      - "4001:5173" # Host: 4001 -> Container: 5173
+      - "4001:5173"
     depends_on:
       - backend
