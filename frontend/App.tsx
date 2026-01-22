@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit, Camera, Play, Square, Mic, MicOff } from 'lucide-react';
+import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit, Camera, Play, Square, Mic, MicOff, MousePointerClick, X } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { Visualizer } from './components/Visualizer';
@@ -12,10 +12,13 @@ const App: React.FC = () => {
   const { 
     status: brainStatus, 
     logs: brainLogs, 
-    complexity, 
+    complexity,
+    pendingAction,
     sendCommand, 
     sendVisionCommand,
-    toggleComplexity 
+    toggleComplexity,
+    confirmAction,
+    cancelAction
   } = useProxiBrain();
 
   // Hook 2: Real-time Voice (Live API / WebRTC)
@@ -39,7 +42,7 @@ const App: React.FC = () => {
   }, [brainLogs, liveLogs]);
 
   // Combined Status Logic
-  const globalStatus = liveConnected ? 'UPLINK_ACTIVE' : brainStatus === 'idle' ? 'STANDBY' : brainStatus.toUpperCase();
+  const globalStatus = pendingAction ? 'AWAITING_APPROVAL' : liveConnected ? 'UPLINK_ACTIVE' : brainStatus === 'idle' ? 'STANDBY' : brainStatus.toUpperCase();
 
   // Auto-focus input
   useEffect(() => {
@@ -78,7 +81,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className={`w-3 h-3 rounded-full ${liveConnected ? 'bg-proxi-success shadow-[0_0_10px_#00ff9d] animate-pulse' : 'bg-proxi-gray'}`} />
             <h1 className="text-xl font-bold tracking-widest text-white">PROXI<span className="text-proxi-accent">.OS</span></h1>
-            <span className="text-xs text-gray-500 border border-gray-700 px-2 py-0.5 rounded">v2.0.0-HYBRID</span>
+            <span className="text-xs text-gray-500 border border-gray-700 px-2 py-0.5 rounded">v2.1.0-GHOST</span>
           </div>
           <div className="flex items-center gap-4">
              {/* Uplink Control */}
@@ -143,7 +146,7 @@ const App: React.FC = () => {
                {/* Overlay Scanlines */}
                <div className="absolute inset-0 pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
                
-               {!liveConnected && brainStatus === 'idle' && (
+               {!liveConnected && brainStatus === 'idle' && !pendingAction && (
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <span className="text-[10px] text-gray-600 tracking-widest">OFFLINE</span>
                   </div>
@@ -165,6 +168,34 @@ const App: React.FC = () => {
 
           {/* Tool Execution Status (The "Hands") */}
           <ToolStatus activeTool={liveActiveTool} />
+          
+          {/* CONFIRMATION DIALOG FOR GHOST OPERATOR */}
+          {pendingAction && (
+            <div className="bg-proxi-dark border border-proxi-accent rounded-lg p-4 animate-pulse relative overflow-hidden shadow-[0_0_20px_rgba(0,240,255,0.2)]">
+                <div className="flex items-start gap-3">
+                    <MousePointerClick className="w-6 h-6 text-proxi-accent mt-1" />
+                    <div className="flex-1">
+                        <h3 className="text-proxi-accent font-bold text-sm uppercase tracking-wider mb-1">Authorization Required</h3>
+                        <p className="text-gray-300 text-xs mb-3">{pendingAction.description}</p>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={confirmAction}
+                                className="flex-1 bg-proxi-accent text-proxi-black font-bold py-1.5 px-3 rounded text-xs hover:bg-proxi-accent/80 transition-colors uppercase"
+                            >
+                                Confirm
+                            </button>
+                            <button 
+                                onClick={cancelAction}
+                                className="bg-red-500/20 border border-red-500/50 text-red-500 py-1.5 px-2 rounded hover:bg-red-500/30 transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+          )}
+
         </div>
 
         {/* Right Column: Terminal/Logs (8 Cols) */}

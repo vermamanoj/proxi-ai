@@ -7,3 +7,8 @@ google-generativeai>=0.8.3
 python-multipart==0.0.9
 PyGithub==2.1.1
 psutil==5.9.8
+pyautogui==0.9.54
+easyocr==1.7.1
+opencv-python-headless==4.9.0.80
+pillow==10.2.0
+numpy==1.26.4

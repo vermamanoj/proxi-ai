@@ -2,15 +2,18 @@ import os
 import datetime
 import asyncio
 import psutil
+import json
 from github import Github
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 from dotenv import load_dotenv
+from backend.services.desktop_service import DesktopService
+from backend.models.api_models import PendingAction
 
 # Load environment variables from .env file
 load_dotenv()
 
-# --- Tool Definitions (Real Action Tools) ---
+# --- Tool Definitions ---
 
 def get_server_time():
     """Returns the current server time."""
@@ -19,10 +22,8 @@ def get_server_time():
 def get_system_health():
     """
     Retrieves real-time system metrics (CPU, RAM, Disk) from the hosting server.
-    Useful for SRE tasks or checking infrastructure load.
     """
     try:
-        # Interval of 0.1s to get an immediate reading
         cpu_percent = psutil.cpu_percent(interval=0.1)
         memory = psutil.virtual_memory()
         disk = psutil.disk_usage('/')
@@ -39,47 +40,26 @@ def get_system_health():
         return f"Error reading system stats: {str(e)}"
 
 def update_github_file(repo_name: str, file_path: str, content: str, commit_message: str = "Update via Proxi"):
-    """
-    Updates a file in a GitHub repository. If the file doesn't exist, it creates it.
-    Args:
-        repo_name: The full repository name (e.g., 'username/repo').
-        file_path: The path to the file within the repository.
-        content: The new content for the file.
-        commit_message: The commit message for the update.
-    """
+    """Updates or creates a file in a GitHub repository."""
     token = os.getenv("GITHUB_TOKEN")
-    if not token:
-        return "Error: GITHUB_TOKEN environment variable is missing."
-
+    if not token: return "Error: GITHUB_TOKEN environment variable is missing."
     try:
         g = Github(token)
         repo = g.get_repo(repo_name)
-        
         try:
-            # Try to get the file to update it
             file_content = repo.get_contents(file_path)
             repo.update_file(file_path, commit_message, content, file_content.sha)
             return f"Successfully updated '{file_path}' in '{repo_name}'."
         except Exception:
-            # File likely doesn't exist, create it
             repo.create_file(file_path, commit_message, content)
             return f"Successfully created new file '{file_path}' in '{repo_name}'."
-            
     except Exception as e:
         return f"GitHub Action Failed: {str(e)}"
 
 def create_github_issue(repo_name: str, title: str, body: str):
-    """
-    Creates a new issue in a GitHub repository.
-    Args:
-        repo_name: The full repository name (e.g., 'username/repo').
-        title: The title of the issue.
-        body: The detailed description of the issue.
-    """
+    """Creates a new issue in a GitHub repository."""
     token = os.getenv("GITHUB_TOKEN")
-    if not token:
-        return "Error: GITHUB_TOKEN environment variable is missing."
-
+    if not token: return "Error: GITHUB_TOKEN environment variable is missing."
     try:
         g = Github(token)
         repo = g.get_repo(repo_name)
@@ -89,7 +69,7 @@ def create_github_issue(repo_name: str, title: str, body: str):
         return f"GitHub Action Failed: {str(e)}"
 
 def run_diagnostic(service_name: str):
-    """Runs a simulated diagnostic check on a specific service (Mock)."""
+    """Runs a simulated diagnostic check on a specific service."""
     if service_name.lower() == "database":
         return "Database latency: 12ms. Connection pool: 80%."
     elif service_name.lower() == "api":
@@ -99,10 +79,9 @@ def run_diagnostic(service_name: str):
 
 class GeminiService:
     """
-    Service layer for interacting with Google AI Studio (Gemini) using Tiered Compute.
+    Service layer for interacting with Google AI Studio (Gemini).
     """
     
-    # Tiered Model Constants
     AUDIO_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025" 
     FAST_TEXT_MODEL = "gemini-3-flash-preview"                  
     SMART_TEXT_MODEL = "gemini-3-pro-preview"                   
@@ -115,59 +94,100 @@ class GeminiService:
         else:
             genai.configure(api_key=self.api_key)
         
-        # Register Tools - Mixing Real SRE/GitHub tools with some essential mocks
-        self.tools = [
+        # Initialize Desktop Service
+        try:
+            self.desktop_service = DesktopService()
+        except Exception as e:
+            print(f"Failed to init DesktopService (Headless mode?): {e}")
+            self.desktop_service = None
+
+        # State to hold the latest pending action for HITL
+        self.latest_pending_action = None
+
+    # --- Tool Wrapper for HITL ---
+    def operate_desktop(self, task_description: str):
+        """
+        Uses computer vision to find UI elements and propose an action.
+        This tool DOES NOT execute the action. It returns a proposal for User Approval.
+        """
+        if not self.desktop_service:
+            return "Desktop service unavailable."
+
+        print(f"Ghost Operator: Analyzing screen for task '{task_description}'...")
+        
+        # 1. Get UI Manifest
+        elements = self.desktop_service.get_ui_manifest()
+        screen_size = self.desktop_service.get_screen_size()
+        
+        # 2. Ask Gemini (Internal Thought) to map Task -> Coordinates
+        # We use a separate model call here to reason about the UI
+        prompt = f"""
+        You are a UI Automation Agent.
+        Screen Size: {screen_size}
+        Task: {task_description}
+        
+        Visible UI Elements (Text & Coordinates):
+        {json.dumps(elements[:50])} 
+        (List truncated to top 50 elements for context)
+
+        Determine the best single action (click, type, or hotkey).
+        Return ONLY valid JSON. Format:
+        {{ "action": "click", "x": 123, "y": 456, "reason": "Clicked File menu" }}
+        OR
+        {{ "action": "type", "text": "hello", "reason": "Typed into text box" }}
+        """
+
+        try:
+            model = genai.GenerativeModel("gemini-3-flash-preview")
+            result = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+            plan = json.loads(result.text)
+            
+            # 3. Store the pending action
+            self.latest_pending_action = PendingAction(
+                type=plan.get("action"),
+                description=f"Desktop Action: {plan.get('reason', task_description)}",
+                data=plan
+            )
+            
+            return f"ACTION_PROPOSED: {plan.get('reason')}. Waiting for user confirmation."
+        except Exception as e:
+            print(f"Planning failed: {e}")
+            return f"Failed to plan desktop action: {e}"
+
+    async def generate_reflex_response(self, prompt: str) -> str:
+        model = genai.GenerativeModel(self.FAST_TEXT_MODEL)
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        return response.text
+
+    async def generate_deep_thought(self, prompt: str) -> str:
+        """
+        Executes with tools. Checks for desktop actions.
+        """
+        self.latest_pending_action = None # Reset state
+
+        # Register tools including the bound method for desktop
+        tools = [
             get_server_time, 
             get_system_health, 
             update_github_file, 
             create_github_issue,
-            run_diagnostic
+            run_diagnostic,
+            self.operate_desktop
         ]
 
-    async def generate_audio_response(self, audio_stream: bytes) -> str:
-        """
-        Processes audio input using the Native Audio model.
-        Currently mocked for REST API context, as real-time audio uses WebRTC on client.
-        """
-        return "Audio processed (Mock)"
-
-    async def generate_reflex_response(self, prompt: str) -> str:
-        """
-        Fast, deterministic response for simple queries and tool routing.
-        Uses Gemini 3 Flash.
-        """
         try:
-            model = genai.GenerativeModel(self.FAST_TEXT_MODEL)
-            # Low temperature for deterministic, quick answers
-            config = GenerationConfig(temperature=0.3)
-            
-            response = await asyncio.to_thread(
-                model.generate_content, 
-                prompt, 
-                generation_config=config
-            )
-            return response.text
-        except Exception as e:
-            print(f"Reflex Error: {e}")
-            return f"Error (Reflex): {str(e)}"
-
-    async def generate_deep_thought(self, prompt: str) -> str:
-        """
-        Complex reasoning, coding, and architecture tasks.
-        Uses Gemini 3 Pro with Tools and Automatic Function Calling.
-        """
-        try:
-            # Initialize model with tools
-            model = genai.GenerativeModel(model_name=self.SMART_TEXT_MODEL, tools=self.tools)
-            
-            # Enable automatic function calling
+            model = genai.GenerativeModel(model_name=self.SMART_TEXT_MODEL, tools=tools)
             chat = model.start_chat(enable_automatic_function_calling=True)
-            config = GenerationConfig(temperature=0.7)
             
+            # System instruction update for desktop awareness
+            sys_prompt = "You have access to the user's desktop via 'operate_desktop'. If the user asks to click/type something, use it. The tool will pause for confirmation."
+            
+            # We append the user prompt to the system context implicitly or explicitly
+            full_prompt = f"{sys_prompt}\nUser: {prompt}"
+
             response = await asyncio.to_thread(
                 chat.send_message,
-                prompt,
-                generation_config=config
+                full_prompt
             )
             
             return response.text
@@ -176,23 +196,18 @@ class GeminiService:
             return f"Error (Deep Thought): {str(e)}"
 
     async def process_vision_command(self, image_bytes: bytes, user_prompt: str) -> str:
-        """
-        Analyzes an image using the Vision Model (Gemini 3 Pro Image).
-        Acts as the 'Architect' analyzing diagrams or code screenshots.
-        """
-        try:
-            model = genai.GenerativeModel(self.VISION_MODEL)
-            
-            # The SDK handles the image object wrapping automatically if dictionary provided
-            # Gemini 3 Pro Image supports text + image prompts
-            response = await asyncio.to_thread(
-                model.generate_content,
-                contents=[
-                    user_prompt,
-                    {'mime_type': 'image/png', 'data': image_bytes}
-                ]
-            )
-            return response.text
-        except Exception as e:
-            print(f"Vision Error: {e}")
-            return f"Error (Vision): {str(e)}"
+        model = genai.GenerativeModel(self.VISION_MODEL)
+        response = await asyncio.to_thread(
+            model.generate_content,
+            contents=[user_prompt, {'mime_type': 'image/png', 'data': image_bytes}]
+        )
+        return response.text
+        
+    def execute_pending_action(self):
+        """Called by the confirmation endpoint."""
+        if self.latest_pending_action and self.desktop_service:
+            action = self.latest_pending_action
+            result = self.desktop_service.execute_action(action.type, action.data)
+            self.latest_pending_action = None
+            return result
+        return "No pending action or desktop service unavailable."

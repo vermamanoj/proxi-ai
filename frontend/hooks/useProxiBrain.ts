@@ -1,19 +1,17 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { LogEntry, MessageSource, Complexity, AgentStatus } from '../types';
+import { LogEntry, MessageSource, Complexity, AgentStatus, PendingAction } from '../types';
 
 export const useProxiBrain = () => {
   const [status, setStatus] = useState<AgentStatus>('idle');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [complexity, setComplexity] = useState<Complexity>('fast');
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
-  // Pre-load voices to ensure we don't get the default robotic voice
   useEffect(() => {
     const loadVoices = () => {
       voicesRef.current = window.speechSynthesis.getVoices();
     };
-    
-    // Chrome loads voices asynchronously
     if (window.speechSynthesis.onvoiceschanged !== undefined) {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
@@ -32,37 +30,31 @@ export const useProxiBrain = () => {
 
   const speak = useCallback((text: string) => {
     if (!window.speechSynthesis) return;
-    
-    window.speechSynthesis.cancel(); // Stop previous
-
+    window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Priority: Google US English -> Microsoft Zira -> Default
     const preferredVoices = voicesRef.current;
     const techVoice = preferredVoices.find(v => v.name.includes('Google US English')) 
                    || preferredVoices.find(v => v.name.includes('Zira')) 
                    || preferredVoices[0];
-                   
     if (techVoice) utterance.voice = techVoice;
-    
     utterance.rate = 1.05; 
-    utterance.pitch = 0.95; // Slightly deeper
-
+    utterance.pitch = 0.95; 
     utterance.onstart = () => setStatus('speaking');
-    utterance.onend = () => setStatus('idle');
-    utterance.onerror = (e) => {
-        console.error("TTS Error", e);
-        setStatus('idle');
+    utterance.onend = () => {
+      // If we have a pending action, switch to waiting state after speaking
+      if (pendingAction) setStatus('awaiting_confirmation');
+      else setStatus('idle');
     };
-
+    utterance.onerror = () => setStatus('idle');
     window.speechSynthesis.speak(utterance);
-  }, []);
+  }, [pendingAction]);
 
   const sendCommand = async (message: string) => {
     if (!message.trim()) return;
 
     addLog(MessageSource.USER, message);
     setStatus('processing');
+    setPendingAction(null); // Clear previous
 
     try {
       const res = await fetch('/api/chat', {
@@ -74,15 +66,17 @@ export const useProxiBrain = () => {
         })
       });
 
-      if (!res.ok) {
-        throw new Error(`Server error: ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
       const data = await res.json();
       
       addLog(MessageSource.AGENT, data.response, { model: data.model_used });
       
-      // Auto-speak the response
+      if (data.pending_action) {
+        setPendingAction(data.pending_action);
+        // Status will update to 'awaiting_confirmation' after speech ends
+      }
+      
       speak(data.response);
 
     } catch (err: any) {
@@ -90,6 +84,31 @@ export const useProxiBrain = () => {
       addLog(MessageSource.SYSTEM, `Error: ${err.message}`);
       setStatus('idle');
     }
+  };
+
+  const confirmAction = async () => {
+    if (!pendingAction) return;
+    
+    addLog(MessageSource.SYSTEM, `Executing: ${pendingAction.description}`);
+    setStatus('processing');
+
+    try {
+        const res = await fetch('/api/desktop/execute', { method: 'POST' });
+        const data = await res.json();
+        addLog(MessageSource.TOOL, `Ghost Operator Result: ${data.result}`);
+        setPendingAction(null);
+        setStatus('idle');
+        speak("Action executed successfully.");
+    } catch (err: any) {
+        addLog(MessageSource.SYSTEM, `Execution Error: ${err.message}`);
+        setStatus('idle');
+    }
+  };
+
+  const cancelAction = () => {
+      setPendingAction(null);
+      addLog(MessageSource.SYSTEM, "Action cancelled by user.");
+      setStatus('idle');
   };
 
   const sendVisionCommand = async (file: File, message: string) => {
@@ -101,27 +120,16 @@ export const useProxiBrain = () => {
     formData.append('prompt', message);
 
     try {
-      const res = await fetch('/api/vision', {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!res.ok) {
-        throw new Error(`Vision Upload Error: ${res.status}`);
-      }
-
+      const res = await fetch('/api/vision', { method: 'POST', body: formData });
+      if (!res.ok) throw new Error(`Vision Upload Error: ${res.status}`);
       const data = await res.json();
-      
       addLog(MessageSource.AGENT, data.response, { 
         model: data.model_used,
         type: 'vision_analysis',
         filename: file.name 
       });
-      
       speak("Visual analysis complete. Rendering architect report.");
-
     } catch (err: any) {
-      console.error(err);
       addLog(MessageSource.SYSTEM, `Error: ${err.message}`);
       setStatus('idle');
     }
@@ -135,8 +143,11 @@ export const useProxiBrain = () => {
     status,
     logs,
     complexity,
+    pendingAction,
     sendCommand,
     sendVisionCommand,
-    toggleComplexity
+    toggleComplexity,
+    confirmAction,
+    cancelAction
   };
 };

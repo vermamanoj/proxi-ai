@@ -2,7 +2,7 @@ import uvicorn
 import os
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from backend.models.api_models import ChatRequest, ChatResponse
+from backend.models.api_models import ChatRequest, ChatResponse, ActionConfirmation
 from backend.services.gemini_service import GeminiService
 
 app = FastAPI(
@@ -24,7 +24,6 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    """Root endpoint to verify backend is running."""
     return {"message": "Proxi Backend is running", "status": "online"}
 
 @app.get("/api/health")
@@ -33,27 +32,25 @@ async def health_check():
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-    """
-    Endpoint to interact with Gemini via the Backend Service.
-    Supports tiered compute via the 'complexity' parameter.
-    """
     try:
         response_text = ""
         model_used = ""
 
-        # Tiered Compute Routing
         if request.complexity == "deep":
             response_text = await gemini_service.generate_deep_thought(request.message)
             model_used = gemini_service.SMART_TEXT_MODEL
         else:
-            # Default to "fast" / reflex
             response_text = await gemini_service.generate_reflex_response(request.message)
             model_used = gemini_service.FAST_TEXT_MODEL
+
+        # Check if the tool execution triggered a pending action
+        pending_action = gemini_service.latest_pending_action
 
         return ChatResponse(
             response=response_text,
             status="success",
-            model_used=model_used
+            model_used=model_used,
+            pending_action=pending_action
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -63,19 +60,25 @@ async def vision_analysis(
     file: UploadFile = File(...),
     prompt: str = Form("Analyze this architecture diagram")
 ):
-    """
-    Multimodal endpoint for analyzing images (Architect Mode).
-    Uses Gemini 3 Pro Image Preview.
-    """
     try:
         contents = await file.read()
         response_text = await gemini_service.process_vision_command(contents, prompt)
-        
         return ChatResponse(
             response=response_text,
             status="success",
             model_used=gemini_service.VISION_MODEL
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/desktop/execute")
+async def execute_desktop_action():
+    """
+    Executes the action waiting in the HITL buffer.
+    """
+    try:
+        result = gemini_service.execute_pending_action()
+        return {"status": "executed", "result": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -27,4 +27,10 @@ export interface ActiveToolState {
 
 export type Complexity = 'fast' | 'deep';
 
-export type AgentStatus = 'idle' | 'processing' | 'speaking' | 'analyzing_visuals';
+export type AgentStatus = 'idle' | 'processing' | 'speaking' | 'analyzing_visuals' | 'awaiting_confirmation';
+
+export interface PendingAction {
+  type: string;
+  description: string;
+  data: any;
+}
