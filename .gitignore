@@ -23,6 +23,7 @@ backend/static/
 .DS_Store
 Thumbs.db
 
-# Deployment - Ensure these are tracked
+# Deployment
 !deploy/
 !deploy.sh
+!setup.sh

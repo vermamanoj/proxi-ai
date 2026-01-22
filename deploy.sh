@@ -9,6 +9,13 @@ echo "========================================"
 echo "   🚀 PROXI PRODUCTION DEPLOYMENT"
 echo "========================================"
 
+# Check for Docker
+if ! command -v docker &> /dev/null; then
+    echo "❌ Error: Docker is not installed."
+    echo "👉 Run 'bash setup.sh' first to install dependencies."
+    exit 1
+fi
+
 # 1. Pull latest code
 echo "[1/4] Pulling latest changes from git..."
 git pull origin main
