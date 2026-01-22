@@ -1,0 +1,24 @@
+# Node
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.env
+
+# Backend Static (Build Artifacts)
+backend/static/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,7 @@
+{
+  "name": "Proxi - Headless Operator",
+  "description": "Voice-first agentic interface for Headless SDLC tasks using Gemini Live API.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
