@@ -1,35 +1,56 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit, Camera } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit, Camera, Play, Square, Mic, MicOff } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
+import { useGeminiLive } from './hooks/useGeminiLive';
 import { Visualizer } from './components/Visualizer';
 import { LogView } from './components/LogView';
 import { ToolStatus } from './components/ToolStatus';
 import { SystemStatus } from './components/SystemStatus';
 
 const App: React.FC = () => {
+  // Hook 1: Text & Vision (REST API)
   const { 
-    status, 
-    logs, 
+    status: brainStatus, 
+    logs: brainLogs, 
     complexity, 
     sendCommand, 
     sendVisionCommand,
     toggleComplexity 
   } = useProxiBrain();
 
+  // Hook 2: Real-time Voice (Live API / WebRTC)
+  const { 
+    connected: liveConnected, 
+    connect: liveConnect, 
+    disconnect: liveDisconnect, 
+    volume: liveVolume, 
+    logs: liveLogs, 
+    activeTool: liveActiveTool 
+  } = useGeminiLive();
+
   const [input, setInput] = useState('');
+  const [micEnabled, setMicEnabled] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Merge logs from both systems
+  const allLogs = useMemo(() => {
+    return [...brainLogs, ...liveLogs].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  }, [brainLogs, liveLogs]);
+
+  // Combined Status Logic
+  const globalStatus = liveConnected ? 'UPLINK_ACTIVE' : brainStatus === 'idle' ? 'STANDBY' : brainStatus.toUpperCase();
+
   // Auto-focus input
   useEffect(() => {
-    if (status === 'idle') {
+    if (globalStatus === 'STANDBY') {
       inputRef.current?.focus();
     }
-  }, [status]);
+  }, [globalStatus]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && status === 'idle') {
+    if (input.trim()) {
       sendCommand(input);
       setInput('');
     }
@@ -37,11 +58,11 @@ const App: React.FC = () => {
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && status === 'idle') {
+    if (file) {
       const prompt = input.trim() || "Analyze this image and provide a technical assessment.";
       sendVisionCommand(file, prompt);
-      setInput(''); // Clear prompt after send
-      if (fileInputRef.current) fileInputRef.current.value = ''; // Reset file input
+      setInput('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -55,27 +76,35 @@ const App: React.FC = () => {
       <header className="border-b border-proxi-gray bg-proxi-dark/80 backdrop-blur-md p-4 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full ${status !== 'idle' ? 'bg-proxi-success shadow-[0_0_10px_#00ff9d] animate-pulse' : 'bg-proxi-gray'}`} />
+            <div className={`w-3 h-3 rounded-full ${liveConnected ? 'bg-proxi-success shadow-[0_0_10px_#00ff9d] animate-pulse' : 'bg-proxi-gray'}`} />
             <h1 className="text-xl font-bold tracking-widest text-white">PROXI<span className="text-proxi-accent">.OS</span></h1>
-            <span className="text-xs text-gray-500 border border-gray-700 px-2 py-0.5 rounded">v1.1.0-VISION</span>
+            <span className="text-xs text-gray-500 border border-gray-700 px-2 py-0.5 rounded">v2.0.0-HYBRID</span>
           </div>
           <div className="flex items-center gap-4">
-             <div className="hidden md:flex items-center gap-2 text-xs text-gray-400">
-                <Cloud className="w-4 h-4" />
-                <span>us-central1</span>
-             </div>
-             
+             {/* Uplink Control */}
+             <button
+              onClick={liveConnected ? liveDisconnect : liveConnect}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-sm text-xs font-bold transition-all ${
+                liveConnected 
+                  ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/50' 
+                  : 'bg-proxi-accent/10 text-proxi-accent hover:bg-proxi-accent/20 border border-proxi-accent/50'
+              }`}
+            >
+              {liveConnected ? <Square className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+              {liveConnected ? 'TERMINATE UPLINK' : 'INITIATE UPLINK'}
+            </button>
+
              {/* Complexity Toggle */}
              <button 
                 onClick={toggleComplexity}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded border transition-all text-xs font-bold ${
                   complexity === 'deep' 
                     ? 'bg-purple-500/10 border-purple-500 text-purple-400 shadow-[0_0_10px_rgba(168,85,247,0.2)]' 
-                    : 'bg-proxi-accent/10 border-proxi-accent text-proxi-accent'
+                    : 'bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500'
                 }`}
              >
                 {complexity === 'deep' ? <BrainCircuit className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
-                {complexity === 'deep' ? 'MODE: DEEP THOUGHT' : 'MODE: REFLEX'}
+                {complexity === 'deep' ? 'DEEP THOUGHT' : 'REFLEX MODE'}
              </button>
           </div>
         </div>
@@ -94,34 +123,48 @@ const App: React.FC = () => {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-sm font-bold text-gray-400 flex items-center gap-2">
                 <Activity className="w-4 h-4 text-proxi-accent" />
-                VOICE SYNTHESIS
+                {liveConnected ? 'AUDIO STREAM (WEBRTC)' : 'VOICE SYNTHESIS (TTS)'}
               </h2>
-              {status === 'speaking' && (
-                <div className="text-xs text-proxi-success animate-pulse">TRANSMITTING...</div>
+              {/* Mic Toggle (Only relevant for Live Mode) */}
+              {liveConnected && (
+                <button 
+                  onClick={() => setMicEnabled(!micEnabled)}
+                  className={`p-1.5 rounded hover:bg-white/5 transition-colors ${!micEnabled ? 'text-red-500' : 'text-proxi-success'}`}
+                >
+                   {micEnabled ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+                </button>
               )}
             </div>
 
             <div className="h-48 bg-black/50 rounded border border-proxi-gray/50 flex items-center justify-center relative">
-               <Visualizer active={status === 'speaking'} />
+               {/* Visualizer handles both Live Volume and TTS Status */}
+               <Visualizer active={liveConnected || brainStatus === 'speaking'} />
+               
                {/* Overlay Scanlines */}
                <div className="absolute inset-0 pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
+               
+               {!liveConnected && brainStatus === 'idle' && (
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span className="text-[10px] text-gray-600 tracking-widest">OFFLINE</span>
+                  </div>
+               )}
             </div>
 
             <div className="mt-4 flex justify-between text-xs text-gray-500 font-mono">
-              <span>STATUS: {status.toUpperCase()}</span>
-              <span>LATENCY: {status === 'processing' ? 'CALCULATING...' : '12ms'}</span>
+              <span>STATUS: {globalStatus}</span>
+              <span>LATENCY: {liveConnected ? '45ms' : '12ms'}</span>
             </div>
           </div>
 
           {/* System Status */}
           <SystemStatus 
-            connected={true} 
-            processing={status === 'processing'} 
-            analyzing={status === 'analyzing_visuals'}
+            connected={liveConnected} 
+            processing={brainStatus === 'processing' || !!liveActiveTool} 
+            analyzing={brainStatus === 'analyzing_visuals'}
           />
 
           {/* Tool Execution Status (The "Hands") */}
-          <ToolStatus activeTool={null} />
+          <ToolStatus activeTool={liveActiveTool} />
         </div>
 
         {/* Right Column: Terminal/Logs (8 Cols) */}
@@ -139,7 +182,7 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex-1 overflow-hidden relative bg-black/40">
-            <LogView logs={logs} />
+            <LogView logs={allLogs} />
              {/* Decorative grid overlay */}
              <div className="absolute inset-0 pointer-events-none" 
                   style={{
@@ -164,8 +207,8 @@ const App: React.FC = () => {
                     type="text" 
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={status === 'processing' ? "Processing command..." : "Enter system command or upload visual..."}
-                    disabled={status === 'processing' || status === 'analyzing_visuals'}
+                    placeholder={liveConnected ? "Voice Uplink Active. Speak now..." : "Enter system command or upload visual..."}
+                    // We allow typing even if connected, for Hybrid mode
                     className="flex-1 bg-transparent border-none outline-none text-gray-100 placeholder-gray-700 focus:ring-0 text-lg"
                     autoComplete="off"
                     spellCheck="false"
@@ -184,22 +227,18 @@ const App: React.FC = () => {
                 <button 
                     type="button"
                     onClick={triggerFileUpload}
-                    disabled={status !== 'idle'}
                     className="p-2 text-proxi-accent/70 hover:text-proxi-accent transition-colors disabled:opacity-30"
                     title="Upload Visual for Analysis"
                 >
                     <Camera className="w-5 h-5" />
                 </button>
                 
-                {/* Blinking Cursor Simulation (only visible if input is active) */}
-                <div className={`w-3 h-6 bg-proxi-accent/50 ${status === 'idle' ? 'animate-pulse' : 'opacity-0'}`} />
-
                 <button 
                     type="submit"
-                    disabled={status === 'processing' || status === 'analyzing_visuals' || !input.trim()}
+                    disabled={!input.trim()}
                     className="ml-2 px-4 py-2 text-proxi-black bg-proxi-accent rounded hover:bg-proxi-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold uppercase text-xs tracking-wider"
                 >
-                    {status === 'processing' ? 'EXEC' : 'SEND'}
+                    SEND
                 </button>
             </form>
         </div>
