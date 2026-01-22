@@ -2,13 +2,14 @@ version: '3.8'
 
 services:
   backend:
-    image: python:3.12-slim
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: proxi-backend:latest
     working_dir: /app
     volumes:
       - ./backend:/app/backend
       - ./.env:/app/.env
-    # Install dependencies and start server
-    command: sh -c "pip install -r backend/requirements.txt && uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
       - "4000:8000"
     env_file:
