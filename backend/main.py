@@ -1,6 +1,6 @@
 import uvicorn
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from backend.models.api_models import ChatRequest, ChatResponse
 from backend.services.gemini_service import GeminiService
@@ -54,6 +54,27 @@ async def chat(request: ChatRequest):
             response=response_text,
             status="success",
             model_used=model_used
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/vision", response_model=ChatResponse)
+async def vision_analysis(
+    file: UploadFile = File(...),
+    prompt: str = Form("Analyze this architecture diagram")
+):
+    """
+    Multimodal endpoint for analyzing images (Architect Mode).
+    Uses Gemini 3 Pro Image Preview.
+    """
+    try:
+        contents = await file.read()
+        response_text = await gemini_service.process_vision_command(contents, prompt)
+        
+        return ChatResponse(
+            response=response_text,
+            status="success",
+            model_used=gemini_service.VISION_MODEL
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

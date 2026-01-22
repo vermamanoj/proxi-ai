@@ -27,4 +27,4 @@ export interface ActiveToolState {
 
 export type Complexity = 'fast' | 'deep';
 
-export type AgentStatus = 'idle' | 'processing' | 'speaking';
+export type AgentStatus = 'idle' | 'processing' | 'speaking' | 'analyzing_visuals';

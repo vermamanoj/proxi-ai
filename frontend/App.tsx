@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit } from 'lucide-react';
+import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit, Camera } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { Visualizer } from './components/Visualizer';
 import { LogView } from './components/LogView';
@@ -12,11 +12,13 @@ const App: React.FC = () => {
     logs, 
     complexity, 
     sendCommand, 
+    sendVisionCommand,
     toggleComplexity 
   } = useProxiBrain();
 
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-focus input
   useEffect(() => {
@@ -33,6 +35,20 @@ const App: React.FC = () => {
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && status === 'idle') {
+      const prompt = input.trim() || "Analyze this image and provide a technical assessment.";
+      sendVisionCommand(file, prompt);
+      setInput(''); // Clear prompt after send
+      if (fileInputRef.current) fileInputRef.current.value = ''; // Reset file input
+    }
+  };
+
+  const triggerFileUpload = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <div className="min-h-screen bg-proxi-black text-gray-200 flex flex-col font-mono selection:bg-proxi-accent selection:text-proxi-black">
       {/* Header */}
@@ -41,7 +57,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
             <div className={`w-3 h-3 rounded-full ${status !== 'idle' ? 'bg-proxi-success shadow-[0_0_10px_#00ff9d] animate-pulse' : 'bg-proxi-gray'}`} />
             <h1 className="text-xl font-bold tracking-widest text-white">PROXI<span className="text-proxi-accent">.OS</span></h1>
-            <span className="text-xs text-gray-500 border border-gray-700 px-2 py-0.5 rounded">v1.0.0-RC1</span>
+            <span className="text-xs text-gray-500 border border-gray-700 px-2 py-0.5 rounded">v1.1.0-VISION</span>
           </div>
           <div className="flex items-center gap-4">
              <div className="hidden md:flex items-center gap-2 text-xs text-gray-400">
@@ -98,7 +114,11 @@ const App: React.FC = () => {
           </div>
 
           {/* System Status */}
-          <SystemStatus connected={true} processing={status === 'processing'} />
+          <SystemStatus 
+            connected={true} 
+            processing={status === 'processing'} 
+            analyzing={status === 'analyzing_visuals'}
+          />
 
           {/* Tool Execution Status (The "Hands") */}
           <ToolStatus activeTool={null} />
@@ -144,19 +164,39 @@ const App: React.FC = () => {
                     type="text" 
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={status === 'processing' ? "Processing command..." : "Enter system command..."}
-                    disabled={status === 'processing'}
+                    placeholder={status === 'processing' ? "Processing command..." : "Enter system command or upload visual..."}
+                    disabled={status === 'processing' || status === 'analyzing_visuals'}
                     className="flex-1 bg-transparent border-none outline-none text-gray-100 placeholder-gray-700 focus:ring-0 text-lg"
                     autoComplete="off"
                     spellCheck="false"
                 />
+                
+                {/* Hidden File Input */}
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileSelect} 
+                    className="hidden" 
+                    accept="image/*"
+                />
+
+                {/* Camera / Upload Button */}
+                <button 
+                    type="button"
+                    onClick={triggerFileUpload}
+                    disabled={status !== 'idle'}
+                    className="p-2 text-proxi-accent/70 hover:text-proxi-accent transition-colors disabled:opacity-30"
+                    title="Upload Visual for Analysis"
+                >
+                    <Camera className="w-5 h-5" />
+                </button>
                 
                 {/* Blinking Cursor Simulation (only visible if input is active) */}
                 <div className={`w-3 h-6 bg-proxi-accent/50 ${status === 'idle' ? 'animate-pulse' : 'opacity-0'}`} />
 
                 <button 
                     type="submit"
-                    disabled={status === 'processing' || !input.trim()}
+                    disabled={status === 'processing' || status === 'analyzing_visuals' || !input.trim()}
                     className="ml-2 px-4 py-2 text-proxi-black bg-proxi-accent rounded hover:bg-proxi-accent/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold uppercase text-xs tracking-wider"
                 >
                     {status === 'processing' ? 'EXEC' : 'SEND'}

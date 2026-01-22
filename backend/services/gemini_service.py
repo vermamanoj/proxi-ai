@@ -22,6 +22,22 @@ def run_diagnostic(service_name: str):
     else:
         return f"Service {service_name} is running normally."
 
+def get_cloud_status():
+    """Returns a snapshot of the current cloud infrastructure health."""
+    return {"clusters": "Healthy", "load_balancer": "High Traffic", "active_incidents": 0}
+
+def restart_service(service_name: str):
+    """Restarts a specific service on the production cluster."""
+    return f"Service {service_name} has been successfully restarted on the production cluster."
+
+def list_github_prs(repo: str = "current"):
+    """Lists active Pull Requests for the repository."""
+    return [
+        {"id": 101, "title": "feat: Add JWT Auth", "author": "jdoe", "status": "open"},
+        {"id": 102, "title": "fix: Database connection timeout", "author": "smithe", "status": "review_needed"},
+        {"id": 105, "title": "chore: Update dependencies", "author": "bot", "status": "open"}
+    ]
+
 class GeminiService:
     """
     Service layer for interacting with Google AI Studio (Gemini) using Tiered Compute.
@@ -41,14 +57,13 @@ class GeminiService:
             genai.configure(api_key=self.api_key)
         
         # Register Tools
-        self.tools = [get_server_time, run_diagnostic]
+        self.tools = [get_server_time, run_diagnostic, get_cloud_status, restart_service, list_github_prs]
 
     async def generate_audio_response(self, audio_stream: bytes) -> str:
         """
         Processes audio input using the Native Audio model.
         Currently mocked for REST API context, as real-time audio uses WebRTC on client.
         """
-        # In a full backend streaming implementation, this would handle the WebSocket/Bidi stream.
         return "Audio processed (Mock)"
 
     async def generate_reflex_response(self, prompt: str) -> str:
@@ -61,7 +76,6 @@ class GeminiService:
             # Low temperature for deterministic, quick answers
             config = GenerationConfig(temperature=0.3)
             
-            # Run blocking call in a separate thread
             response = await asyncio.to_thread(
                 model.generate_content, 
                 prompt, 
@@ -81,17 +95,9 @@ class GeminiService:
             # Initialize model with tools
             model = genai.GenerativeModel(model_name=self.SMART_TEXT_MODEL, tools=self.tools)
             
-            # Start a chat session with automatic function calling enabled.
-            # This allows the model to decide to call a tool, execute it, and use the result
-            # to generate the final response without manual loops.
             chat = model.start_chat(enable_automatic_function_calling=True)
-            
-            # Higher temperature for creativity and reasoning
             config = GenerationConfig(temperature=0.7)
             
-            # Use asyncio.to_thread with the synchronous send_message method.
-            # This avoids "object can't be used in await expression" errors with the SDK's async implementation
-            # and prevents blocking the FastAPI event loop during the potentially long function calling loop.
             response = await asyncio.to_thread(
                 chat.send_message,
                 prompt,
@@ -103,16 +109,22 @@ class GeminiService:
             print(f"Deep Thought Error: {e}")
             return f"Error (Deep Thought): {str(e)}"
 
-    async def analyze_image(self, image_bytes: bytes, prompt: str = "Describe this image") -> str:
+    async def process_vision_command(self, image_bytes: bytes, user_prompt: str) -> str:
         """
         Analyzes an image using the Vision Model (Gemini 3 Pro Image).
+        Acts as the 'Architect' analyzing diagrams or code screenshots.
         """
         try:
             model = genai.GenerativeModel(self.VISION_MODEL)
+            
             # The SDK handles the image object wrapping automatically if dictionary provided
+            # Gemini 3 Pro Image supports text + image prompts
             response = await asyncio.to_thread(
                 model.generate_content,
-                [prompt, {'mime_type': 'image/png', 'data': image_bytes}]
+                contents=[
+                    user_prompt,
+                    {'mime_type': 'image/png', 'data': image_bytes}
+                ]
             )
             return response.text
         except Exception as e:

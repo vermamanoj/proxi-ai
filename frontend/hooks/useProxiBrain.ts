@@ -92,6 +92,41 @@ export const useProxiBrain = () => {
     }
   };
 
+  const sendVisionCommand = async (file: File, message: string) => {
+    addLog(MessageSource.USER, `[UPLOAD] ${file.name}: ${message}`);
+    setStatus('analyzing_visuals');
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('prompt', message);
+
+    try {
+      const res = await fetch('/api/vision', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!res.ok) {
+        throw new Error(`Vision Upload Error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      
+      addLog(MessageSource.AGENT, data.response, { 
+        model: data.model_used,
+        type: 'vision_analysis',
+        filename: file.name 
+      });
+      
+      speak("Visual analysis complete. Rendering architect report.");
+
+    } catch (err: any) {
+      console.error(err);
+      addLog(MessageSource.SYSTEM, `Error: ${err.message}`);
+      setStatus('idle');
+    }
+  };
+
   const toggleComplexity = () => {
     setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
   };
@@ -101,6 +136,7 @@ export const useProxiBrain = () => {
     logs,
     complexity,
     sendCommand,
+    sendVisionCommand,
     toggleComplexity
   };
 };
