@@ -49,7 +49,7 @@ export const LogView: React.FC<LogViewProps> = ({ logs }) => {
                {/* Vision Analysis Block (Architect Mode) */}
                {isVision ? (
                  <div className="mt-1 border-l-2 border-proxi-success pl-3 py-1">
-                    <div className="text-xs text-proxi-success mb-2 font-bold tracking-wider">>> ANALYSIS_REPORT: {log.metadata.filename}</div>
+                    <div className="text-xs text-proxi-success mb-2 font-bold tracking-wider">&gt;&gt; ANALYSIS_REPORT: {log.metadata.filename}</div>
                     <div className="text-proxi-success/90 whitespace-pre-wrap font-mono text-xs leading-relaxed">
                         {log.text}
                     </div>
