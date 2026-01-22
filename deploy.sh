@@ -12,9 +12,10 @@ if [ -d "frontend" ]; then
 fi
 
 echo "Installing frontend dependencies..."
-# Use --production=false to ensure devDependencies (like Vite) are installed
-# Removed output suppression to allow debugging errors
-npm install --production=false
+# Force development environment to ensure devDependencies (like Vite) are installed
+# This overrides any global NODE_ENV=production setting in Cloud Shell
+export NODE_ENV=development
+npm install
 
 if [ $? -ne 0 ]; then
     echo "Error: npm install failed."
