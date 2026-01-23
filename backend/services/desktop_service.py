@@ -6,32 +6,29 @@ import json
 import platform
 import ctypes
 import time
+from datetime import datetime
 
 class DesktopService:
     def __init__(self):
-        # Initialize EasyOCR reader (loads model into memory)
-        print("Initializing Desktop Ghost Operator (EasyOCR)...")
+        print("[INIT] Initializing Desktop Ghost Operator (EasyOCR)...")
+        # gpu=False is safer for compatibility, though slower
         self.reader = easyocr.Reader(['en'], gpu=False)
         
-        # PyAutoGUI safety & reliability settings
         pyautogui.FAILSAFE = True
-        pyautogui.PAUSE = 0.2  # Optimized for Flash (0.2s interval)
+        pyautogui.PAUSE = 0.5  # Increased slightly for reliability
         
-        # Windows DPI Scaling Fix
         if platform.system() == "Windows":
             try:
                 ctypes.windll.user32.SetProcessDPIAware()
-                print("Windows DPI Awareness set for accurate coordinate mapping.")
+                print("[INIT] Windows DPI Awareness set.")
             except Exception as e:
-                print(f"Warning: Failed to set DPI awareness: {e}")
+                print(f"[WARN] Failed to set DPI awareness: {e}")
         
-        # Screen size
         self.screen_width, self.screen_height = pyautogui.size()
 
     def get_screen_map(self):
         """
         Atomic Tool: See.
-        Captures screenshot, runs OCR, and returns a COMPACT JSON string of text elements.
         """
         try:
             start_time = time.time()
@@ -51,10 +48,11 @@ class DesktopService:
             resized_img = cv2.resize(img_cv, dim, interpolation=cv2.INTER_AREA)
             
             # 4. Run OCR
-            # detail=1 returns bounding box, text, and confidence
             results = self.reader.readtext(resized_img, detail=1)
             
             elements = []
+            log_elements = [] # Plain text for debug file
+
             for (bbox, text, prob) in results:
                 if prob < 0.4: continue 
                 
@@ -64,43 +62,55 @@ class DesktopService:
                 center_x = int(((x1 + x2) / 2) * (100 / scale_percent))
                 center_y = int(((y1 + y2) / 2) * (100 / scale_percent))
                 
+                # Sanity check bounds
+                if center_x > self.screen_width or center_y > self.screen_height:
+                    continue
+
                 elements.append({
                     "text": text,
                     "x": center_x,
                     "y": center_y
                 })
+                log_elements.append(f"{text} ({center_x},{center_y})")
             
             duration = round(time.time() - start_time, 2)
-            print(f"[DEBUG] Screen OCR Complete: Found {len(elements)} elements in {duration}s")
             
-            # Return compact JSON string to save context tokens
+            # Write what we saw to the debug file manually here as well
+            # This helps debug OCR failures specifically
+            try:
+                with open("proxi_vision_debug.txt", "w", encoding="utf-8") as f:
+                    f.write(f"Last Scan: {datetime.now()}\n")
+                    f.write(f"Duration: {duration}s\n")
+                    f.write(f"Elements Found: {len(elements)}\n")
+                    f.write("\n".join(log_elements))
+            except: 
+                pass
+
+            print(f"[DEBUG] Screen OCR: Found {len(elements)} elements in {duration}s")
+            
             return json.dumps(elements, separators=(',', ':'))
 
         except Exception as e:
-            print(f"Screen Map Error: {e}")
+            print(f"[ERROR] Screen Map Error: {e}")
             return "[]"
 
     def click_at(self, x: int, y: int):
-        """Atomic Tool: Click."""
         try:
-            pyautogui.moveTo(x, y, duration=0.2)
+            pyautogui.moveTo(x, y, duration=0.3)
             pyautogui.click()
             return f"Clicked ({x}, {y})"
         except Exception as e:
             return f"Click Failed: {e}"
 
     def type_text(self, text: str):
-        """Atomic Tool: Type."""
         try:
-            pyautogui.write(text, interval=0.01)
+            pyautogui.write(text, interval=0.05)
             return f"Typed '{text}'"
         except Exception as e:
             return f"Type Failed: {e}"
 
     def press_hotkey(self, keys: list):
-        """Atomic Tool: Hotkey."""
         try:
-            # keys might come in as ['ctrl', 's'] or just 'enter'
             pyautogui.hotkey(*keys)
             return f"Pressed {'+'.join(keys)}"
         except Exception as e:
@@ -108,4 +118,3 @@ class DesktopService:
 
     def get_screen_size(self):
         return {"width": self.screen_width, "height": self.screen_height}
-        

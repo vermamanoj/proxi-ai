@@ -5,6 +5,7 @@ import psutil
 import json
 import warnings
 import time
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -21,19 +22,34 @@ from backend.models.api_models import PendingAction
 # 2. Force Load .env from Project Root with Robust Parsing
 root_dir = Path(__file__).resolve().parent.parent.parent
 env_path = root_dir / ".env"
+DEBUG_LOG_PATH = root_dir / "proxi_debug.log"
 
-print(f"Loading environment variables from: {env_path}")
-
-# Robust loading strategy for Windows (handling UTF-16/BOM from PowerShell)
-if env_path.exists():
-    # Try standard load
-    load_dotenv(dotenv_path=env_path, override=True)
+# --- Logging Helper ---
+def log_system(message: str, category: str = "INFO"):
+    """
+    Writes to Console AND proxi_debug.log with timestamps.
+    """
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    formatted_msg = f"[{timestamp}] [{category}] {message}"
     
-    # Fallback: Manual parse if key is missing (fixes encoding issues)
+    # Console
+    print(formatted_msg)
+    
+    # File
+    try:
+        with open(DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(formatted_msg + "\n")
+    except Exception as e:
+        print(f"Failed to write to log file: {e}")
+
+log_system(f"Loading environment variables from: {env_path}", "INIT")
+
+# Robust loading strategy for Windows
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path, override=True)
     if not os.getenv("GEMINI_API_KEY"):
-        print("⚠️ Standard .env load failed. Attempting manual parsing...")
+        log_system("Standard .env load failed. Attempting manual parsing...", "WARN")
         encodings = ['utf-8', 'utf-8-sig', 'utf-16', 'latin-1']
-        
         found = False
         for enc in encodings:
             try:
@@ -45,26 +61,23 @@ if env_path.exists():
                                 clean_key = parts[1].strip().strip('"').strip("'")
                                 if clean_key:
                                     os.environ['GEMINI_API_KEY'] = clean_key
-                                    print(f"✅ Successfully loaded key using encoding: {enc}")
+                                    log_system(f"Successfully loaded key using encoding: {enc}", "SUCCESS")
                                     found = True
                                     break
                 if found: break
             except Exception:
                 continue
-        
         if not found:
-             print("❌ Manual parsing also failed. Please check .env file content.")
+             log_system("Manual parsing also failed. Please check .env file content.", "ERROR")
 else:
-    print(f"❌ .env file NOT found at: {env_path}")
+    log_system(f".env file NOT found at: {env_path}", "ERROR")
 
 # --- Standard Tools ---
 
 def get_server_time():
-    """Returns the current server time."""
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 def get_system_health():
-    """Returns basic system stats."""
     try:
         cpu_percent = psutil.cpu_percent(interval=0.1)
         memory = psutil.virtual_memory()
@@ -77,7 +90,6 @@ def get_system_health():
         return f"Error: {str(e)}"
 
 def update_github_file(repo_name: str, file_path: str, content: str):
-    """Updates a file in GitHub."""
     token = os.getenv("GITHUB_TOKEN")
     if not token: return "Error: GITHUB_TOKEN missing."
     try:
@@ -94,7 +106,6 @@ def update_github_file(repo_name: str, file_path: str, content: str):
         return f"GitHub Error: {e}"
 
 def create_github_issue(repo_name: str, title: str, body: str):
-    """Creates a GitHub issue."""
     token = os.getenv("GITHUB_TOKEN")
     if not token: return "Error: GITHUB_TOKEN missing."
     try:
@@ -116,44 +127,47 @@ class GeminiService:
         self.api_key = os.getenv("GEMINI_API_KEY")
         if self.api_key:
             masked_key = self.api_key[:8] + "..." + self.api_key[-4:]
-            print(f"✅ GEMINI_API_KEY loaded successfully. ({masked_key})")
+            log_system(f"GEMINI_API_KEY loaded. ({masked_key})", "INIT")
             genai.configure(api_key=self.api_key)
         else:
-            print("❌ CRITICAL ERROR: GEMINI_API_KEY still missing after all attempts.")
+            log_system("CRITICAL ERROR: GEMINI_API_KEY missing.", "ERROR")
         
         try:
             self.desktop_service = DesktopService()
         except Exception as e:
-            print(f"Desktop Service Failed: {e}")
+            log_system(f"Desktop Service Failed: {e}", "ERROR")
             self.desktop_service = None
 
         self.latest_pending_action = None
 
     # --- Atomic Motor Skills (Tools) ---
-    # We add print statements here to debug tool execution flow
     
     def click_at(self, x: int, y: int):
         """Moves mouse to (x,y) and clicks."""
-        print(f"[DEBUG] Tool Call: click_at({x}, {y})")
+        log_system(f"TOOL_CALL: click_at({x}, {y})", "ACTION")
         if self.desktop_service: return self.desktop_service.click_at(x, y)
         return "Desktop Service Unavailable"
 
     def type_text(self, text: str):
         """Types the specified text string."""
-        print(f"[DEBUG] Tool Call: type_text('{text}')")
+        log_system(f"TOOL_CALL: type_text('{text}')", "ACTION")
         if self.desktop_service: return self.desktop_service.type_text(text)
         return "Desktop Service Unavailable"
 
     def press_hotkey(self, keys: list):
         """Presses a key combination (e.g. ['ctrl', 's'])."""
-        print(f"[DEBUG] Tool Call: press_hotkey({keys})")
+        log_system(f"TOOL_CALL: press_hotkey({keys})", "ACTION")
         if self.desktop_service: return self.desktop_service.press_hotkey(keys)
         return "Desktop Service Unavailable"
 
     def get_screen_map(self):
         """Returns a list of visible text elements and their (x,y) coordinates."""
-        print(f"[DEBUG] Tool Call: get_screen_map() - Capturing screen...")
-        if self.desktop_service: return self.desktop_service.get_screen_map()
+        log_system("TOOL_CALL: get_screen_map() - Scanning...", "VISION")
+        if self.desktop_service: 
+            result = self.desktop_service.get_screen_map()
+            # Log the vision result to the debug file so user knows what agent saw
+            log_system(f"VISION_RESULT: {result[:200]}... (truncated)", "VISION")
+            return result
         return "Desktop Service Unavailable"
 
     # --- Router & Execution ---
@@ -162,10 +176,11 @@ class GeminiService:
         """
         Main entry point. Routes request to Flash or Pro based on complexity.
         """
-        print(f"\n--- NEW REQUEST: {message} (Mode: {complexity_request}) ---")
-        if not self.api_key: return "Error: API Key Missing (Check Server Logs)", "error", "none"
+        log_system(f"NEW REQUEST: {message} (Mode: {complexity_request})", "ROUTER")
+        
+        if not self.api_key: return "Error: API Key Missing", "error", "none"
 
-        # 1. Gather all tools (Atomic + Cloud)
+        # 1. Gather all tools
         tools = [
             get_server_time, get_system_health, 
             update_github_file, create_github_issue,
@@ -177,72 +192,73 @@ class GeminiService:
 
         # 2. Decision Tree
         if complexity_request == "deep":
-            print("[DEBUG] User explicitly requested DEEP mode.")
             model_name = self.SMART_TEXT_MODEL
             reasoning_path = "pro_escalation_user"
+            log_system("User requested DEEP mode.", "ROUTER")
         else:
             # 3. Router (Flash Triage)
-            print("[DEBUG] Triaging with Flash...")
             triage_prompt = f"""
-            Classify this task. 
-            Task: "{message}"
-            
+            Classify this task. Task: "{message}"
             Respond only with 'SIMPLE' or 'COMPLEX'.
-            SIMPLE: UI navigation, clicking things, typing text, explaining concepts, answering questions.
-            COMPLEX: Writing new code from scratch, complex debugging, architectural planning, creative writing.
+            SIMPLE: UI navigation, clicking things, typing text, explaining concepts.
+            COMPLEX: Writing new code from scratch, complex debugging, architectural planning.
             """
             try:
-                triage_start = time.time()
                 triage_model = genai.GenerativeModel(self.FAST_TEXT_MODEL)
                 triage_res = await asyncio.to_thread(triage_model.generate_content, triage_prompt)
                 classification = triage_res.text.strip().upper()
-                print(f"[DEBUG] Triage Result: {classification} (Time: {round(time.time() - triage_start, 2)}s)")
+                log_system(f"Triage Result: {classification}", "ROUTER")
                 
                 if "COMPLEX" in classification:
                     model_name = self.SMART_TEXT_MODEL
                     reasoning_path = "pro_escalation_auto"
-                    print("[DEBUG] Escalating to Gemini Pro.")
                 else:
                     reasoning_path = "flash_direct"
-                    print("[DEBUG] Staying on Gemini Flash.")
             except Exception as e:
-                print(f"[DEBUG] Triage Failed ({e}). Defaulting to Flash.")
+                log_system(f"Triage Failed: {e}", "WARN")
                 reasoning_path = "flash_fallback"
 
         # 4. Execution
         try:
-            print(f"[DEBUG] Executing with Model: {model_name}")
+            log_system(f"Executing with Model: {model_name}", "EXEC")
             model = genai.GenerativeModel(model_name=model_name, tools=tools)
             chat = model.start_chat(enable_automatic_function_calling=True)
             
             system_instruction = """
-            You are a Hand-Eye Coordinator and DevOps Operator.
+            You are a Hand-Eye Coordinator (Ghost Operator).
             
-            DESKTOP GUIDELINES:
-            - You have Atomic Motor Skills: `click_at`, `type_text`, `press_hotkey`, `get_screen_map`.
-            - IMPORTANT: You cannot read files directly from the filesystem. You are a Ghost Operator.
-            - To check a file: 
-              1. Call `get_screen_map` to find the icon. 
-              2. `click_at` (twice) to open it. 
-              3. `get_screen_map` again to read the content visible on screen.
-            - Do NOT hallucinate a 'read_file' or 'open_file' tool.
+            VISION STRATEGY:
+            1. Always call `get_screen_map` first to understand the current state of the screen.
+            2. Analyze the text and coordinates returned to locate your target.
+            3. If the text matches (or is close), `click_at` that location. 
+            4. Double-click to open files/folders.
+            5. If you cannot see the target, consider navigating (e.g., minimizing windows, using search) but verify the screen state after every action.
+            6. If you are stuck, STOP and report what you see.
             
-            GENERAL GUIDELINES:
-            - Execute tasks autonomously.
-            - If you need to click, find the coordinates first using `get_screen_map`.
+            TOOLS:
+            - `get_screen_map`: Returns JSON of text on screen. 
+            - `click_at(x,y)`: Clicks.
+            - `type_text(str)`: Types.
+            - `press_hotkey(list)`: Presses keys.
+            
+            SAFETY:
+            - Do not click random coordinates if you are unsure.
+            - Do not enter infinite loops of searching.
             """
             
             full_prompt = f"{system_instruction}\n\nUser Task: {message}"
             
             exec_start = time.time()
             response = await asyncio.to_thread(chat.send_message, full_prompt)
-            print(f"[DEBUG] Execution Complete (Time: {round(time.time() - exec_start, 2)}s)")
+            duration = round(time.time() - exec_start, 2)
+            
+            log_system(f"Execution Complete in {duration}s", "EXEC")
+            log_system(f"Response: {response.text[:100]}...", "RESPONSE")
             
             return response.text, model_name, reasoning_path
 
         except Exception as e:
-            print(f"[ERROR] Execution Failed: {str(e)}")
-            # Sometimes response.parts contains the tool call that failed
+            log_system(f"Execution Failed: {str(e)}", "ERROR")
             return f"Execution Error: {str(e)}", model_name, "error"
 
     async def process_vision_command(self, image_bytes: bytes, user_prompt: str) -> str:
@@ -255,5 +271,4 @@ class GeminiService:
         return response.text
     
     def execute_pending_action(self):
-        return "Atomic Mode Active: Pending actions are executed autonomously."
-
+        return "Atomic Mode Active."
