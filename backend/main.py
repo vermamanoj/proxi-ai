@@ -34,7 +34,7 @@ async def health_check():
 async def chat(request: ChatRequest):
     try:
         # Route the request through the Agentic Router
-        response_text, model_used, reasoning_path = await gemini_service.route_and_execute(
+        response_text, model_used, reasoning_path, trace_logs = await gemini_service.route_and_execute(
             request.message, 
             request.complexity
         )
@@ -44,7 +44,8 @@ async def chat(request: ChatRequest):
             status="success",
             used_model=model_used,
             reasoning_path=reasoning_path,
-            pending_action=None # Atomic mode is autonomous
+            pending_action=None, # Atomic mode is autonomous
+            trace_logs=trace_logs
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -61,7 +62,8 @@ async def vision_analysis(
             response=response_text,
             status="success",
             used_model=gemini_service.VISION_MODEL,
-            reasoning_path="vision_direct"
+            reasoning_path="vision_direct",
+            trace_logs=[]
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

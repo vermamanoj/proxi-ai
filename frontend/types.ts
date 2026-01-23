@@ -1,3 +1,4 @@
+
 export enum MessageSource {
   USER = 'USER',
   SYSTEM = 'SYSTEM',
@@ -11,6 +12,12 @@ export interface LogEntry {
   source: MessageSource;
   text: string;
   metadata?: any;
+}
+
+export interface TraceStep {
+    step_type: 'user_input' | 'llm_plan' | 'tool_call' | 'tool_result' | 'final_response';
+    content: string | any;
+    metadata?: any;
 }
 
 export interface ToolCall {

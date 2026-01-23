@@ -1,9 +1,11 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit, Camera, Play, Square, Mic, MicOff, MousePointerClick, X } from 'lucide-react';
+import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit, Camera, Play, Square, Mic, MicOff, MousePointerClick, X, GitGraph } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { Visualizer } from './components/Visualizer';
 import { LogView } from './components/LogView';
+import { TraceView } from './components/TraceView';
 import { ToolStatus } from './components/ToolStatus';
 import { SystemStatus } from './components/SystemStatus';
 
@@ -12,6 +14,7 @@ const App: React.FC = () => {
   const { 
     status: brainStatus, 
     logs: brainLogs, 
+    lastTrace,
     complexity,
     pendingAction,
     sendCommand, 
@@ -33,6 +36,7 @@ const App: React.FC = () => {
 
   const [input, setInput] = useState('');
   const [micEnabled, setMicEnabled] = useState(true);
+  const [viewMode, setViewMode] = useState<'terminal' | 'trace'>('terminal');
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,6 +54,13 @@ const App: React.FC = () => {
       inputRef.current?.focus();
     }
   }, [globalStatus]);
+
+  // Auto switch to Trace View when a new trace comes in
+  useEffect(() => {
+      if (lastTrace.length > 0) {
+          setViewMode('trace');
+      }
+  }, [lastTrace]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,12 +209,25 @@ const App: React.FC = () => {
 
         </div>
 
-        {/* Right Column: Terminal/Logs (8 Cols) */}
+        {/* Right Column: Terminal/Logs/Trace (8 Cols) */}
         <div className="lg:col-span-8 flex flex-col h-[500px] lg:h-auto bg-proxi-dark border border-proxi-gray rounded-lg overflow-hidden relative">
+          {/* Header with Toggles */}
           <div className="bg-proxi-gray/30 p-3 border-b border-proxi-gray flex items-center justify-between">
-            <div className="flex items-center gap-2 text-sm text-gray-300">
-              <Terminal className="w-4 h-4 text-proxi-accent" />
-              <span>TERMINAL_OUTPUT</span>
+            <div className="flex gap-4">
+                <button 
+                    onClick={() => setViewMode('terminal')}
+                    className={`flex items-center gap-2 text-sm transition-colors ${viewMode === 'terminal' ? 'text-proxi-accent' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                    <Terminal className="w-4 h-4" />
+                    <span>TERMINAL_OUTPUT</span>
+                </button>
+                <button 
+                    onClick={() => setViewMode('trace')}
+                    className={`flex items-center gap-2 text-sm transition-colors ${viewMode === 'trace' ? 'text-proxi-accent' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                    <GitGraph className="w-4 h-4" />
+                    <span>NEURAL_TRACE</span>
+                </button>
             </div>
             <div className="flex gap-1.5">
               <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50" />
@@ -213,7 +237,11 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex-1 overflow-hidden relative bg-black/40">
-            <LogView logs={allLogs} />
+            {viewMode === 'terminal' ? (
+                <LogView logs={allLogs} />
+            ) : (
+                <TraceView trace={lastTrace} />
+            )}
              {/* Decorative grid overlay */}
              <div className="absolute inset-0 pointer-events-none" 
                   style={{

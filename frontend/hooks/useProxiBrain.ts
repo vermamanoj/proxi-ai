@@ -1,9 +1,11 @@
+
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { LogEntry, MessageSource, Complexity, AgentStatus, PendingAction } from '../types';
+import { LogEntry, MessageSource, Complexity, AgentStatus, PendingAction, TraceStep } from '../types';
 
 export const useProxiBrain = () => {
   const [status, setStatus] = useState<AgentStatus>('idle');
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [lastTrace, setLastTrace] = useState<TraceStep[]>([]);
   const [complexity, setComplexity] = useState<Complexity>('fast');
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
@@ -72,6 +74,11 @@ export const useProxiBrain = () => {
       
       addLog(MessageSource.AGENT, data.response, { model: data.used_model });
       
+      // Update Trace Data
+      if (data.trace_logs) {
+         setLastTrace(data.trace_logs);
+      }
+
       if (data.pending_action) {
         setPendingAction(data.pending_action);
         // Status will update to 'awaiting_confirmation' after speech ends
@@ -142,6 +149,7 @@ export const useProxiBrain = () => {
   return {
     status,
     logs,
+    lastTrace,
     complexity,
     pendingAction,
     sendCommand,

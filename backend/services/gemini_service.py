@@ -17,7 +17,7 @@ from github import Github
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
 from backend.services.desktop_service import DesktopService
-from backend.models.api_models import PendingAction
+from backend.models.api_models import PendingAction, TraceStep
 
 # 2. Force Load .env from Project Root
 root_dir = Path(__file__).resolve().parent.parent.parent
@@ -224,6 +224,8 @@ class GeminiService:
                  reasoning_path = "pro_escalation_auto"
 
         # 4. Execution
+        trace_logs = []
+        
         try:
             log_system(f"Executing with Model: {model_name}", "EXEC")
             model = genai.GenerativeModel(model_name=model_name, tools=tools)
@@ -257,6 +259,13 @@ class GeminiService:
             
             full_prompt = f"{system_instruction}\n\nUser Task: {message}"
             
+            # Record initial input
+            trace_logs.append(TraceStep(
+                step_type="user_input",
+                content=message,
+                metadata={"model": model_name, "reasoning": reasoning_path}
+            ))
+            
             exec_start = time.time()
             response = await asyncio.to_thread(
                 chat.send_message, 
@@ -265,23 +274,56 @@ class GeminiService:
             )
             duration = round(time.time() - exec_start, 2)
             
+            # --- TRACE RECONSTRUCTION ---
+            # We iterate through history to find what actually happened (Tools, etc)
+            # The chat history skips the system instruction usually, starting with User msg.
+            for content in chat.history:
+                role = content.role
+                parts = content.parts
+                for part in parts:
+                    # Model Decisions (Text or Tool Calls)
+                    if role == "model":
+                        if part.function_call:
+                            # Capture Tool Input
+                            fc = part.function_call
+                            args = dict(fc.args)
+                            trace_logs.append(TraceStep(
+                                step_type="tool_call",
+                                content=fc.name,
+                                metadata={"args": args}
+                            ))
+                        if part.text:
+                            # Intermediate thoughts or final response
+                            # We might filter this if it's identical to the final response
+                            pass
+                            
+                    # Tool Results (Function Responses)
+                    if role == "function":
+                        fr = part.function_response
+                        # The result is often JSON-like
+                        try:
+                            # It comes as a struct, converting to dict/str
+                            result_data = fr.response
+                            trace_logs.append(TraceStep(
+                                step_type="tool_result",
+                                content=fr.name,
+                                metadata={"output": str(result_data)[:500]} # Truncate large outputs
+                            ))
+                        except:
+                            pass
+
+            # Final Response Step
+            trace_logs.append(TraceStep(
+                step_type="final_response",
+                content=response.text,
+                metadata={"duration": duration}
+            ))
+
             log_system(f"Execution Complete in {duration}s", "EXEC")
             
-            return response.text, model_name, reasoning_path
+            return response.text, model_name, reasoning_path, trace_logs
 
         except Exception as e:
             log_system(f"Execution Failed: {str(e)}", "ERROR")
-            return f"Execution Error: {str(e)}", model_name, "error"
-
-    async def process_vision_command(self, image_bytes: bytes, user_prompt: str) -> str:
-        if not self.api_key: return "System Error: API Key missing."
-        model = genai.GenerativeModel(self.VISION_MODEL)
-        response = await asyncio.to_thread(
-            model.generate_content,
-            contents=[user_prompt, {'mime_type': 'image/png', 'data': image_bytes}],
-            request_options={"timeout": 60}
-        )
-        return response.text
-    
-    def execute_pending_action(self):
-        return "Atomic Mode Active."
+            # Return partial trace if failure
+            return f"Execution Error: {str(e)}", model_name, "error", trace_logs
