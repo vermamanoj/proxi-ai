@@ -16,6 +16,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 from github import Github
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
+from google.ai.generativelanguage import FunctionResponse, Part
 from backend.services.desktop_service import DesktopService
 from backend.models.api_models import PendingAction, TraceStep
 
@@ -129,6 +130,19 @@ class GeminiService:
             self.desktop_service = None
 
         self.latest_pending_action = None
+        
+        # Tools Mapping for Execution
+        self.tools_map = {
+            "get_server_time": get_server_time,
+            "get_system_health": get_system_health,
+            "update_github_file": update_github_file,
+            "create_github_issue": create_github_issue,
+            "click_at": self.click_at,
+            "type_text": self.type_text,
+            "press_hotkey": self.press_hotkey,
+            "get_screen_map": self.get_screen_map,
+            "run_terminal_command": self.run_terminal_command
+        }
 
     # --- Atomic Motor Skills (Tools) ---
     
@@ -148,14 +162,8 @@ class GeminiService:
         return "Desktop Service Unavailable"
 
     def get_screen_map(self, mode: str = "hybrid"):
-        """
-        Scans the screen for text and controls.
-        Args:
-            mode: "hybrid" (default) for fast UI checking, or "visual" for Gemini Vision reading (slow).
-        """
         log_system(f"TOOL_CALL: get_screen_map(mode='{mode}')", "VISION")
         if self.desktop_service:
-            # Check for API Vision Request
             if mode == "visual":
                 base64_img = self.desktop_service.get_screenshot_base64()
                 if not base64_img:
@@ -163,7 +171,6 @@ class GeminiService:
                 
                 log_system("Sending Screenshot to Gemini 3 Flash...", "VISION")
                 try:
-                    # We use a fresh model instance for the Vision task
                     model = genai.GenerativeModel(self.FAST_TEXT_MODEL)
                     response = model.generate_content([
                         "Analyze this screenshot. List all active windows, UI elements, and read any visible text. Describe the layout.",
@@ -172,12 +179,9 @@ class GeminiService:
                     log_system("Vision API Analysis Complete.", "VISION")
                     return f"VISION_ANALYSIS_RESULT:\n{response.text}"
                 except Exception as e:
-                    log_system(f"Vision API Error: {e}", "ERROR")
                     return f"Vision API Error: {e}"
 
-            # Standard Accessibility Scan
             result = self.desktop_service.get_screen_map(mode)
-            log_system(f"ACCESSIBILITY_RESULT_LEN: {len(result)} chars", "VISION")
             return result
         return "Desktop Service Unavailable"
 
@@ -185,146 +189,149 @@ class GeminiService:
         log_system(f"TOOL_CALL: run_terminal_command('{command}')", "SHELL")
         if self.desktop_service:
             result = self.desktop_service.run_terminal_command(command)
-            log_system(f"SHELL_OUTPUT: {result[:100]}...", "SHELL")
             return result
         return "Desktop Service Unavailable"
 
-    # --- Router & Execution ---
-
-    async def route_and_execute(self, message: str, complexity_request: str = "fast"):
-        log_system(f"NEW REQUEST: {message} (Mode: {complexity_request})", "ROUTER")
-        
-        if not self.api_key: return "Error: API Key Missing", "error", "none"
-
-        # 1. Gather all tools
-        tools = [
-            get_server_time, get_system_health, 
-            update_github_file, create_github_issue,
-            self.click_at, self.type_text, self.press_hotkey, 
-            self.get_screen_map, self.run_terminal_command
-        ]
-
-        model_name = self.FAST_TEXT_MODEL
-        reasoning_path = "flash_direct"
-
-        # 2. Decision Tree
-        if complexity_request == "deep":
-            model_name = self.SMART_TEXT_MODEL
-            reasoning_path = "pro_escalation_user"
-        else:
-            fast_keywords = [
-                "check", "click", "open", "type", "press", 
-                "find", "see", "look", "list", "run", "start", "what"
-            ]
-            
-            if any(x in message.lower() for x in fast_keywords):
-                 reasoning_path = "flash_heuristic"
-            else:
-                 model_name = self.SMART_TEXT_MODEL
-                 reasoning_path = "pro_escalation_auto"
-
-        # 4. Execution
-        trace_logs = []
+    # --- Helper to Execute Tool (Parallel Ready) ---
+    async def _execute_tool_wrapper(self, name: str, args: dict):
+        func = self.tools_map.get(name)
+        if not func:
+            return f"Error: Tool '{name}' not found."
         
         try:
-            log_system(f"Executing with Model: {model_name}", "EXEC")
+            # Most tools are synchronous, run them in thread pool to not block loop
+            if asyncio.iscoroutinefunction(func):
+                return await func(**args)
+            else:
+                return await asyncio.to_thread(func, **args)
+        except Exception as e:
+            return f"Tool Execution Error: {str(e)}"
+
+    # --- Router & Execution (Streaming Generator) ---
+
+    async def route_and_execute_stream(self, message: str, complexity_request: str = "fast"):
+        log_system(f"NEW REQUEST: {message} (Mode: {complexity_request})", "ROUTER")
+        
+        if not self.api_key: 
+            yield json.dumps({"type": "error", "content": "API Key Missing"})
+            return
+
+        # 1. Setup Tools (Declarations)
+        tools = list(self.tools_map.values())
+
+        model_name = self.FAST_TEXT_MODEL if complexity_request == "fast" else self.SMART_TEXT_MODEL
+        
+        # 2. System Prompt
+        system_instruction = """
+        You are Proxi, a Headless Operator.
+        Interact via voice. 
+        CRITICAL OUTPUT RULES:
+        1. **PLAIN TEXT ONLY**: Do NOT use markdown. No bold (**), italics (*), or code blocks (```).
+        2. **CONCISE**: Keep responses short, direct, and spoken-language friendly.
+        3. **PROTOCOL**: Prefer Shell over GUI. Use `run_terminal_command` for ops.
+        """
+        
+        full_prompt = f"{system_instruction}\n\nUser Task: {message}"
+
+        # 3. Start Chat (Manual Loop for Parallel Execution)
+        try:
             model = genai.GenerativeModel(model_name=model_name, tools=tools)
-            chat = model.start_chat(enable_automatic_function_calling=True)
-            
-            system_instruction = """
-            You are Proxi, a Headless Operator for a remote server.
-            
-            CRITICAL PROTOCOL:
-            1. **PREFER SHELL OVER GUI:** The server screen might be locked or black. 
-               - If the user asks to "check logs", "restart service", or "list files", USE `run_terminal_command`.
-            
-            2. **SHELL SAFETY:**
-               - **DO NOT** use `curl` for web requests in PowerShell (it aliases to Invoke-WebRequest and hangs).
-               - **USE** `Invoke-RestMethod` (irm) or `Start-Process curl` instead.
-               - Example: `irm wttr.in/Noida`
-            
-            3. **VISION & GUI:** 
-               - To "Click" buttons: Use `get_screen_map(mode='hybrid')` then `click_at`.
-               - To "Read" or "Describe" an image/window: Use `get_screen_map(mode='visual')`.
-               - **Important:** `mode='visual'` sends the screenshot to Gemini Vision API. Use this to understand complex images, charts, or error dialogs that Accessibility cannot read.
+            chat = model.start_chat(enable_automatic_function_calling=False) # We handle it manually!
 
-            4. **FILE SAFETY:**
-               - **BEFORE opening any file**, run `Unblock-File` first.
-               - Example: `Unblock-File 'C:\\...\\image.jpg'; Invoke-Item 'C:\\...\\image.jpg'`
+            # Notify UI of start
+            yield json.dumps({
+                "type": "meta", 
+                "model": model_name, 
+                "step": "user_input", 
+                "content": message
+            }) + "\n"
+
+            # Initial Message
+            response = await asyncio.to_thread(chat.send_message, full_prompt)
             
-            5. **TOOLS:**
-               - `run_terminal_command(str)`: Execute PowerShell.
-               - `get_screen_map(mode='hybrid'|'visual')`: See the screen.
-            """
-            
-            full_prompt = f"{system_instruction}\n\nUser Task: {message}"
-            
-            # Record initial input
-            trace_logs.append(TraceStep(
-                step_type="user_input",
-                content=message,
-                metadata={"model": model_name, "reasoning": reasoning_path}
-            ))
-            
-            exec_start = time.time()
-            response = await asyncio.to_thread(
-                chat.send_message, 
-                full_prompt, 
-                request_options={"timeout": 60} 
-            )
-            duration = round(time.time() - exec_start, 2)
-            
-            # --- TRACE RECONSTRUCTION ---
-            # We iterate through history to find what actually happened (Tools, etc)
-            # The chat history skips the system instruction usually, starting with User msg.
-            for content in chat.history:
-                role = content.role
-                parts = content.parts
+            # Loop for multi-turn tool use
+            max_turns = 5
+            current_turn = 0
+
+            while current_turn < max_turns:
+                current_turn += 1
+                
+                # Check parts
+                # Gemini response structure: candidates[0].content.parts
+                parts = response.candidates[0].content.parts
+                
+                # Extract Text Thoughts & Function Calls
+                text_content = ""
+                function_calls = []
+
                 for part in parts:
-                    # Model Decisions (Text or Tool Calls)
-                    if role == "model":
-                        if part.function_call:
-                            # Capture Tool Input
-                            fc = part.function_call
-                            args = dict(fc.args)
-                            trace_logs.append(TraceStep(
-                                step_type="tool_call",
-                                content=fc.name,
-                                metadata={"args": args}
+                    if part.text:
+                        text_content += part.text
+                    if part.function_call:
+                        function_calls.append(part.function_call)
+
+                # Streaming Thought to UI
+                if text_content:
+                    # Heuristic: If we have function calls, this text is a "Thought/Plan"
+                    # If no function calls, it's likely the "Final Response"
+                    msg_type = "llm_thought" if function_calls else "response"
+                    yield json.dumps({"type": msg_type, "content": text_content}) + "\n"
+                    
+                    if not function_calls:
+                        # Done!
+                        break
+
+                # Handle Parallel Function Calls
+                if function_calls:
+                    # Notify UI of upcoming tools
+                    yield json.dumps({
+                        "type": "tool_call_batch", 
+                        "calls": [{"name": fc.name, "args": dict(fc.args)} for fc in function_calls]
+                    }) + "\n"
+
+                    # Execute in Parallel
+                    tasks = []
+                    for fc in function_calls:
+                        tasks.append(self._execute_tool_wrapper(fc.name, dict(fc.args)))
+                    
+                    log_system(f"Executing {len(tasks)} tools in PARALLEL...", "EXEC")
+                    results = await asyncio.gather(*tasks)
+                    
+                    # Notify UI of results
+                    for i, res in enumerate(results):
+                        yield json.dumps({
+                            "type": "tool_result", 
+                            "name": function_calls[i].name, 
+                            "content": str(res)[:500]
+                        }) + "\n"
+
+                    # Construct Response Parts for Gemini
+                    # Gemini expects FunctionResponse parts
+                    response_parts = []
+                    for i, res in enumerate(results):
+                        response_parts.append(
+                            Part(function_response=FunctionResponse(
+                                name=function_calls[i].name, 
+                                response={"result": res}
                             ))
-                        if part.text:
-                            # Intermediate thoughts or final response
-                            # We might filter this if it's identical to the final response
-                            pass
-                            
-                    # Tool Results (Function Responses)
-                    if role == "function":
-                        fr = part.function_response
-                        # The result is often JSON-like
-                        try:
-                            # It comes as a struct, converting to dict/str
-                            result_data = fr.response
-                            trace_logs.append(TraceStep(
-                                step_type="tool_result",
-                                content=fr.name,
-                                metadata={"output": str(result_data)[:500]} # Truncate large outputs
-                            ))
-                        except:
-                            pass
-
-
-            # Final Response Step
-            trace_logs.append(TraceStep(
-                step_type="final_response",
-                content=response.text,
-                metadata={"duration": duration}
-            ))
-
-            log_system(f"Execution Complete in {duration}s", "EXEC")
-            
-            return response.text, model_name, reasoning_path, trace_logs
+                        )
+                    
+                    # Send results back to model
+                    response = await asyncio.to_thread(chat.send_message, response_parts)
+                else:
+                    break
 
         except Exception as e:
-            log_system(f"Execution Failed: {str(e)}", "ERROR")
-            # Return partial trace if failure
-            return f"Execution Error: {str(e)}", model_name, "error", trace_logs
+            log_system(f"Execution Error: {e}", "ERROR")
+            yield json.dumps({"type": "error", "content": str(e)}) + "\n"
+
+    async def process_vision_command(self, image_bytes: bytes, user_prompt: str) -> str:
+        # Standard non-stream for simple vision
+        if not self.api_key: return "System Error: API Key missing."
+        model = genai.GenerativeModel(self.VISION_MODEL)
+        response = await asyncio.to_thread(
+            model.generate_content,
+            contents=[user_prompt, {'mime_type': 'image/png', 'data': image_bytes}],
+            request_options={"timeout": 60}
+        )
+        return response.text

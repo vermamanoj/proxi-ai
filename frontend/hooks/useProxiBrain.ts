@@ -30,10 +30,23 @@ export const useProxiBrain = () => {
     }]);
   }, []);
 
+  const updateTrace = (step: TraceStep) => {
+      setLastTrace(prev => [...prev, step]);
+  };
+
+  const cleanTextForSpeech = (text: string) => {
+      // Remove Markdown bold/italic/code markers
+      return text.replace(/[*#_`]/g, '')
+                 .replace(/\[.*?\]/g, '') // Remove [links]
+                 .replace(/\(https?:\/\/.*?\)/g, ''); // Remove (urls)
+  };
+
   const speak = useCallback((text: string) => {
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+    
+    const cleanText = cleanTextForSpeech(text);
+    const utterance = new SpeechSynthesisUtterance(cleanText);
     const preferredVoices = voicesRef.current;
     const techVoice = preferredVoices.find(v => v.name.includes('Google US English')) 
                    || preferredVoices.find(v => v.name.includes('Zira')) 
@@ -43,7 +56,6 @@ export const useProxiBrain = () => {
     utterance.pitch = 0.95; 
     utterance.onstart = () => setStatus('speaking');
     utterance.onend = () => {
-      // If we have a pending action, switch to waiting state after speaking
       if (pendingAction) setStatus('awaiting_confirmation');
       else setStatus('idle');
     };
@@ -56,66 +68,72 @@ export const useProxiBrain = () => {
 
     addLog(MessageSource.USER, message);
     setStatus('processing');
-    setPendingAction(null); // Clear previous
+    setPendingAction(null);
+    setLastTrace([]); // Clear trace for new command
+    
+    // Initial trace step
+    updateTrace({ step_type: 'user_input', content: message, metadata: { complexity } });
 
     try {
-      const res = await fetch('/api/chat', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          message, 
-          complexity 
-        })
+        body: JSON.stringify({ message, complexity })
       });
 
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      if (!response.body) throw new Error("No response body");
 
-      const data = await res.json();
-      
-      addLog(MessageSource.AGENT, data.response, { model: data.used_model });
-      
-      // Update Trace Data
-      if (data.trace_logs) {
-         setLastTrace(data.trace_logs);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        const chunkValue = decoder.decode(value, { stream: !done });
+        
+        // Split by newline for NDJSON
+        const lines = chunkValue.split('\n').filter(line => line.trim() !== '');
+        
+        for (const line of lines) {
+            try {
+                const data = JSON.parse(line);
+                
+                switch (data.type) {
+                    case 'llm_thought':
+                        updateTrace({ step_type: 'llm_thought', content: data.content });
+                        break;
+                    case 'tool_call_batch':
+                        // data.calls is array of {name, args}
+                        for (const call of data.calls) {
+                             updateTrace({ step_type: 'tool_call', content: call.name, metadata: { args: call.args } });
+                        }
+                        break;
+                    case 'tool_result':
+                        updateTrace({ step_type: 'tool_result', content: data.name, metadata: { output: data.content } });
+                        break;
+                    case 'response':
+                        updateTrace({ step_type: 'final_response', content: data.content });
+                        addLog(MessageSource.AGENT, data.content);
+                        speak(data.content);
+                        break;
+                    case 'error':
+                        addLog(MessageSource.SYSTEM, `Error: ${data.content}`);
+                        break;
+                }
+            } catch (e) {
+                console.error("Failed to parse chunk", line);
+            }
+        }
       }
 
-      if (data.pending_action) {
-        setPendingAction(data.pending_action);
-        // Status will update to 'awaiting_confirmation' after speech ends
-      }
-      
-      speak(data.response);
+      setStatus('idle');
 
     } catch (err: any) {
       console.error(err);
       addLog(MessageSource.SYSTEM, `Error: ${err.message}`);
       setStatus('idle');
     }
-  };
-
-  const confirmAction = async () => {
-    if (!pendingAction) return;
-    
-    addLog(MessageSource.SYSTEM, `Executing: ${pendingAction.description}`);
-    setStatus('processing');
-
-    try {
-        const res = await fetch('/api/desktop/execute', { method: 'POST' });
-        const data = await res.json();
-        addLog(MessageSource.TOOL, `Ghost Operator Result: ${data.result}`);
-        setPendingAction(null);
-        setStatus('idle');
-        speak("Action executed successfully.");
-    } catch (err: any) {
-        addLog(MessageSource.SYSTEM, `Execution Error: ${err.message}`);
-        setStatus('idle');
-    }
-  };
-
-  const cancelAction = () => {
-      setPendingAction(null);
-      addLog(MessageSource.SYSTEM, "Action cancelled by user.");
-      setStatus('idle');
   };
 
   const sendVisionCommand = async (file: File, message: string) => {
@@ -142,10 +160,10 @@ export const useProxiBrain = () => {
     }
   };
 
-  const toggleComplexity = () => {
-    setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
-  };
-
+  // ... rest of actions (confirm/cancel/toggle)
+  const confirmAction = async () => {}; // Atomic mode deprecated
+  const cancelAction = () => { setPendingAction(null); setStatus('idle'); };
+  const toggleComplexity = () => setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
 
   return {
     status,

@@ -1,6 +1,7 @@
 import uvicorn
 import os
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from backend.models.api_models import ChatRequest, ChatResponse, ActionConfirmation
 from backend.services.gemini_service import GeminiService
@@ -8,7 +9,7 @@ from backend.services.gemini_service import GeminiService
 app = FastAPI(
     title="Proxi Backend",
     description="Backend API for Proxi Headless Operator",
-    version="0.2.0"
+    version="0.3.0"
 )
 
 # Initialize Service
@@ -30,26 +31,19 @@ async def root():
 async def health_check():
     return {"message": "Proxi System Online", "status": "operational"}
 
-@app.post("/api/chat", response_model=ChatResponse)
+@app.post("/api/chat")
 async def chat(request: ChatRequest):
+    """
+    Streaming Endpoint. Returns a stream of JSON lines (NDJSON).
+    Each line contains a step of the agent's thought process or the final response.
+    """
     try:
-        # Route the request through the Agentic Router
-        response_text, model_used, reasoning_path, trace_logs = await gemini_service.route_and_execute(
-            request.message, 
-            request.complexity
-        )
-
-        return ChatResponse(
-            response=response_text,
-            status="success",
-            used_model=model_used,
-            reasoning_path=reasoning_path,
-            pending_action=None, # Atomic mode is autonomous
-            trace_logs=trace_logs
+        return StreamingResponse(
+            gemini_service.route_and_execute_stream(request.message, request.complexity),
+            media_type="application/x-ndjson"
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-        
 
 @app.post("/api/vision", response_model=ChatResponse)
 async def vision_analysis(
@@ -71,15 +65,8 @@ async def vision_analysis(
 
 @app.post("/api/desktop/execute")
 async def execute_desktop_action():
-    """
-    Executes the action waiting in the HITL buffer.
-    Deprecated in v2 (Atomic), but kept for API compatibility.
-    """
-    try:
-        result = gemini_service.execute_pending_action()
-        return {"status": "executed", "result": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # Deprecated/Atomic
+    return {"status": "executed", "result": "Atomic Mode"}
 
 if __name__ == "__main__":
     uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)

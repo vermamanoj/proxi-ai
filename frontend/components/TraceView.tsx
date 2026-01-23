@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { TraceStep } from '../types';
-import { User, Cpu, Wrench, ArrowDown, Terminal, MessageSquare } from 'lucide-react';
+import { User, Cpu, Wrench, ArrowDown, Terminal, MessageSquare, BrainCircuit, ShieldAlert } from 'lucide-react';
 
 interface TraceViewProps {
   trace: TraceStep[];
@@ -35,27 +35,35 @@ export const TraceView: React.FC<TraceViewProps> = ({ trace }) => {
             {/* Connector Node */}
             <div className={`absolute left-[26px] top-0 w-3 h-3 rounded-full border-2 transform -translate-x-1/2 mt-1.5 z-10 transition-colors
                 ${step.step_type === 'user_input' ? 'border-proxi-accent bg-black' : 
+                  step.step_type === 'llm_thought' ? 'border-purple-400 bg-black' :
                   step.step_type === 'tool_call' ? 'border-proxi-warning bg-black' :
                   step.step_type === 'tool_result' ? 'border-green-500 bg-green-500/20' :
-                  'border-purple-500 bg-black'}
+                  step.step_type === 'final_response' ? 'border-proxi-success bg-black' :
+                  'border-gray-500 bg-black'}
             `} />
 
             {/* Content Card */}
             <div className={`rounded border p-3 transition-all hover:translate-x-1
                 ${step.step_type === 'user_input' ? 'border-proxi-accent/30 bg-proxi-accent/5' : 
+                  step.step_type === 'llm_thought' ? 'border-purple-400/30 bg-purple-400/5' :
                   step.step_type === 'tool_call' ? 'border-proxi-warning/30 bg-proxi-warning/5' :
                   step.step_type === 'tool_result' ? 'border-green-500/30 bg-green-500/5' :
-                  'border-purple-500/30 bg-purple-500/5'}
+                  step.step_type === 'final_response' ? 'border-proxi-success/30 bg-proxi-success/5' :
+                  'border-gray-700 bg-gray-900'}
             `}>
                 {/* Header */}
                 <div className="flex items-center justify-between mb-2 border-b border-white/5 pb-2">
                     <div className="flex items-center gap-2">
                         {step.step_type === 'user_input' && <User className="w-4 h-4 text-proxi-accent" />}
+                        {step.step_type === 'llm_thought' && <BrainCircuit className="w-4 h-4 text-purple-400" />}
                         {step.step_type === 'tool_call' && <Wrench className="w-4 h-4 text-proxi-warning" />}
                         {step.step_type === 'tool_result' && <Terminal className="w-4 h-4 text-green-500" />}
-                        {step.step_type === 'final_response' && <MessageSquare className="w-4 h-4 text-purple-400" />}
+                        {step.step_type === 'final_response' && <MessageSquare className="w-4 h-4 text-proxi-success" />}
+                        {step.step_type === 'system_instruction' && <ShieldAlert className="w-4 h-4 text-gray-500" />}
                         
-                        <span className="text-xs font-bold uppercase tracking-wider text-gray-300">
+                        <span className={`text-xs font-bold uppercase tracking-wider ${
+                            step.step_type === 'llm_thought' ? 'text-purple-400' : 'text-gray-300'
+                        }`}>
                             {step.step_type.replace('_', ' ')}
                         </span>
                     </div>
@@ -67,12 +75,14 @@ export const TraceView: React.FC<TraceViewProps> = ({ trace }) => {
                 </div>
 
                 {/* Body */}
-                <div className="text-sm text-gray-300 break-words whitespace-pre-wrap">
-                    {typeof step.content === 'string' ? step.content : step.content}
+                <div className={`text-sm break-words whitespace-pre-wrap ${
+                    step.step_type === 'llm_thought' ? 'text-purple-200 italic' : 'text-gray-300'
+                }`}>
+                    {typeof step.content === 'string' ? step.content : JSON.stringify(step.content)}
                 </div>
 
                 {/* Metadata / Args */}
-                {step.metadata && (
+                {step.metadata && Object.keys(step.metadata).length > 0 && (
                     <div className="mt-2 text-[10px] text-gray-500 font-mono bg-black/40 p-2 rounded overflow-x-auto">
                         {step.step_type === 'tool_call' && step.metadata.args && (
                             <div>
@@ -104,7 +114,6 @@ export const TraceView: React.FC<TraceViewProps> = ({ trace }) => {
     </div>
   );
 };
-
 
 function BrainCircuitIcon(props: any) {
   return (
