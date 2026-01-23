@@ -23,7 +23,7 @@ if (Get-Command python -ErrorAction SilentlyContinue) {
 }
 
 # 3. Virtual Environment Setup
-Write-Host "[1/5] Setting up Virtual Environment..." -ForegroundColor Yellow
+Write-Host "[1/6] Setting up Virtual Environment..." -ForegroundColor Yellow
 if (-not (Test-Path "venv")) {
     Write-Host "   Creating 'venv' folder..."
     python -m venv venv
@@ -45,7 +45,7 @@ if (-not (Test-Path $VenvPython)) {
 }
 
 # 4. Dependency Installation (Inside Venv)
-Write-Host "[2/5] Installing dependencies into venv..." -ForegroundColor Yellow
+Write-Host "[2/6] Installing dependencies into venv..." -ForegroundColor Yellow
 # Upgrade pip first
 & $VenvPython -m pip install --upgrade pip
 
@@ -58,7 +58,7 @@ if (Test-Path "backend/requirements.txt") {
 & $VenvPip install pyautogui easyocr opencv-python pillow python-dotenv fastapi uvicorn google-generativeai psutil PyGithub
 
 # 5. Desktop Permissions / GUI Check
-Write-Host "[3/5] Testing Desktop Interaction..." -ForegroundColor Yellow
+Write-Host "[3/6] Testing Desktop Interaction..." -ForegroundColor Yellow
 try {
     # Run the test using the VENV python
     & $VenvPython -c "import pyautogui; pyautogui.FAILSAFE=False; pyautogui.moveRel(10, 0, duration=0.2); pyautogui.moveRel(-10, 0, duration=0.2); print('GUI Access OK')"
@@ -72,22 +72,38 @@ try {
     Write-Host "👉 Ensure you are running in an interactive session (RDP/Console), not SSH/Service."
 }
 
-# 6. Environment Setup
-Write-Host "[4/5] Configuring Environment..." -ForegroundColor Yellow
-if (-not (Test-Path ".env")) {
-    Write-Host "Creating .env template..."
-    $envContent = @"
+# 6. Environment Setup (Encoding Fix)
+Write-Host "[4/6] Configuring Environment..." -ForegroundColor Yellow
+
+$envTemplate = @"
 GEMINI_API_KEY=your_api_key_here
 GITHUB_TOKEN=your_github_token_here
 "@
-    Set-Content ".env" $envContent
+
+if (-not (Test-Path ".env")) {
+    Write-Host "Creating .env template (ASCII)..."
+    # Force ASCII to avoid UTF-16 BOM issues with python-dotenv
+    [System.IO.File]::WriteAllText("$PWD\.env", $envTemplate, [System.Text.Encoding]::ASCII)
     Write-Host "⚠️ Created .env file. YOU MUST EDIT IT with your API keys!" -ForegroundColor Magenta
 } else {
-    Write-Host "✅ .env file exists." -ForegroundColor Green
+    # Check for corrupt encoding (UTF-16 BOM: FF FE)
+    try {
+        $bytes = [System.IO.File]::ReadAllBytes("$PWD\.env")
+        if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE) {
+            Write-Host "⚠️ Detected UTF-16 .env file (Crash Risk). Fixing encoding to UTF-8..." -ForegroundColor Yellow
+            $content = [System.IO.File]::ReadAllText("$PWD\.env", [System.Text.Encoding]::Unicode)
+            [System.IO.File]::WriteAllText("$PWD\.env", $content, [System.Text.Encoding]::UTF8)
+            Write-Host "✅ .env encoding fixed." -ForegroundColor Green
+        } else {
+            Write-Host "✅ .env file exists and encoding looks OK." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "⚠️ Could not verify .env encoding. If crash persists, delete .env and run setup again." -ForegroundColor Yellow
+    }
 }
 
 # 7. Startup Script Generation
-Write-Host "[5/5] Generating Startup Script..." -ForegroundColor Yellow
+Write-Host "[5/6] Generating Startup Script..." -ForegroundColor Yellow
 # We generate a bat file that uses the venv python explicitly
 $batContent = @"
 @echo off
@@ -97,7 +113,8 @@ call venv\Scripts\activate
 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload
 pause
 "@
-Set-Content "run_proxi.bat" $batContent
+# Force ASCII for batch file safety
+[System.IO.File]::WriteAllText("$PWD\run_proxi.bat", $batContent, [System.Text.Encoding]::ASCII)
 Write-Host "✅ Generated run_proxi.bat" -ForegroundColor Green
 
 Write-Host "========================================" -ForegroundColor Cyan

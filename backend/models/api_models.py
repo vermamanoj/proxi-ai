@@ -16,5 +16,5 @@ class ActionConfirmation(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     status: str
-    model_used: str
+    used_model: str
     pending_action: Optional[PendingAction] = None

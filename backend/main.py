@@ -49,7 +49,7 @@ async def chat(request: ChatRequest):
         return ChatResponse(
             response=response_text,
             status="success",
-            model_used=model_used,
+            used_model=model_used,
             pending_action=pending_action
         )
     except Exception as e:
@@ -66,7 +66,7 @@ async def vision_analysis(
         return ChatResponse(
             response=response_text,
             status="success",
-            model_used=gemini_service.VISION_MODEL
+            used_model=gemini_service.VISION_MODEL
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -70,7 +70,7 @@ export const useProxiBrain = () => {
 
       const data = await res.json();
       
-      addLog(MessageSource.AGENT, data.response, { model: data.model_used });
+      addLog(MessageSource.AGENT, data.response, { model: data.used_model });
       
       if (data.pending_action) {
         setPendingAction(data.pending_action);
@@ -124,7 +124,7 @@ export const useProxiBrain = () => {
       if (!res.ok) throw new Error(`Vision Upload Error: ${res.status}`);
       const data = await res.json();
       addLog(MessageSource.AGENT, data.response, { 
-        model: data.model_used,
+        model: data.used_model,
         type: 'vision_analysis',
         filename: file.name 
       });
