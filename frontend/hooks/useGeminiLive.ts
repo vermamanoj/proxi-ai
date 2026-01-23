@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { LogEntry, MessageSource, ActiveToolState } from '../types';
@@ -19,6 +20,9 @@ export const useGeminiLive = () => {
   const nextStartTimeRef = useRef<number>(0);
   const sessionRef = useRef<any>(null); 
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
+  
+  // Ref for aborting active backend requests
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const addLog = useCallback((source: MessageSource, text: string, metadata?: any) => {
     setLogs(prev => [...prev, {
@@ -34,25 +38,52 @@ export const useGeminiLive = () => {
     const responses = [];
     
     for (const call of functionCalls) {
+        // --- 1. STOP EXECUTION ---
+        if (call.name === 'stop_execution') {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+                abortControllerRef.current = null;
+                addLog(MessageSource.SYSTEM, "🛑 Execution Stopped via Voice Command.");
+                responses.push({
+                    id: call.id,
+                    name: call.name,
+                    response: { result: "Execution stopped. The background task has been cancelled." }
+                });
+            } else {
+                 responses.push({
+                    id: call.id,
+                    name: call.name,
+                    response: { result: "No active background task to stop." }
+                });
+            }
+            continue;
+        }
+
+        // --- 2. DELEGATE TASK ---
         if (call.name === 'delegate_task') {
             const task = call.args.task_description;
             
             addLog(MessageSource.SYSTEM, `Handing off to Gemini 3 Core...`, { task });
             setActiveTool({ name: "Gemini 3 Pro (Reasoning)", startTime: Date.now() });
 
+            // Create new AbortController for this request
+            const controller = new AbortController();
+            abortControllerRef.current = controller;
+
             try {
                 // RELAY PATTERN:
                 // We send the text to the Backend API. 
-                // The Backend (Gemini 3) executes the REAL tools (Mouse, Shell, etc.)
-                // We stream the logs so the user sees the Neural Trace updates in real-time.
-                
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: task, complexity: 'deep' }) // Force 'deep' for Gemini 3
+                    body: JSON.stringify({ message: task, complexity: 'deep' }), // Force 'deep' for Gemini 3
+                    signal: controller.signal
                 });
 
-                if (!response.body) throw new Error("No response body from Core");
+                if (!response.body) {
+                     // Check if it was a connection error before response body
+                     throw new Error("Empty Response from Backend");
+                }
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
@@ -83,14 +114,16 @@ export const useGeminiLive = () => {
                                 finalSummary = data.content;
                                 addLog(MessageSource.AGENT, `Core Result: ${data.content}`);
                             }
+                            else if (data.type === 'error') {
+                                throw new Error(data.content);
+                            }
                         } catch (e) {
-                            console.warn("Parse error on chunk", line);
+                            // JSON Parse errors on chunks are common in streams, ignore partials
                         }
                     }
                 }
 
                 // Return the final text from Gemini 3 back to Gemini 2.5 (Voice)
-                // so it can speak it to the user.
                 responses.push({
                     id: call.id,
                     name: call.name,
@@ -98,17 +131,38 @@ export const useGeminiLive = () => {
                 });
 
             } catch (err: any) {
-                addLog(MessageSource.SYSTEM, `Core Agent Error: ${err.message}`);
-                responses.push({
-                    id: call.id,
-                    name: call.name,
-                    response: { result: `Error executing task: ${err.message}` }
-                });
+                // --- ERROR HANDLING & OFFLINE DETECTION ---
+                const errMsg = err.message || "";
+                
+                if (err.name === 'AbortError') {
+                    addLog(MessageSource.SYSTEM, "Request Aborted.");
+                    responses.push({
+                         id: call.id, name: call.name, 
+                         response: { result: "Task was cancelled by user." }
+                    });
+                } 
+                // Detect connection failure (Fetch error)
+                else if (errMsg.includes("Failed to fetch") || errMsg.includes("NetworkError") || errMsg.includes("Connection refused")) {
+                    addLog(MessageSource.SYSTEM, "❌ CRITICAL: Backend Connection Failed. Is the Python server running?");
+                    responses.push({
+                        id: call.id,
+                        name: call.name,
+                        response: { result: "BACKEND_OFFLINE: Connection to Proxi Core failed. Please ensure the Python backend server is running on localhost:8000." }
+                    });
+                } else {
+                    addLog(MessageSource.SYSTEM, `Core Agent Error: ${errMsg}`);
+                    responses.push({
+                        id: call.id,
+                        name: call.name,
+                        response: { result: `Error executing task: ${errMsg}` }
+                    });
+                }
             } finally {
                 setActiveTool(null);
+                abortControllerRef.current = null;
             }
         } else {
-            // Fallback for unknown tools (shouldn't happen with strict schema)
+            // Fallback for unknown tools
             responses.push({
                 id: call.id,
                 name: call.name,
@@ -145,8 +199,6 @@ export const useGeminiLive = () => {
           responseModalities: [Modality.AUDIO],
           systemInstruction: SYSTEM_INSTRUCTION,
           tools: [{ functionDeclarations: TOOLS }],
-          // We disable native transcription logging to keep console clean, 
-          // relying on the logs we generate manually.
         },
         callbacks: {
           onopen: () => {
@@ -183,6 +235,9 @@ export const useGeminiLive = () => {
           onmessage: async (message: LiveServerMessage) => {
              // Handle Tool Calls (The Relay Logic)
              if (message.toolCall) {
+                // DO NOT AWAIT if we want to support concurrency, but strict turn-taking usually requires it.
+                // For "Stop" commands to work during "Delegate", delegate must handle the signal or we must process messages async.
+                // Given the protocol, we must respond to the specific tool call ID.
                 const responses = await handleToolCall(message.toolCall.functionCalls);
                 sessionPromise.then(session => {
                     session.sendToolResponse({ functionResponses: responses });
@@ -245,6 +300,13 @@ export const useGeminiLive = () => {
     sourcesRef.current.forEach(source => source.stop());
     sourcesRef.current.clear();
     setConnected(false);
+    
+    // Also abort any pending backend request
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+    }
+
     addLog(MessageSource.SYSTEM, "Disconnected by user.");
   };
 

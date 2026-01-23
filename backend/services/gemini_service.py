@@ -154,6 +154,7 @@ class GeminiService:
             "type_text": self.type_text,
             "press_hotkey": self.press_hotkey,
             "get_screen_map": self.get_screen_map,
+            "verify_screen_content": self.verify_screen_content,
             "run_terminal_command": self.run_terminal_command
         }
 
@@ -179,27 +180,37 @@ class GeminiService:
         if self.desktop_service: return self.desktop_service.press_hotkey(keys)
         return "Desktop Service Unavailable"
 
+    def verify_screen_content(self, question: str):
+        """Dedicated tool for visual verification using Gemini Flash"""
+        log_system(f"TOOL_CALL: verify_screen_content(question='{question}')", "VISION")
+        if not self.desktop_service: return "Desktop Service Unavailable"
+        
+        base64_img = self.desktop_service.get_screenshot_base64()
+        if not base64_img:
+            return "Error: Failed to capture screen."
+
+        try:
+            log_system("Sending Screenshot to Gemini 3 Flash for Verification...", "VISION")
+            model = genai.GenerativeModel(self.FAST_TEXT_MODEL)
+            response = model.generate_content([
+                f"Question: {question}\nAnalyze the screenshot and answer honestly. If the screen is blank or the drawing is incomplete, say so.",
+                {'mime_type': 'image/jpeg', 'data': base64_img}
+            ])
+            log_system(f"Vision Verdict: {response.text[:100]}...", "VISION")
+            return f"VERIFICATION_RESULT: {response.text}"
+        except Exception as e:
+            return f"Vision Verification Failed: {e}"
+
     def get_screen_map(self, mode: str = "hybrid"):
         log_system(f"TOOL_CALL: get_screen_map(mode='{mode}')", "VISION")
         if self.desktop_service:
-            if mode == "visual":
-                base64_img = self.desktop_service.get_screenshot_base64()
-                if not base64_img:
-                    return "Error: Failed to capture screen for Vision API."
-                
-                log_system("Sending Screenshot to Gemini 3 Flash...", "VISION")
-                try:
-                    model = genai.GenerativeModel(self.FAST_TEXT_MODEL)
-                    response = model.generate_content([
-                        "Analyze this screenshot. List all active windows, UI elements, and read any visible text. Describe the layout.",
-                        {'mime_type': 'image/jpeg', 'data': base64_img}
-                    ])
-                    log_system("Vision API Analysis Complete.", "VISION")
-                    return f"VISION_ANALYSIS_RESULT:\n{response.text}"
-                except Exception as e:
-                    return f"Vision API Error: {e}"
+            # Handle loose mode matching (LLMs often guess parameters)
+            normalized_mode = mode.lower()
+            if "visual" in normalized_mode or "ai" in normalized_mode or "screenshot" in normalized_mode or "block" in normalized_mode:
+                return self.verify_screen_content("Describe the UI layout, active windows, and any diagrams visible.")
 
-            result = self.desktop_service.get_screen_map(mode)
+            # Fallback to structural map (Accessibility API)
+            result = self.desktop_service.get_screen_map("hybrid")
             return result
         return "Desktop Service Unavailable"
 
@@ -270,14 +281,16 @@ class GeminiService:
            - **Analyze**: Briefly assess the request.
            - **Plan**: If the task is complex, list the steps (Phase 1, Phase 2) in your thought block.
            - **Execute**: Run tools immediately after planning. BATCH tool calls if possible to reduce latency.
-        2. **SELF-CORRECTION**:
-           - If a tool fails, DO NOT give up. 
-           - State: "Action failed. Re-evaluating..." and try a different parameter or tool.
+        2. **SELF-CORRECTION & VERIFICATION**:
+           - **Verify**: After performing visual tasks (drawing, coding, UI nav), you MUST call `verify_screen_content(question="...")` to confirm success.
+           - **Do NOT Assume**: Do not claim you drew a box unless the vision tool confirms it is visible.
+           - If a tool fails, state: "Action failed. Re-evaluating..." and try a different parameter or tool.
         3. **PLAIN TEXT ONLY**: Do NOT use markdown in your final spoken response.
         4. **POWERSHELL SYNTAX**: The user is on Windows. 
            - Use `;` to separate commands, NOT `||` or `&&`.
         5. **DRAWING**: 
            - `start mspaint` -> `drag_mouse`. Guess coordinates.
+           - Immediately check your work with `verify_screen_content("Did I draw the box correctly?")`.
         """
         
         full_prompt = f"{system_instruction}\n\nUser Task: {message}"
@@ -299,7 +312,7 @@ class GeminiService:
             response = await self._send_chat_message_with_retry(chat, full_prompt)
             
             # Loop for multi-turn tool use
-            max_turns = 8
+            max_turns = 12 # Increased turns for verify loops
             current_turn = 0
 
             while current_turn < max_turns:
