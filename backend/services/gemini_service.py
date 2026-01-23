@@ -210,8 +210,14 @@ class GeminiService:
             2. **GUI FALLBACK (Hybrid):** 
                - Only if the task requires a visual interface (e.g., "Click the button in this specific app"), use `get_screen_map` and `click_at`.
                - Note: If `get_screen_map` returns errors or blank data, report that the session appears locked and offer to try a shell command instead.
+
+            3. **FILE SAFETY (IMPORTANT):**
+               - Windows blocks downloaded files (Mark of the Web).
+               - **BEFORE opening any file** (e.g., images, text logs) with `Invoke-Item` or `Start-Process`, you **MUST** run `Unblock-File` first.
+               - Example: `Unblock-File 'C:\\Users\\...\\image.jpg'; Invoke-Item 'C:\\Users\\...\\image.jpg'`
+               - If you fail to do this, a security popup will block your vision.
             
-            3. **TOOLS:**
+            4. **TOOLS:**
                - `run_terminal_command(str)`: Execute PowerShell/CMD. **(Primary)**
                - `get_screen_map()`: See the screen. (Secondary)
                - `click_at(x,y)`, `type_text(str)`: Interact physically. (Secondary)

@@ -9,8 +9,12 @@ import time
 import subprocess
 import os
 import tempfile
+import warnings
 from datetime import datetime
 import psutil
+
+# 1. Suppress PyTorch/EasyOCR CPU Warnings
+warnings.filterwarnings("ignore", category=UserWarning, message=".*pin_memory.*")
 
 # Windows Accessibility Imports
 if platform.system() == "Windows":
@@ -44,7 +48,10 @@ class DesktopService:
         if self._reader is None:
             print("[INFO] 🐢 Loading EasyOCR Model (Fallback)...", flush=True)
             try:
-                self._reader = easyocr.Reader(['en'], gpu=False)
+                # Suppress output during load
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    self._reader = easyocr.Reader(['en'], gpu=False)
             except Exception as e:
                 print(f"[ERROR] EasyOCR failed to load: {e}", flush=True)
                 # Return a dummy object to prevent crashes
@@ -134,7 +141,9 @@ class DesktopService:
                     result_json = json.dumps(ui_elements, separators=(',', ':'))
                     return result_json 
             except Exception as e:
-                print(f"[WARN] Accessibility Scan Failed: {e}. Fallback to OCR.", flush=True)
+                # This is common if the RDP session is minimized or locked, so we downgrade to DEBUG/WARN
+                # to avoid panicking the user.
+                print(f"[DEBUG] Accessibility Scan skipped/failed: {e}. Fallback to OCR.", flush=True)
 
         # Fallback to Visual Scan
         scan_source = "COMPUTER_VISION"
@@ -172,7 +181,8 @@ class DesktopService:
                 except Exception:
                     continue
         except Exception as e:
-            print(f"[ERROR] UIAutomation Tree Walk Error: {e}")
+            # Raising this exception allows the main try/catch to switch to OCR
+            raise e 
         return elements
 
     def _scan_visual_ocr(self):
@@ -192,6 +202,7 @@ class DesktopService:
             height = int(img_cv.shape[0] * scale_percent / 100)
             resized_img = cv2.resize(img_cv, (width, height), interpolation=cv2.INTER_AREA)
             
+            # Using the lazy property here
             results = self.reader.readtext(resized_img, detail=1)
             elements = []
             elements.append({"text": "Metadata:Source=VISION_OCR", "x": 0, "y": 0, "type": "meta"})
