@@ -19,32 +19,24 @@ from google.generativeai.types import GenerationConfig
 from backend.services.desktop_service import DesktopService
 from backend.models.api_models import PendingAction
 
-# 2. Force Load .env from Project Root with Robust Parsing
+# 2. Force Load .env from Project Root
 root_dir = Path(__file__).resolve().parent.parent.parent
 env_path = root_dir / ".env"
 DEBUG_LOG_PATH = root_dir / "proxi_debug.log"
 
 # --- Logging Helper ---
 def log_system(message: str, category: str = "INFO"):
-    """
-    Writes to Console AND proxi_debug.log with timestamps.
-    """
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     formatted_msg = f"[{timestamp}] [{category}] {message}"
-    
-    # Console
-    print(formatted_msg)
-    
-    # File
+    print(formatted_msg, flush=True)
     try:
         with open(DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
             f.write(formatted_msg + "\n")
     except Exception as e:
-        print(f"Failed to write to log file: {e}")
+        print(f"Failed to write to log file: {e}", flush=True)
 
 log_system(f"Loading environment variables from: {env_path}", "INIT")
 
-# Robust loading strategy for Windows
 if env_path.exists():
     load_dotenv(dotenv_path=env_path, override=True)
     if not os.getenv("GEMINI_API_KEY"):
@@ -67,8 +59,6 @@ if env_path.exists():
                 if found: break
             except Exception:
                 continue
-        if not found:
-             log_system("Manual parsing also failed. Please check .env file content.", "ERROR")
 else:
     log_system(f".env file NOT found at: {env_path}", "ERROR")
 
@@ -143,39 +133,39 @@ class GeminiService:
     # --- Atomic Motor Skills (Tools) ---
     
     def click_at(self, x: int, y: int):
-        """Moves mouse to (x,y) and clicks."""
         log_system(f"TOOL_CALL: click_at({x}, {y})", "ACTION")
         if self.desktop_service: return self.desktop_service.click_at(x, y)
         return "Desktop Service Unavailable"
 
     def type_text(self, text: str):
-        """Types the specified text string."""
         log_system(f"TOOL_CALL: type_text('{text}')", "ACTION")
         if self.desktop_service: return self.desktop_service.type_text(text)
         return "Desktop Service Unavailable"
 
     def press_hotkey(self, keys: list):
-        """Presses a key combination (e.g. ['ctrl', 's'])."""
         log_system(f"TOOL_CALL: press_hotkey({keys})", "ACTION")
         if self.desktop_service: return self.desktop_service.press_hotkey(keys)
         return "Desktop Service Unavailable"
 
     def get_screen_map(self):
-        """Returns a list of visible text elements and their (x,y) coordinates."""
         log_system("TOOL_CALL: get_screen_map() - Scanning...", "VISION")
         if self.desktop_service: 
             result = self.desktop_service.get_screen_map()
-            # Log the vision result to the debug file so user knows what agent saw
-            log_system(f"VISION_RESULT: {result[:200]}... (truncated)", "VISION")
+            log_system(f"VISION_RESULT_LEN: {len(result)} chars", "VISION")
+            return result
+        return "Desktop Service Unavailable"
+
+    def run_terminal_command(self, command: str):
+        log_system(f"TOOL_CALL: run_terminal_command('{command}')", "SHELL")
+        if self.desktop_service:
+            result = self.desktop_service.run_terminal_command(command)
+            log_system(f"SHELL_OUTPUT: {result[:100]}...", "SHELL")
             return result
         return "Desktop Service Unavailable"
 
     # --- Router & Execution ---
 
     async def route_and_execute(self, message: str, complexity_request: str = "fast"):
-        """
-        Main entry point. Routes request to Flash or Pro based on complexity.
-        """
         log_system(f"NEW REQUEST: {message} (Mode: {complexity_request})", "ROUTER")
         
         if not self.api_key: return "Error: API Key Missing", "error", "none"
@@ -184,7 +174,8 @@ class GeminiService:
         tools = [
             get_server_time, get_system_health, 
             update_github_file, create_github_issue,
-            self.click_at, self.type_text, self.press_hotkey, self.get_screen_map
+            self.click_at, self.type_text, self.press_hotkey, 
+            self.get_screen_map, self.run_terminal_command
         ]
 
         model_name = self.FAST_TEXT_MODEL
@@ -194,29 +185,12 @@ class GeminiService:
         if complexity_request == "deep":
             model_name = self.SMART_TEXT_MODEL
             reasoning_path = "pro_escalation_user"
-            log_system("User requested DEEP mode.", "ROUTER")
         else:
-            # 3. Router (Flash Triage)
-            triage_prompt = f"""
-            Classify this task. Task: "{message}"
-            Respond only with 'SIMPLE' or 'COMPLEX'.
-            SIMPLE: UI navigation, clicking things, typing text, explaining concepts.
-            COMPLEX: Writing new code from scratch, complex debugging, architectural planning.
-            """
-            try:
-                triage_model = genai.GenerativeModel(self.FAST_TEXT_MODEL)
-                triage_res = await asyncio.to_thread(triage_model.generate_content, triage_prompt)
-                classification = triage_res.text.strip().upper()
-                log_system(f"Triage Result: {classification}", "ROUTER")
-                
-                if "COMPLEX" in classification:
-                    model_name = self.SMART_TEXT_MODEL
-                    reasoning_path = "pro_escalation_auto"
-                else:
-                    reasoning_path = "flash_direct"
-            except Exception as e:
-                log_system(f"Triage Failed: {e}", "WARN")
-                reasoning_path = "flash_fallback"
+            if any(x in message.lower() for x in ["check", "click", "open", "type", "press"]):
+                 reasoning_path = "flash_heuristic"
+            else:
+                 model_name = self.SMART_TEXT_MODEL
+                 reasoning_path = "pro_escalation_auto"
 
         # 4. Execution
         try:
@@ -225,25 +199,22 @@ class GeminiService:
             chat = model.start_chat(enable_automatic_function_calling=True)
             
             system_instruction = """
-            You are a Hand-Eye Coordinator (Ghost Operator).
+            You are Proxi, a Headless Operator for a remote server.
             
-            VISION STRATEGY:
-            1. Always call `get_screen_map` first to understand the current state of the screen.
-            2. Analyze the text and coordinates returned to locate your target.
-            3. If the text matches (or is close), `click_at` that location. 
-            4. Double-click to open files/folders.
-            5. If you cannot see the target, consider navigating (e.g., minimizing windows, using search) but verify the screen state after every action.
-            6. If you are stuck, STOP and report what you see.
+            CRITICAL PROTOCOL:
+            1. **PREFER SHELL OVER GUI:** The server screen might be locked or black. 
+               - If the user asks to "check logs", "restart service", or "list files", USE `run_terminal_command`.
+               - Do NOT try to open the Event Viewer or Task Manager GUI unless explicitly asked.
+               - Example: Use `run_terminal_command('Get-Service *nginx*')` instead of clicking menus.
             
-            TOOLS:
-            - `get_screen_map`: Returns JSON of text on screen. 
-            - `click_at(x,y)`: Clicks.
-            - `type_text(str)`: Types.
-            - `press_hotkey(list)`: Presses keys.
+            2. **GUI FALLBACK (Hybrid):** 
+               - Only if the task requires a visual interface (e.g., "Click the button in this specific app"), use `get_screen_map` and `click_at`.
+               - Note: If `get_screen_map` returns errors or blank data, report that the session appears locked and offer to try a shell command instead.
             
-            SAFETY:
-            - Do not click random coordinates if you are unsure.
-            - Do not enter infinite loops of searching.
+            3. **TOOLS:**
+               - `run_terminal_command(str)`: Execute PowerShell/CMD. **(Primary)**
+               - `get_screen_map()`: See the screen. (Secondary)
+               - `click_at(x,y)`, `type_text(str)`: Interact physically. (Secondary)
             """
             
             full_prompt = f"{system_instruction}\n\nUser Task: {message}"
@@ -253,7 +224,6 @@ class GeminiService:
             duration = round(time.time() - exec_start, 2)
             
             log_system(f"Execution Complete in {duration}s", "EXEC")
-            log_system(f"Response: {response.text[:100]}...", "RESPONSE")
             
             return response.text, model_name, reasoning_path
 
