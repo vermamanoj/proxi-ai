@@ -5,23 +5,58 @@ import psutil
 import json
 import warnings
 from pathlib import Path
-from github import Github
-import google.generativeai as genai
-from google.generativeai.types import GenerationConfig
 from dotenv import load_dotenv
-from backend.services.desktop_service import DesktopService
-from backend.models.api_models import PendingAction
 
-# 1. Suppress Google SDK Deprecation Warning
+# 1. Suppress Google SDK Deprecation Warning (Must be before imports)
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
+from github import Github
+import google.generativeai as genai
+from google.generativeai.types import GenerationConfig
+from backend.services.desktop_service import DesktopService
+from backend.models.api_models import PendingAction
+
 # 2. Force Load .env from Project Root
+# This ensures it works even if CWD is different or on Windows/PowerShell
 root_dir = Path(__file__).resolve().parent.parent.parent
 env_path = root_dir / ".env"
 
 print(f"Loading environment variables from: {env_path}")
-load_dotenv(dotenv_path=env_path)
+
+# Robust loading strategy for Windows (handling UTF-16/BOM from PowerShell)
+if env_path.exists():
+    # Try standard load
+    load_dotenv(dotenv_path=env_path, override=True)
+    
+    # Fallback: Manual parse if key is missing (fixes encoding issues)
+    if not os.getenv("GEMINI_API_KEY"):
+        print("⚠️ Standard .env load failed. Attempting manual parsing...")
+        encodings = ['utf-8', 'utf-8-sig', 'utf-16', 'latin-1']
+        
+        found = False
+        for enc in encodings:
+            try:
+                with open(env_path, 'r', encoding=enc) as f:
+                    for line in f:
+                        if line.strip().startswith('GEMINI_API_KEY'):
+                            # Handle formats: KEY=VALUE, KEY="VALUE", KEY='VALUE'
+                            parts = line.split('=', 1)
+                            if len(parts) == 2:
+                                clean_key = parts[1].strip().strip('"').strip("'")
+                                if clean_key:
+                                    os.environ['GEMINI_API_KEY'] = clean_key
+                                    print(f"✅ Successfully loaded key using encoding: {enc}")
+                                    found = True
+                                    break
+                if found: break
+            except Exception:
+                continue
+        
+        if not found:
+             print("❌ Manual parsing also failed. Please check .env file content.")
+else:
+    print(f"❌ .env file NOT found at: {env_path}")
 
 # --- Tool Definitions ---
 
@@ -102,7 +137,8 @@ class GeminiService:
         if not self.api_key:
             print("❌ CRITICAL ERROR: GEMINI_API_KEY not found in environment variables.")
         else:
-            print("✅ GEMINI_API_KEY loaded successfully.")
+            masked_key = self.api_key[:8] + "..." + self.api_key[-4:]
+            print(f"✅ GEMINI_API_KEY loaded successfully. ({masked_key})")
             genai.configure(api_key=self.api_key)
         
         # Initialize Desktop Service
