@@ -2,9 +2,6 @@ import pyautogui
 import easyocr
 import cv2
 import numpy as np
-import io
-from PIL import Image
-import os
 import json
 import platform
 import ctypes
@@ -18,10 +15,9 @@ class DesktopService:
         
         # PyAutoGUI safety & reliability settings
         pyautogui.FAILSAFE = True
-        pyautogui.PAUSE = 0.5  # Add 0.5s cooldown after each PyAutoGUI call
+        pyautogui.PAUSE = 0.2  # Optimized for Flash (0.2s interval)
         
         # Windows DPI Scaling Fix
-        # This ensures that coordinates from screenshots match mouse coordinates
         if platform.system() == "Windows":
             try:
                 ctypes.windll.user32.SetProcessDPIAware()
@@ -32,16 +28,16 @@ class DesktopService:
         # Screen size
         self.screen_width, self.screen_height = pyautogui.size()
 
-    def get_ui_manifest(self):
+    def get_screen_map(self):
         """
-        Captures screenshot, runs OCR, and returns a list of UI elements with coordinates.
-        Optimization: Resizes image for faster OCR processing.
+        Atomic Tool: See.
+        Captures screenshot, runs OCR, and returns a COMPACT JSON string of text elements.
         """
         try:
             # 1. Capture Screenshot
             screenshot = pyautogui.screenshot()
             
-            # 2. Convert to CV2 format for processing
+            # 2. Convert to CV2 format
             img_np = np.array(screenshot)
             img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
             
@@ -50,89 +46,58 @@ class DesktopService:
             width = int(img_cv.shape[1] * scale_percent / 100)
             height = int(img_cv.shape[0] * scale_percent / 100)
             dim = (width, height)
-            
-            # Resize image
             resized_img = cv2.resize(img_cv, dim, interpolation=cv2.INTER_AREA)
             
             # 4. Run OCR
-            # detail=1 returns bounding box, text, and confidence
             results = self.reader.readtext(resized_img, detail=1)
             
             elements = []
             for (bbox, text, prob) in results:
-                if prob < 0.4: continue # Filter low confidence
+                if prob < 0.4: continue 
                 
-                # Map coordinates back to original screen size
-                # bbox is [[x1,y1], [x2,y1], [x2,y2], [x1,y2]]
+                # Descale coordinates
                 x1, y1 = bbox[0]
                 x2, y2 = bbox[2]
-                
-                # Descale
                 center_x = int(((x1 + x2) / 2) * (100 / scale_percent))
                 center_y = int(((y1 + y2) / 2) * (100 / scale_percent))
                 
                 elements.append({
                     "text": text,
-                    "center": {"x": center_x, "y": center_y},
-                    "confidence": float(prob)
+                    "x": center_x,
+                    "y": center_y
                 })
-                
-            return elements
+            
+            # Return compact JSON string
+            return json.dumps(elements, separators=(',', ':'))
 
         except Exception as e:
-            print(f"UI Manifest Error: {e}")
-            return []
+            print(f"Screen Map Error: {e}")
+            return "[]"
 
-    def execute_action(self, action_type: str, data: dict):
-        """
-        Executes the physical action on the desktop.
-        Supports atomic actions (click, type) and 'macro' sequences.
-        """
+    def click_at(self, x: int, y: int):
+        """Atomic Tool: Click."""
         try:
-            if action_type == "macro":
-                # Execute a sequence of actions
-                results = []
-                steps = data.get("plan", [])
-                print(f"Executing Macro with {len(steps)} steps...")
-                
-                for i, step in enumerate(steps):
-                    # Extract the type and execute recursively
-                    step_type = step.get("action")
-                    if not step_type: continue
-                    
-                    print(f"Macro Step {i+1}: {step_type}")
-                    step_result = self.execute_action(step_type, step)
-                    results.append(step_result)
-                    
-                    # Add delay between steps to allow UI to react (e.g., windows opening)
-                    time.sleep(1.5) 
-                    
-                return f"Macro complete. Steps executed: {len(results)}"
-
-            if action_type == "click":
-                x = data.get("x")
-                y = data.get("y")
-                if x is not None and y is not None:
-                    pyautogui.moveTo(x, y, duration=0.5)
-                    pyautogui.click()
-                    return f"Clicked at ({x}, {y})"
-            
-            elif action_type == "type":
-                text = data.get("text")
-                if text:
-                    # Interval mimics human typing speed
-                    pyautogui.write(text, interval=0.01)
-                    return f"Typed: '{text}'"
-            
-            elif action_type == "hotkey":
-                keys = data.get("keys", [])
-                if keys:
-                    pyautogui.hotkey(*keys)
-                    return f"Pressed hotkey: {'+'.join(keys)}"
-            
-            return "Unknown action type"
+            pyautogui.moveTo(x, y, duration=0.2)
+            pyautogui.click()
+            return f"Clicked ({x}, {y})"
         except Exception as e:
-            return f"Action Execution Failed: {str(e)}"
+            return f"Click Failed: {e}"
+
+    def type_text(self, text: str):
+        """Atomic Tool: Type."""
+        try:
+            pyautogui.write(text, interval=0.01)
+            return f"Typed '{text}'"
+        except Exception as e:
+            return f"Type Failed: {e}"
+
+    def press_hotkey(self, keys: list):
+        """Atomic Tool: Hotkey."""
+        try:
+            pyautogui.hotkey(*keys)
+            return f"Pressed {'+'.join(keys)}"
+        except Exception as e:
+            return f"Hotkey Failed: {e}"
 
     def get_screen_size(self):
         return {"width": self.screen_width, "height": self.screen_height}

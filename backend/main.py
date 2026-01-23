@@ -8,7 +8,7 @@ from backend.services.gemini_service import GeminiService
 app = FastAPI(
     title="Proxi Backend",
     description="Backend API for Proxi Headless Operator",
-    version="0.1.0"
+    version="0.2.0"
 )
 
 # Initialize Service
@@ -33,24 +33,18 @@ async def health_check():
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
-        response_text = ""
-        model_used = ""
-
-        if request.complexity == "deep":
-            response_text = await gemini_service.generate_deep_thought(request.message)
-            model_used = gemini_service.SMART_TEXT_MODEL
-        else:
-            response_text = await gemini_service.generate_reflex_response(request.message)
-            model_used = gemini_service.FAST_TEXT_MODEL
-
-        # Check if the tool execution triggered a pending action
-        pending_action = gemini_service.latest_pending_action
+        # Route the request through the Agentic Router
+        response_text, model_used, reasoning_path = await gemini_service.route_and_execute(
+            request.message, 
+            request.complexity
+        )
 
         return ChatResponse(
             response=response_text,
             status="success",
             used_model=model_used,
-            pending_action=pending_action
+            reasoning_path=reasoning_path,
+            pending_action=None # Atomic mode is autonomous
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -66,7 +60,8 @@ async def vision_analysis(
         return ChatResponse(
             response=response_text,
             status="success",
-            used_model=gemini_service.VISION_MODEL
+            used_model=gemini_service.VISION_MODEL,
+            reasoning_path="vision_direct"
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -75,6 +70,7 @@ async def vision_analysis(
 async def execute_desktop_action():
     """
     Executes the action waiting in the HITL buffer.
+    Deprecated in v2 (Atomic), but kept for API compatibility.
     """
     try:
         result = gemini_service.execute_pending_action()

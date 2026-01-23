@@ -17,4 +17,5 @@ class ChatResponse(BaseModel):
     response: str
     status: str
     used_model: str
+    reasoning_path: str # "flash_direct" or "pro_escalation"
     pending_action: Optional[PendingAction] = None
