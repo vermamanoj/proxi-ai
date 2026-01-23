@@ -7,6 +7,8 @@ import platform
 import ctypes
 import time
 import subprocess
+import os
+import tempfile
 from datetime import datetime
 import psutil
 
@@ -41,42 +43,71 @@ class DesktopService:
         """Lazy loader for EasyOCR (Fallback only)."""
         if self._reader is None:
             print("[INFO] 🐢 Loading EasyOCR Model (Fallback)...", flush=True)
-            self._reader = easyocr.Reader(['en'], gpu=False)
+            try:
+                self._reader = easyocr.Reader(['en'], gpu=False)
+            except Exception as e:
+                print(f"[ERROR] EasyOCR failed to load: {e}", flush=True)
+                # Return a dummy object to prevent crashes
+                class DummyReader:
+                    def readtext(self, img, detail=1): return []
+                self._reader = DummyReader()
         return self._reader
 
     # --- NEW: Headless Capabilities ---
     def run_terminal_command(self, command: str):
         """
-        Executes a shell command (PowerShell on Windows) and returns the output.
-        This works even if the screen is locked or RDP is disconnected.
+        Executes a shell command via a temporary PowerShell script.
+        This avoids all quoting/escaping issues that occur when wrapping commands in strings.
         """
-        print(f"[DEBUG] Executing Shell Command: {command}", flush=True)
+        print(f"[DEBUG] Request to execute: {command}", flush=True)
+        
+        # Cleanup: The model sometimes mistakenly adds 'powershell' or 'powershell -Command'
+        # We strip this because we are going to run it IN powershell anyway.
+        clean_cmd = command.strip()
+        if clean_cmd.lower().startswith("powershell -command"):
+            clean_cmd = clean_cmd[19:].strip().strip('"').strip("'")
+        elif clean_cmd.lower().startswith("powershell"):
+            clean_cmd = clean_cmd[10:].strip()
+
+        print(f"[DEBUG] Sanitized Shell Command: {clean_cmd}", flush=True)
+
+        script_path = None
         try:
-            # Use PowerShell for more capability on Windows
-            full_command = f"powershell -Command \"{command}\""
+            # Create a temp .ps1 file
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.ps1') as tmp:
+                tmp.write(clean_cmd)
+                script_path = tmp.name
             
+            # Run the script with Bypass policy
+            # We use a timeout to prevent 'Start-Sleep 1000' from hanging the agent forever
             result = subprocess.run(
-                full_command, 
+                ["powershell", "-ExecutionPolicy", "Bypass", "-File", script_path], 
                 capture_output=True, 
                 text=True, 
-                shell=True,
-                timeout=30 # Prevent hanging indefinitely
+                timeout=45 
             )
             
             stdout = result.stdout.strip()
             stderr = result.stderr.strip()
             
             if result.returncode == 0:
-                # Truncate overly long logs
                 if len(stdout) > 2000:
                     stdout = stdout[:2000] + "\n...[TRUNCATED]"
                 return f"SUCCESS:\n{stdout}" if stdout else "SUCCESS (No Output)"
             else:
                 return f"ERROR:\n{stderr}"
+
         except subprocess.TimeoutExpired:
-            return "ERROR: Command timed out after 30 seconds."
+            return "ERROR: Command timed out after 45 seconds."
         except Exception as e:
             return f"SYSTEM ERROR: {str(e)}"
+        finally:
+            # Clean up temp file
+            if script_path and os.path.exists(script_path):
+                try:
+                    os.remove(script_path)
+                except:
+                    pass
 
     # --- Existing GUI Capabilities ---
     def get_screen_map(self):
@@ -184,13 +215,16 @@ class DesktopService:
         except Exception as e:
             print(f"[ERROR] OCR Failed: {e}", flush=True)
             return "[]"
+            
 
     def click_at(self, x: int, y: int):
         try:
-            print(f"[DEBUG] Clicking at {x}, {y}", flush=True)
-            pyautogui.moveTo(x, y, duration=0.2)
+            # Ensure coordinates are integers
+            ix, iy = int(x), int(y)
+            print(f"[DEBUG] Clicking at {ix}, {iy}", flush=True)
+            pyautogui.moveTo(ix, iy, duration=0.2)
             pyautogui.click()
-            return f"Clicked ({x}, {y})"
+            return f"Clicked ({ix}, {iy})"
         except Exception as e:
             return f"Click Failed: {e}"
 

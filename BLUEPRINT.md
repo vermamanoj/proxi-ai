@@ -4,7 +4,7 @@
 **Target:** Google Gemini 3 Hackathon (Top Prize)
 
 ## 1. THE MISSION
-To build an agentic, voice-first interface that allows developers to perform "Headless SDLC" tasks (Triage, Ops, Architecture) without looking at a screen. It acts as a remote control for Google Cloud and GitHub.
+To build an agentic, voice-first interface that allows developers to perform "Headless SDLC" tasks (Triage, Ops, Architecture) without looking at a screen. It acts as a remote control for Google Cloud, GitHub, and remote Windows Servers.
 
 ## 2. THE TECH STACK (Strict Adherence)
 *   **AI Model:** Gemini 3 Pro (via Vertex AI) + Gemini Live API (for Real-time WebRTC Audio).
@@ -14,7 +14,7 @@ To build an agentic, voice-first interface that allows developers to perform "He
     *   *Vector:* Pinecone (for Code RAG).
     *   *Session:* In-memory / Redis (for active conversation state).
 *   **Frontend (Simulator):** React + Tailwind CSS (Web-based control plane for Judges).
-*   **Infrastructure:** Google Cloud Run (Dockerized).
+*   **Infrastructure:** Google Cloud Run (Dockerized) OR Windows Server (Bare Metal).
 *   **Auth:** GitHub OAuth.
 
 ## 3. ARCHITECTURE OVERVIEW
@@ -22,10 +22,10 @@ To build an agentic, voice-first interface that allows developers to perform "He
                                                   |
                                           [The Agent Brain (LangGraph)]
                                                   |
-                            ---------------------------------------------
-                            |                   |                       |
-                     [Tool: GitHub]     [Tool: Google Cloud]     [Tool: FileSystem]
-                     (PRs, Issues)      (Logs, Restart Pods)     (Read/Write Code)
+                            -----------------------------------------------------------
+                            |                   |                     |               |
+                     [Tool: GitHub]     [Tool: Google Cloud]  [Tool: Shell]    [Tool: GUI]
+                     (PRs, Issues)      (Logs, Restart Pods)  (PowerShell)     (Click, OCR)
 
 ## 4. CODING STANDARDS
 *   **Async First:** All I/O operations (DB, API calls) must be `async/await`.
@@ -56,7 +56,8 @@ graph TD
     subgraph "The Hands (Tools)"
         Tools -->|Review PR| GitHub[GitHub API]
         Tools -->|Check Logs| GCP[Google Cloud SDK]
-        Tools -->|Write Code| Sandbox[Cloud Workstation]
+        Tools -->|PowerShell| Shell[Terminal Execution]
+        Tools -->|GUI/OCR| Desktop[Windows Desktop Service]
     end
     
     Tools -->|Result| Gemini

@@ -21,9 +21,10 @@ A React-based visual control plane for the human operator.
 ### 3. Proxi Ghost (Windows Agent)
 *Experimental Feature.*
 A specialized mode where the backend runs locally on a Windows machine to act as a "Ghost Operator".
-*   **Computer Vision**: Uses `EasyOCR` to "read" the visible screen.
-*   **Actuation**: Uses `PyAutoGUI` to physically move the mouse and type keys.
-*   **Use Case**: "Proxi, open VS Code and change the theme to Dark Mode."
+*   **Shell-First Architecture**: Prioritizes `PowerShell` commands for reliability (works even if screen is locked).
+*   **OS Accessibility**: Uses Windows UIAutomation to read window state instantly.
+*   **Computer Vision**: Fallback to `EasyOCR` if the OS API fails.
+*   **Use Case**: "Proxi, restart the Nginx service," or "Click the 'Deploy' button in the legacy app."
 
 ---
 
@@ -90,6 +91,12 @@ This installs the backend directly on Windows (bare metal) with desktop automati
     ```
     The backend will listen on `0.0.0.0:8080`.
 
+4.  **Unattended Access (Road Warrior Mode):**
+    If you are accessing via RDP and need to disconnect while keeping Proxi active:
+    *   **DO NOT** close the RDP window normally (this locks the screen and kills GUI automation).
+    *   **DO** run the included `disconnect_keep_alive.bat` script.
+    *   This forces the RDP session to detach but remain **unlocked and rendering** on the server console, allowing Proxi's Vision/Click tools to keep working.
+
     *> **Note**: The Windows setup only runs the Backend. To use the Console UI, you must run the frontend separately (e.g., `npm run dev` in the frontend folder) or make API calls directly.*
 
 ---
@@ -98,9 +105,9 @@ This installs the backend directly on Windows (bare metal) with desktop automati
 
 ### Voice Commands (Gemini Live)
 Click **"INITIATE UPLINK"** on the console.
-*   *"Check the logs for the auth-service."*
-*   *"Is there an open PR for the JWT feature?"*
-*   *(Ghost Mode)* *"Click the start button and type 'Notepad'."*
+*   *"Check the logs for the auth-service."* (Uses Shell/PowerShell)
+*   *"Is there an open PR for the JWT feature?"* (Uses GitHub API)
+*   *(Ghost Mode)* *"Click the start button and type 'Notepad'."* (Uses Hybrid Vision/Accessibility)
 
 ### Text / Vision Mode
 Use the terminal input at the bottom.
@@ -122,8 +129,10 @@ graph TD
     subgraph "The Hands (Tools)"
         Tools -->|Review PR| GitHub[GitHub API]
         Tools -->|Check Logs| GCP[Google Cloud SDK]
-        Tools -->|Desktop Action| Ghost[Windows Desktop Service]
+        Tools -->|Terminal Cmd| Shell[PowerShell Subprocess]
+        Tools -->|GUI Interaction| Ghost[Windows Desktop Service]
     end
     
+    Shell -->|Stdout/Stderr| Router
     Ghost -->|OCR/Click| Desktop((Local PC))
 ```
