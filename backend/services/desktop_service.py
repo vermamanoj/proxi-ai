@@ -13,8 +13,9 @@ import warnings
 from datetime import datetime
 import psutil
 
-# 1. Suppress PyTorch/EasyOCR CPU Warnings
+# 1. Global Warning Suppression
 warnings.filterwarnings("ignore", category=UserWarning, message=".*pin_memory.*")
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 # Windows Accessibility Imports
 if platform.system() == "Windows":
@@ -48,7 +49,7 @@ class DesktopService:
         if self._reader is None:
             print("[INFO] 🐢 Loading EasyOCR Model (Fallback)...", flush=True)
             try:
-                # Suppress output during load
+                # Extra suppression scope just for the loader
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     self._reader = easyocr.Reader(['en'], gpu=False)
@@ -153,11 +154,19 @@ class DesktopService:
     def _scan_accessibility_tree(self):
         elements = []
         try:
-            desktop = Desktop(backend="uia")
-            active_window = desktop.active()
+            # 1. Get the Foreground Window Handle (Reliable)
+            hwnd = ctypes.windll.user32.GetForegroundWindow()
+            if not hwnd:
+                raise Exception("No active window handle found")
+
+            # 2. Connect pywinauto to this handle
+            app = Application(backend="uia").connect(handle=hwnd)
+            active_window = app.top_window()
+            
             window_title = active_window.window_text()
             print(f"[DEBUG] Active Window: {window_title}", flush=True)
 
+            # 3. Walk the tree
             controls = active_window.descendants()
             for ctrl in controls:
                 try:
@@ -202,7 +211,7 @@ class DesktopService:
             height = int(img_cv.shape[0] * scale_percent / 100)
             resized_img = cv2.resize(img_cv, (width, height), interpolation=cv2.INTER_AREA)
             
-            # Using the lazy property here
+            # Use property reader with suppressed warnings
             results = self.reader.readtext(resized_img, detail=1)
             elements = []
             elements.append({"text": "Metadata:Source=VISION_OCR", "x": 0, "y": 0, "type": "meta"})
