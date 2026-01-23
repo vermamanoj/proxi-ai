@@ -105,6 +105,7 @@ export const TraceView: React.FC<TraceViewProps> = ({ trace }) => {
   );
 };
 
+
 function BrainCircuitIcon(props: any) {
   return (
     <svg

@@ -312,6 +312,7 @@ class GeminiService:
                         except:
                             pass
 
+
             # Final Response Step
             trace_logs.append(TraceStep(
                 step_type="final_response",

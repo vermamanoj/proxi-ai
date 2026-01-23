@@ -146,6 +146,7 @@ export const useProxiBrain = () => {
     setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
   };
 
+
   return {
     status,
     logs,

@@ -49,6 +49,7 @@ async def chat(request: ChatRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+        
 
 @app.post("/api/vision", response_model=ChatResponse)
 async def vision_analysis(
