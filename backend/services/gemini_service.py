@@ -224,6 +224,11 @@ class GeminiService:
                 return await asyncio.to_thread(func, **args)
         except Exception as e:
             return f"Tool Execution Error: {str(e)}"
+    
+    # Wrapper to track index for preserving order in API response
+    async def _execute_with_index(self, index: int, name: str, args: dict):
+        res = await self._execute_tool_wrapper(name, args)
+        return (index, name, res)
 
     # --- Router & Execution (Streaming Generator) ---
 
@@ -324,33 +329,39 @@ class GeminiService:
                         "calls": safe_calls
                     }) + "\n"
 
-                    # Execute in Parallel
+                    # Create Tasks (Wrapped to return index)
                     tasks = []
-                    for call_info in safe_calls:
-                        tasks.append(self._execute_tool_wrapper(call_info['name'], call_info['args']))
+                    for i, call_info in enumerate(safe_calls):
+                        tasks.append(
+                            self._execute_with_index(i, call_info['name'], call_info['args'])
+                        )
                     
-                    log_system(f"Executing {len(tasks)} tools in PARALLEL...", "EXEC")
-                    results = await asyncio.gather(*tasks)
+                    log_system(f"Executing {len(tasks)} tools in PARALLEL (Streaming)...", "EXEC")
                     
-                    # Notify UI of results
-                    for i, res in enumerate(results):
+                    # Store results in ordered list for API consistency
+                    results_ordered = [None] * len(safe_calls)
+                    
+                    # Yield results AS THEY COMPLETE to update UI immediately
+                    # This prevents the "Stuck" feeling during long drawing sequences
+                    for completed_task in asyncio.as_completed(tasks):
+                        idx, name, res = await completed_task
+                        results_ordered[idx] = res
+                        
                         yield json.dumps({
                             "type": "tool_result", 
-                            "name": function_calls[i].name, 
+                            "name": name, 
                             "content": str(res)[:500]
                         }) + "\n"
 
                     # Construct Response Parts for Gemini
-                    # Gemini expects FunctionResponse parts
                     response_parts = []
-                    for i, res in enumerate(results):
+                    for i, res in enumerate(results_ordered):
                         response_parts.append(
                             Part(function_response=FunctionResponse(
                                 name=function_calls[i].name, 
                                 response={"result": res}
                             ))
                         )
-                        
                     
                     # Send results back to model
                     response = await asyncio.to_thread(chat.send_message, response_parts)

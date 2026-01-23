@@ -10,6 +10,7 @@ import os
 import tempfile
 import base64
 import io
+import threading
 from datetime import datetime
 
 # Windows Accessibility Imports
@@ -25,8 +26,12 @@ class DesktopService:
         print("[INIT] Desktop Service instantiated (Hybrid: Shell + UIAutomation + Vision API).", flush=True)
         self.use_accessibility = platform.system() == "Windows"
         
+        # Thread lock to serialize physical inputs (mouse/keyboard)
+        # prevents race conditions when LLM calls multiple tools in parallel
+        self._input_lock = threading.Lock()
+        
         pyautogui.FAILSAFE = True
-        pyautogui.PAUSE = 0.5
+        pyautogui.PAUSE = 0.1 # Reduced pause for snappier execution
         
         if self.use_accessibility:
             try:
@@ -182,37 +187,42 @@ class DesktopService:
         return elements
 
     def click_at(self, x: int, y: int):
-        try:
-            ix, iy = int(x), int(y)
-            print(f"[DEBUG] Clicking at {ix}, {iy}", flush=True)
-            pyautogui.moveTo(ix, iy, duration=0.2)
-            pyautogui.click()
-            return f"Clicked ({ix}, {iy})"
-        except Exception as e:
-            return f"Click Failed: {e}"
+        with self._input_lock:
+            try:
+                ix, iy = int(x), int(y)
+                print(f"[DEBUG] Clicking at {ix}, {iy}", flush=True)
+                pyautogui.moveTo(ix, iy, duration=0.1)
+                pyautogui.click()
+                return f"Clicked ({ix}, {iy})"
+            except Exception as e:
+                return f"Click Failed: {e}"
 
     def drag_mouse(self, start_x: int, start_y: int, end_x: int, end_y: int):
         """Drags mouse from point A to point B. Useful for drawing."""
-        try:
-            print(f"[DEBUG] Dragging from ({start_x},{start_y}) to ({end_x},{end_y})", flush=True)
-            pyautogui.moveTo(start_x, start_y)
-            pyautogui.dragTo(end_x, end_y, duration=0.5, button='left')
-            return f"Dragged from {start_x},{start_y} to {end_x},{end_y}"
-        except Exception as e:
-            return f"Drag Failed: {e}"
+        with self._input_lock:
+            try:
+                print(f"[DEBUG] Dragging from ({start_x},{start_y}) to ({end_x},{end_y})", flush=True)
+                pyautogui.moveTo(start_x, start_y)
+                # Reduced duration for faster drawing
+                pyautogui.dragTo(end_x, end_y, duration=0.2, button='left')
+                return f"Dragged from {start_x},{start_y} to {end_x},{end_y}"
+            except Exception as e:
+                return f"Drag Failed: {e}"
 
     def type_text(self, text: str):
-        try:
-            print(f"[DEBUG] Typing: {text}", flush=True)
-            pyautogui.write(text, interval=0.01)
-            return f"Typed '{text}'"
-        except Exception as e:
-            return f"Type Failed: {e}"
+        with self._input_lock:
+            try:
+                print(f"[DEBUG] Typing: {text}", flush=True)
+                pyautogui.write(text, interval=0.01)
+                return f"Typed '{text}'"
+            except Exception as e:
+                return f"Type Failed: {e}"
 
     def press_hotkey(self, keys: list):
-        try:
-            print(f"[DEBUG] Hotkey: {keys}", flush=True)
-            pyautogui.hotkey(*keys)
-            return f"Pressed {'+'.join(keys)}"
-        except Exception as e:
-            return f"Hotkey Failed: {e}"
+        with self._input_lock:
+            try:
+                print(f"[DEBUG] Hotkey: {keys}", flush=True)
+                pyautogui.hotkey(*keys)
+                return f"Pressed {'+'.join(keys)}"
+            except Exception as e:
+                return f"Hotkey Failed: {e}"
