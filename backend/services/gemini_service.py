@@ -17,21 +17,54 @@ from google.generativeai.types import GenerationConfig
 from backend.services.desktop_service import DesktopService
 from backend.models.api_models import PendingAction
 
-# 2. Force Load .env
+# 2. Force Load .env from Project Root with Robust Parsing
 root_dir = Path(__file__).resolve().parent.parent.parent
 env_path = root_dir / ".env"
+
+print(f"Loading environment variables from: {env_path}")
+
+# Robust loading strategy for Windows (handling UTF-16/BOM from PowerShell)
 if env_path.exists():
+    # Try standard load
     load_dotenv(dotenv_path=env_path, override=True)
+    
+    # Fallback: Manual parse if key is missing (fixes encoding issues)
     if not os.getenv("GEMINI_API_KEY"):
-        # Fallback manual parsing logic omitted for brevity, assuming solved by previous step
-        pass
+        print("⚠️ Standard .env load failed. Attempting manual parsing...")
+        encodings = ['utf-8', 'utf-8-sig', 'utf-16', 'latin-1']
+        
+        found = False
+        for enc in encodings:
+            try:
+                with open(env_path, 'r', encoding=enc) as f:
+                    for line in f:
+                        if line.strip().startswith('GEMINI_API_KEY'):
+                            # Handle formats: KEY=VALUE, KEY="VALUE", KEY='VALUE'
+                            parts = line.split('=', 1)
+                            if len(parts) == 2:
+                                clean_key = parts[1].strip().strip('"').strip("'")
+                                if clean_key:
+                                    os.environ['GEMINI_API_KEY'] = clean_key
+                                    print(f"✅ Successfully loaded key using encoding: {enc}")
+                                    found = True
+                                    break
+                if found: break
+            except Exception:
+                continue
+        
+        if not found:
+             print("❌ Manual parsing also failed. Please check .env file content.")
+else:
+    print(f"❌ .env file NOT found at: {env_path}")
 
 # --- Standard Tools ---
 
 def get_server_time():
+    """Returns the current server time."""
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 def get_system_health():
+    """Returns basic system stats."""
     try:
         cpu_percent = psutil.cpu_percent(interval=0.1)
         memory = psutil.virtual_memory()
@@ -44,6 +77,7 @@ def get_system_health():
         return f"Error: {str(e)}"
 
 def update_github_file(repo_name: str, file_path: str, content: str):
+    """Updates a file in GitHub."""
     token = os.getenv("GITHUB_TOKEN")
     if not token: return "Error: GITHUB_TOKEN missing."
     try:
@@ -60,6 +94,7 @@ def update_github_file(repo_name: str, file_path: str, content: str):
         return f"GitHub Error: {e}"
 
 def create_github_issue(repo_name: str, title: str, body: str):
+    """Creates a GitHub issue."""
     token = os.getenv("GITHUB_TOKEN")
     if not token: return "Error: GITHUB_TOKEN missing."
     try:
@@ -80,7 +115,11 @@ class GeminiService:
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
         if self.api_key:
+            masked_key = self.api_key[:8] + "..." + self.api_key[-4:]
+            print(f"✅ GEMINI_API_KEY loaded successfully. ({masked_key})")
             genai.configure(api_key=self.api_key)
+        else:
+            print("❌ CRITICAL ERROR: GEMINI_API_KEY still missing after all attempts.")
         
         try:
             self.desktop_service = DesktopService()
@@ -91,6 +130,7 @@ class GeminiService:
         self.latest_pending_action = None
 
     # --- Atomic Motor Skills (Tools) ---
+    # These wrapper methods are necessary to bind the DesktopService instance to the tool call
     
     def click_at(self, x: int, y: int):
         """Moves mouse to (x,y) and clicks."""
@@ -118,7 +158,7 @@ class GeminiService:
         """
         Main entry point. Routes request to Flash or Pro based on complexity.
         """
-        if not self.api_key: return "Error: API Key Missing", "error", "none"
+        if not self.api_key: return "Error: API Key Missing (Check Server Logs)", "error", "none"
 
         # 1. Gather all tools (Atomic + Cloud)
         tools = [
@@ -136,7 +176,6 @@ class GeminiService:
             reasoning_path = "pro_escalation_user"
         else:
             # 3. Router (Flash Triage)
-            # We ask Flash if this looks hard.
             triage_prompt = f"""
             Classify this task. 
             Task: "{message}"
@@ -199,5 +238,5 @@ class GeminiService:
         return response.text
     
     def execute_pending_action(self):
-        # Deprecated in Atomic Mode, but kept to prevent API crashes if HITL is called
+        # Deprecated in Atomic Mode
         return "Atomic Mode Active: Pending actions are executed autonomously."

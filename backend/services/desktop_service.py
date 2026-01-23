@@ -49,6 +49,7 @@ class DesktopService:
             resized_img = cv2.resize(img_cv, dim, interpolation=cv2.INTER_AREA)
             
             # 4. Run OCR
+            # detail=1 returns bounding box, text, and confidence
             results = self.reader.readtext(resized_img, detail=1)
             
             elements = []
@@ -67,7 +68,7 @@ class DesktopService:
                     "y": center_y
                 })
             
-            # Return compact JSON string
+            # Return compact JSON string to save context tokens
             return json.dumps(elements, separators=(',', ':'))
 
         except Exception as e:
@@ -94,6 +95,7 @@ class DesktopService:
     def press_hotkey(self, keys: list):
         """Atomic Tool: Hotkey."""
         try:
+            # keys might come in as ['ctrl', 's'] or just 'enter'
             pyautogui.hotkey(*keys)
             return f"Pressed {'+'.join(keys)}"
         except Exception as e:
