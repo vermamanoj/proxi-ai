@@ -250,9 +250,9 @@ class GeminiService:
         Interact via voice and tools.
         
         CRITICAL OPERATIONAL RULES:
-        1. **THINK OUT LOUD**: Before calling ANY tool, you MUST output a brief thought explaining your plan. This is vital for the Neural Trace UI. 
-           - Example: "I will first check the logs to see the error."
-           - Example: "I need to open Paint before drawing."
+        1. **THOUGHT FIRST**: You MUST begin every response with a text explanation of your plan (Thought), BEFORE generating any tool calls.
+           - Correct: "I will check the logs. [ToolCall]"
+           - Incorrect: "[ToolCall]"
         2. **PLAIN TEXT ONLY**: Do NOT use markdown in your final spoken response.
         3. **POWERSHELL SYNTAX**: The user is on Windows. 
            - Use `;` to separate commands, NOT `||` or `&&`.
@@ -304,6 +304,7 @@ class GeminiService:
 
                 # Streaming Thought to UI
                 if text_content:
+                    log_system(f"LLM THOUGHT: {text_content[:100]}...", "THOUGHT")
                     # If we have text AND function calls, it's a Thought.
                     # If we ONLY have text and no function calls, it's the Final Response.
                     msg_type = "llm_thought" if function_calls else "response"
@@ -312,6 +313,12 @@ class GeminiService:
                     if not function_calls:
                         # Done!
                         break
+                elif function_calls:
+                     # FALLBACK: If model skipped thought, generate one so UI isn't empty
+                     tool_names = [fc.name for fc in function_calls]
+                     fallback = f"Executing actions: {', '.join(tool_names)}..."
+                     log_system(f"LLM SILENT - GENERATING FALLBACK THOUGHT: {fallback}", "WARN")
+                     yield json.dumps({"type": "llm_thought", "content": fallback}) + "\n"
 
                 # Handle Parallel Function Calls
                 if function_calls:
