@@ -186,7 +186,15 @@ class GeminiService:
             model_name = self.SMART_TEXT_MODEL
             reasoning_path = "pro_escalation_user"
         else:
-            if any(x in message.lower() for x in ["check", "click", "open", "type", "press"]):
+            # Expanded heuristics to catch more operational/sensory verbs
+            # "see", "find", "look" -> Vision/OCR tasks should be fast
+            # "run", "list", "start" -> Shell tasks should be fast
+            fast_keywords = [
+                "check", "click", "open", "type", "press", 
+                "find", "see", "look", "list", "run", "start", "what"
+            ]
+            
+            if any(x in message.lower() for x in fast_keywords):
                  reasoning_path = "flash_heuristic"
             else:
                  model_name = self.SMART_TEXT_MODEL
@@ -226,7 +234,12 @@ class GeminiService:
             full_prompt = f"{system_instruction}\n\nUser Task: {message}"
             
             exec_start = time.time()
-            response = await asyncio.to_thread(chat.send_message, full_prompt)
+            # Added timeout to prevent 10-minute hangs on Pro models
+            response = await asyncio.to_thread(
+                chat.send_message, 
+                full_prompt, 
+                request_options={"timeout": 60} 
+            )
             duration = round(time.time() - exec_start, 2)
             
             log_system(f"Execution Complete in {duration}s", "EXEC")
@@ -242,9 +255,11 @@ class GeminiService:
         model = genai.GenerativeModel(self.VISION_MODEL)
         response = await asyncio.to_thread(
             model.generate_content,
-            contents=[user_prompt, {'mime_type': 'image/png', 'data': image_bytes}]
+            contents=[user_prompt, {'mime_type': 'image/png', 'data': image_bytes}],
+            request_options={"timeout": 60}
         )
         return response.text
     
     def execute_pending_action(self):
         return "Atomic Mode Active."
+        
