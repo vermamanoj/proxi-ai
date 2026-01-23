@@ -1,20 +1,23 @@
-
 import React, { useEffect, useRef } from 'react';
 import { TraceStep } from '../types';
 import { User, Cpu, Wrench, ArrowDown, Terminal, MessageSquare, BrainCircuit, ShieldAlert } from 'lucide-react';
 
 interface TraceViewProps {
   trace: TraceStep[];
+  showThoughts?: boolean; // New prop for Verbose Toggle
 }
 
-export const TraceView: React.FC<TraceViewProps> = ({ trace }) => {
+export const TraceView: React.FC<TraceViewProps> = ({ trace, showThoughts = true }) => {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [trace]);
+  }, [trace, showThoughts]);
 
-  if (trace.length === 0) {
+  // Filter out thoughts if toggle is off
+  const visibleTrace = trace.filter(step => showThoughts || step.step_type !== 'llm_thought');
+
+  if (visibleTrace.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center text-gray-600 space-y-2">
         <BrainCircuitIcon className="w-12 h-12 opacity-20" />
@@ -29,7 +32,7 @@ export const TraceView: React.FC<TraceViewProps> = ({ trace }) => {
       <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-800" />
 
       <div className="space-y-8 relative">
-        {trace.map((step, idx) => (
+        {visibleTrace.map((step, idx) => (
           <div key={idx} className="relative pl-12 group animate-slide-in-right">
             
             {/* Connector Node */}
@@ -102,7 +105,7 @@ export const TraceView: React.FC<TraceViewProps> = ({ trace }) => {
             </div>
 
             {/* Down Arrow between steps */}
-            {idx < trace.length - 1 && (
+            {idx < visibleTrace.length - 1 && (
                 <div className="absolute left-6 bottom-[-20px] transform -translate-x-1/2 text-gray-700">
                     <ArrowDown className="w-4 h-4" />
                 </div>

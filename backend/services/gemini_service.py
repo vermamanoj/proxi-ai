@@ -266,17 +266,18 @@ class GeminiService:
         Interact via voice and tools.
         
         CRITICAL OPERATIONAL RULES:
-        1. **THOUGHT FIRST**: You MUST begin every response with a text explanation of your plan (Thought), BEFORE generating any tool calls.
-           - Correct: "I will check the logs. [ToolCall]"
-           - Incorrect: "[ToolCall]"
-        2. **PLAIN TEXT ONLY**: Do NOT use markdown in your final spoken response.
-        3. **POWERSHELL SYNTAX**: The user is on Windows. 
+        1. **PLANNER & EXECUTOR**:
+           - **Analyze**: Briefly assess the request.
+           - **Plan**: If the task is complex, list the steps (Phase 1, Phase 2) in your thought block.
+           - **Execute**: Run tools immediately after planning. BATCH tool calls if possible to reduce latency.
+        2. **SELF-CORRECTION**:
+           - If a tool fails, DO NOT give up. 
+           - State: "Action failed. Re-evaluating..." and try a different parameter or tool.
+        3. **PLAIN TEXT ONLY**: Do NOT use markdown in your final spoken response.
+        4. **POWERSHELL SYNTAX**: The user is on Windows. 
            - Use `;` to separate commands, NOT `||` or `&&`.
-           - Example: `command1 ; if ($?) { command2 }`
-        4. **DRAWING**: If asked to draw:
-           - First `start mspaint`.
-           - Use `drag_mouse(start_x, start_y, end_x, end_y)` to draw lines.
-           - Canvas is usually roughly centered. Guess coordinates if needed (e.g., 500,500 to 700,700).
+        5. **DRAWING**: 
+           - `start mspaint` -> `drag_mouse`. Guess coordinates.
         """
         
         full_prompt = f"{system_instruction}\n\nUser Task: {message}"

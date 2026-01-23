@@ -5,36 +5,34 @@
 
 ## ⚡ Key Features
 
-*   **Voice-First Control:** Full duplex voice interaction using **Gemini Live API** (WebRTC) and Text-to-Speech.
+*   **Executive Relay Architecture:** Combines the low-latency voice capabilities of **Gemini 2.5 Live** with the deep reasoning power of **Gemini 3 Pro**.
+*   **Unified Brain:** All complex logic and tool execution happen on the backend, ensuring consistent behavior across Voice and Text modes.
 *   **Neural Trace:** Visualize the agent's internal thought process, tool planning, and execution steps in real-time.
-*   **Parallel Execution:** The agent intelligently batches tool calls (e.g., checking multiple logs simultaneously) for maximum speed.
-*   **Ghost Mode:** Run the backend locally on Windows to control your mouse, keyboard, and read the screen using accessibility trees and **Gemini Vision**.
-*   **Streaming Brain:** The backend streams thoughts and actions via NDJSON, providing immediate feedback during complex tasks.
+*   **OS Agnostic:** 
+    *   **Cloud Mode:** Runs on Linux (Docker/Cloud Run) for GitHub & GCP tasks.
+    *   **Ghost Mode:** Runs locally on Windows to control mouse/keyboard and see the screen.
+*   **Streaming Brain:** The backend streams thoughts and actions via NDJSON, providing immediate feedback.
 
 ## 📦 System Modules
 
-Proxi consists of three distinct modules that can be deployed together or independently.
+Proxi consists of three distinct modules that work in a relay:
 
-### 1. Proxi Core (Backend)
-The brain of the operation. Built with Python (FastAPI), it handles:
-*   **Gemini 3 Pro Integration**: For high-level reasoning and complex tool planning.
-*   **Streaming Architecture**: Uses Async Generators to stream "Thoughts" and "Tool Outputs" to the UI line-by-line.
-*   **Parallel Tooling**: Automatically detects independent tasks and runs them concurrently using `asyncio.gather`.
-*   **Standard Tools**: Integration with GitHub API (PRs/Issues) and Google Cloud SDK.
+### 1. Proxi Console (Frontend / The Ear)
+*   **Gemini 2.5 Flash (Native Audio)**: Handles the WebRTC voice connection.
+*   **Role**: Acts as a "Secretary". It listens to requests and uses a `delegate_task` tool to hand them off to the Backend.
+*   **Visualization**: Renders the "Neural Trace" streamed from the backend.
 
-### 2. Proxi Console (Frontend)
-A React-based visual control plane for the human operator.
-*   **Visualizer**: Real-time audio waveform visualization (WebRTC/PCM).
-*   **Neural Trace View**: A graphical timeline showing the decision tree (User Input -> LLM Thought -> Tool Call -> Result -> Speech).
-*   **Terminal**: Raw streaming logs of agent activity.
-*   **Controls**: Toggles for "Deep Thought" mode (reasoning models) vs "Reflex" mode (fast models).
+### 2. Proxi Core (Backend / The Brain)
+*   **Gemini 3 Pro**: Receives delegated tasks, plans execution, and writes code.
+*   **Gemini 3 Flash**: Used for high-speed tasks and Vision analysis.
+*   **Tooling**: Hosts all integrations (GitHub, GCP, Desktop).
+*   **Resilience**: Includes auto-retry logic for stochastic LLM tool errors (`MALFORMED_FUNCTION_CALL`).
 
-### 3. Proxi Ghost (Windows Agent)
-*Experimental Feature.*
-A specialized mode where the backend runs locally on a Windows machine to act as a "Ghost Operator".
-*   **Shell-First Architecture**: Prioritizes `PowerShell` commands for reliability.
-*   **Hybrid Vision**: Uses Windows UIAutomation for fast UI reading, falling back to **Gemini 3 Flash Vision** for complex visual analysis (screenshots).
-*   **Use Case**: "Proxi, restart the Nginx service," or "Click the 'Deploy' button in the legacy app."
+### 3. Proxi Ghost (Desktop Agent)
+*   **Module**: `desktop_service.py`
+*   **Behavior**: Automatically detects the OS.
+    *   **Linux/Headless**: Disables GUI tools, runs purely as a Cloud Ops agent.
+    *   **Windows**: Enables `pyautogui`, `pywinauto`, and `opencv` for physical desktop control.
 
 ---
 
@@ -89,9 +87,10 @@ A specialized mode where the backend runs locally on a Windows machine to act as
 
 ### Voice Commands (Gemini Live)
 Click **"INITIATE UPLINK"** on the console.
-*   *"Check the logs for the auth-service."* (Uses Shell/PowerShell)
-*   *"Is there an open PR for the JWT feature?"* (Uses GitHub API)
-*   *(Ghost Mode)* *"Click the start button and type 'Notepad'."* (Uses Hybrid Vision)
+*   The Frontend (Gemini 2.5) listens.
+*   It delegates the intent to the Backend (Gemini 3).
+*   The Backend executes tools and returns a summary.
+*   The Frontend speaks the summary.
 
 ### Text / Vision Mode
 Use the terminal input at the bottom.
@@ -102,24 +101,24 @@ Use the terminal input at the bottom.
 
 ```mermaid
 graph TD
-    User((User Voice)) -->|WebRTC Stream| Bridge[Proxi Console / Frontend]
-    Bridge -->|Audio Stream| Gemini[Gemini Live API]
+    User((User Voice)) -->|WebRTC Audio| Front[Frontend: Gemini 2.5 Live]
+    Front -->|Tool Call: delegate_task| Back[Backend: FastAPI]
     
-    subgraph "Proxi Core (Backend)"
-        Gemini -->|Decide Intent| Router{Router}
-        Router -->|NDJSON Stream| Trace[Neural Trace Stream]
+    subgraph "The Proxi Brain (Gemini 3)"
+        Back -->|Reasoning & Plan| Logic[Gemini 3 Pro]
+        Logic -->|Action Stream| Trace[Neural Trace (NDJSON)]
     end
     
-    subgraph "The Hands (Tools)"
-        Trace -->|Parallel Exec| ToolBatch{Batch Executor}
-        ToolBatch -->|Review PR| GitHub[GitHub API]
-        ToolBatch -->|Check Logs| GCP[Google Cloud SDK]
-        ToolBatch -->|Terminal Cmd| Shell[PowerShell Subprocess]
-        ToolBatch -->|GUI Interaction| Ghost[Windows Desktop Service]
-        Ghost -->|Screenshot| Vision[Gemini 3 Flash Vision]
+    subgraph "Tool Execution"
+        Logic -->|Review PR| GitHub[GitHub API]
+        Logic -->|Check Logs| GCP[Google Cloud SDK]
+        Logic -->|Control Desktop| Ghost{OS Check}
+        Ghost -->|Windows| Win[PyAutoGUI/Win32]
+        Ghost -->|Linux| Linux[Shell Only]
     end
     
-    Shell -->|Stdout/Stderr| Trace
-    Vision -->|Scene Description| Trace
-    Trace -->|Text Response| TTS[Text-to-Speech]
+    Trace -->|Visualization| Front
+    Logic -->|Text Summary| Back
+    Back -->|Response| Front
+    Front -->|TTS Audio| User
 ```

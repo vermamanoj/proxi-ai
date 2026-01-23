@@ -1,10 +1,11 @@
 import React, { useRef, useEffect } from 'react';
 
 interface VisualizerProps {
-  active: boolean; // If true, we simulate waveform movement
+  active: boolean; // If true, the visualizer is "on"
+  volume?: number; // Optional real-time volume (0.0 to 1.0)
 }
 
-export const Visualizer: React.FC<VisualizerProps> = ({ active }) => {
+export const Visualizer: React.FC<VisualizerProps> = ({ active, volume = 0 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -50,46 +51,57 @@ export const Visualizer: React.FC<VisualizerProps> = ({ active }) => {
 
       if (active) {
         time += 0.1;
-        // Simulate speech syllables using sine waves modulated by time
-        const speechModulation = Math.abs(Math.sin(time)) * 0.5 + 0.5;
-        const simulatedVolume = 0.5 * speechModulation + (Math.random() * 0.1);
         
-        // Waveform
+        // Dynamic Amplitude:
+        // If we have real volume, use it. Otherwise, simulate a "thinking/speaking" idle wave if active.
+        // We boost the volume significantly for visual impact.
+        const inputAmplitude = volume * 500; 
+        
+        // Base simulation (keeps it moving even during silence)
+        const simulatedAmplitude = Math.abs(Math.sin(time)) * 10 + 5;
+        
+        // Blend them: Real volume takes precedence for spikes
+        const amplitude = Math.max(inputAmplitude, simulatedAmplitude);
+        
+        // Color shifts based on intensity
+        const intensity = Math.min(volume * 2, 1);
+        const r = 0;
+        const g = 255;
+        const b = Math.floor(intensity * 255); // Shift to cyan on loud
+        const color = `rgb(${r},${g},${b})`;
+
+        // Primary Waveform
         ctx.beginPath();
         ctx.moveTo(0, centerY);
         
-        const amplitude = 35 * simulatedVolume; 
-        
         for (let x = 0; x < width; x++) {
-          // Combined sine waves for techy look
+          // Complex wave synthesis
           const y = centerY + 
             Math.sin((x + offset) * 0.05) * amplitude * Math.sin((x + offset) * 0.01) +
             Math.sin((x - offset * 2) * 0.1) * (amplitude * 0.5);
           ctx.lineTo(x, y);
         }
 
-        // Hacker Green Color Scheme
-        ctx.strokeStyle = '#00ff41';
-        ctx.lineWidth = 2;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#00ff41';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 + (intensity * 2); // Thicker line when loud
+        ctx.shadowBlur = 10 + (intensity * 10);
+        ctx.shadowColor = color;
         ctx.stroke();
 
-        // Secondary line
+        // Secondary "Ghost" line (Echo)
         ctx.beginPath();
         ctx.moveTo(0, centerY);
         for (let x = 0; x < width; x++) {
            const y = centerY + Math.cos((x - offset) * 0.05) * (amplitude * 0.7);
            ctx.lineTo(x, y);
         }
-        ctx.strokeStyle = '#008F11'; // Darker green
+        ctx.strokeStyle = 'rgba(0, 143, 17, 0.5)'; 
         ctx.lineWidth = 1;
-        ctx.shadowColor = '#008F11';
         ctx.stroke();
         
-        offset += 5; 
+        offset += 5 + (intensity * 5); // Speed up when loud
       } else {
-        // Idle line
+        // Flatline (Standby)
         ctx.beginPath();
         ctx.moveTo(0, centerY);
         ctx.lineTo(width, centerY);
@@ -106,7 +118,7 @@ export const Visualizer: React.FC<VisualizerProps> = ({ active }) => {
     return () => {
       cancelAnimationFrame(animationId);
     };
-  }, [active]);
+  }, [active, volume]);
 
   return <canvas ref={canvasRef} className="w-full h-full" />;
 };

@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit, Camera, Play, Square, Mic, MicOff, MousePointerClick, X, GitGraph } from 'lucide-react';
+import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit, Camera, Play, Square, Mic, MicOff, MousePointerClick, X, GitGraph, Eye, EyeOff } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { Visualizer } from './components/Visualizer';
@@ -37,6 +36,7 @@ const App: React.FC = () => {
   const [input, setInput] = useState('');
   const [micEnabled, setMicEnabled] = useState(true);
   const [viewMode, setViewMode] = useState<'terminal' | 'trace'>('terminal');
+  const [showThoughts, setShowThoughts] = useState(true); // Default to showing thoughts, but user can toggle
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -152,7 +152,10 @@ const App: React.FC = () => {
 
             <div className="h-48 bg-black/50 rounded border border-proxi-gray/50 flex items-center justify-center relative">
                {/* Visualizer handles both Live Volume and TTS Status */}
-               <Visualizer active={liveConnected || brainStatus === 'speaking'} />
+               <Visualizer 
+                  active={liveConnected || brainStatus === 'speaking'} 
+                  volume={liveConnected ? liveVolume : 0} 
+               />
                
                {/* Overlay Scanlines */}
                <div className="absolute inset-0 pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
@@ -228,6 +231,16 @@ const App: React.FC = () => {
                     <GitGraph className="w-4 h-4" />
                     <span>NEURAL_TRACE</span>
                 </button>
+                {/* Thinking Out Loud Toggle */}
+                {viewMode === 'trace' && (
+                  <button 
+                      onClick={() => setShowThoughts(!showThoughts)}
+                      className={`flex items-center gap-2 text-xs border rounded px-2 py-0.5 transition-colors ${showThoughts ? 'border-purple-500 text-purple-400 bg-purple-500/10' : 'border-gray-700 text-gray-500'}`}
+                  >
+                      {showThoughts ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                      <span>INTERNAL_MONOLOGUE</span>
+                  </button>
+                )}
             </div>
             <div className="flex gap-1.5">
               <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50" />
@@ -240,7 +253,7 @@ const App: React.FC = () => {
             {viewMode === 'terminal' ? (
                 <LogView logs={allLogs} />
             ) : (
-                <TraceView trace={lastTrace} />
+                <TraceView trace={lastTrace} showThoughts={showThoughts} />
             )}
              {/* Decorative grid overlay */}
              <div className="absolute inset-0 pointer-events-none" 
