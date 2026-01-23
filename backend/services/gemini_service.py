@@ -4,6 +4,7 @@ import asyncio
 import psutil
 import json
 import warnings
+import time
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -39,7 +40,6 @@ if env_path.exists():
                 with open(env_path, 'r', encoding=enc) as f:
                     for line in f:
                         if line.strip().startswith('GEMINI_API_KEY'):
-                            # Handle formats: KEY=VALUE, KEY="VALUE", KEY='VALUE'
                             parts = line.split('=', 1)
                             if len(parts) == 2:
                                 clean_key = parts[1].strip().strip('"').strip("'")
@@ -130,25 +130,29 @@ class GeminiService:
         self.latest_pending_action = None
 
     # --- Atomic Motor Skills (Tools) ---
-    # These wrapper methods are necessary to bind the DesktopService instance to the tool call
+    # We add print statements here to debug tool execution flow
     
     def click_at(self, x: int, y: int):
         """Moves mouse to (x,y) and clicks."""
+        print(f"[DEBUG] Tool Call: click_at({x}, {y})")
         if self.desktop_service: return self.desktop_service.click_at(x, y)
         return "Desktop Service Unavailable"
 
     def type_text(self, text: str):
         """Types the specified text string."""
+        print(f"[DEBUG] Tool Call: type_text('{text}')")
         if self.desktop_service: return self.desktop_service.type_text(text)
         return "Desktop Service Unavailable"
 
     def press_hotkey(self, keys: list):
         """Presses a key combination (e.g. ['ctrl', 's'])."""
+        print(f"[DEBUG] Tool Call: press_hotkey({keys})")
         if self.desktop_service: return self.desktop_service.press_hotkey(keys)
         return "Desktop Service Unavailable"
 
     def get_screen_map(self):
         """Returns a list of visible text elements and their (x,y) coordinates."""
+        print(f"[DEBUG] Tool Call: get_screen_map() - Capturing screen...")
         if self.desktop_service: return self.desktop_service.get_screen_map()
         return "Desktop Service Unavailable"
 
@@ -158,6 +162,7 @@ class GeminiService:
         """
         Main entry point. Routes request to Flash or Pro based on complexity.
         """
+        print(f"\n--- NEW REQUEST: {message} (Mode: {complexity_request}) ---")
         if not self.api_key: return "Error: API Key Missing (Check Server Logs)", "error", "none"
 
         # 1. Gather all tools (Atomic + Cloud)
@@ -172,34 +177,41 @@ class GeminiService:
 
         # 2. Decision Tree
         if complexity_request == "deep":
+            print("[DEBUG] User explicitly requested DEEP mode.")
             model_name = self.SMART_TEXT_MODEL
             reasoning_path = "pro_escalation_user"
         else:
             # 3. Router (Flash Triage)
+            print("[DEBUG] Triaging with Flash...")
             triage_prompt = f"""
             Classify this task. 
             Task: "{message}"
             
             Respond only with 'SIMPLE' or 'COMPLEX'.
-            SIMPLE: UI navigation, clicking things, typing text, querying simple stats.
-            COMPLEX: Code architecture, debugging, multi-step reasoning, explaining concepts.
+            SIMPLE: UI navigation, clicking things, typing text, explaining concepts, answering questions.
+            COMPLEX: Writing new code from scratch, complex debugging, architectural planning, creative writing.
             """
             try:
+                triage_start = time.time()
                 triage_model = genai.GenerativeModel(self.FAST_TEXT_MODEL)
                 triage_res = await asyncio.to_thread(triage_model.generate_content, triage_prompt)
                 classification = triage_res.text.strip().upper()
+                print(f"[DEBUG] Triage Result: {classification} (Time: {round(time.time() - triage_start, 2)}s)")
                 
                 if "COMPLEX" in classification:
                     model_name = self.SMART_TEXT_MODEL
                     reasoning_path = "pro_escalation_auto"
+                    print("[DEBUG] Escalating to Gemini Pro.")
                 else:
                     reasoning_path = "flash_direct"
-            except Exception:
-                # Fallback to Flash
+                    print("[DEBUG] Staying on Gemini Flash.")
+            except Exception as e:
+                print(f"[DEBUG] Triage Failed ({e}). Defaulting to Flash.")
                 reasoning_path = "flash_fallback"
 
         # 4. Execution
         try:
+            print(f"[DEBUG] Executing with Model: {model_name}")
             model = genai.GenerativeModel(model_name=model_name, tools=tools)
             chat = model.start_chat(enable_automatic_function_calling=True)
             
@@ -207,25 +219,30 @@ class GeminiService:
             You are a Hand-Eye Coordinator and DevOps Operator.
             
             DESKTOP GUIDELINES:
-            - You do NOT have high-level tools like 'save_file' or 'open_app'.
             - You have Atomic Motor Skills: `click_at`, `type_text`, `press_hotkey`, `get_screen_map`.
-            - To perform a desktop task:
-              1. Call `get_screen_map` to see the screen layout and coordinates.
-              2. Analyze the coordinates of the target text.
-              3. Chain `click_at` and `type_text` to navigate step-by-step.
-              4. If you need to save, find 'File' -> Click it -> Find 'Save' -> Click it.
+            - IMPORTANT: You cannot read files directly from the filesystem. You are a Ghost Operator.
+            - To check a file: 
+              1. Call `get_screen_map` to find the icon. 
+              2. `click_at` (twice) to open it. 
+              3. `get_screen_map` again to read the content visible on screen.
+            - Do NOT hallucinate a 'read_file' or 'open_file' tool.
             
             GENERAL GUIDELINES:
-            - Execute tasks autonomously. Do not ask for permission for every click.
-            - If a tool fails, retry or explain why.
+            - Execute tasks autonomously.
+            - If you need to click, find the coordinates first using `get_screen_map`.
             """
             
             full_prompt = f"{system_instruction}\n\nUser Task: {message}"
             
+            exec_start = time.time()
             response = await asyncio.to_thread(chat.send_message, full_prompt)
+            print(f"[DEBUG] Execution Complete (Time: {round(time.time() - exec_start, 2)}s)")
+            
             return response.text, model_name, reasoning_path
 
         except Exception as e:
+            print(f"[ERROR] Execution Failed: {str(e)}")
+            # Sometimes response.parts contains the tool call that failed
             return f"Execution Error: {str(e)}", model_name, "error"
 
     async def process_vision_command(self, image_bytes: bytes, user_prompt: str) -> str:
@@ -238,5 +255,5 @@ class GeminiService:
         return response.text
     
     def execute_pending_action(self):
-        # Deprecated in Atomic Mode
         return "Atomic Mode Active: Pending actions are executed autonomously."
+

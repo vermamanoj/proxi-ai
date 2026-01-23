@@ -34,6 +34,8 @@ class DesktopService:
         Captures screenshot, runs OCR, and returns a COMPACT JSON string of text elements.
         """
         try:
+            start_time = time.time()
+            
             # 1. Capture Screenshot
             screenshot = pyautogui.screenshot()
             
@@ -67,6 +69,9 @@ class DesktopService:
                     "x": center_x,
                     "y": center_y
                 })
+            
+            duration = round(time.time() - start_time, 2)
+            print(f"[DEBUG] Screen OCR Complete: Found {len(elements)} elements in {duration}s")
             
             # Return compact JSON string to save context tokens
             return json.dumps(elements, separators=(',', ':'))
@@ -103,3 +108,4 @@ class DesktopService:
 
     def get_screen_size(self):
         return {"width": self.screen_width, "height": self.screen_height}
+        
