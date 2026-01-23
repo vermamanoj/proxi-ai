@@ -3,6 +3,8 @@ import datetime
 import asyncio
 import psutil
 import json
+import warnings
+from pathlib import Path
 from github import Github
 import google.generativeai as genai
 from google.generativeai.types import GenerationConfig
@@ -10,8 +12,16 @@ from dotenv import load_dotenv
 from backend.services.desktop_service import DesktopService
 from backend.models.api_models import PendingAction
 
-# Load environment variables from .env file
-load_dotenv()
+# 1. Suppress Google SDK Deprecation Warning
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
+
+# 2. Force Load .env from Project Root
+root_dir = Path(__file__).resolve().parent.parent.parent
+env_path = root_dir / ".env"
+
+print(f"Loading environment variables from: {env_path}")
+load_dotenv(dotenv_path=env_path)
 
 # --- Tool Definitions ---
 
@@ -90,8 +100,9 @@ class GeminiService:
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
         if not self.api_key:
-            print("Warning: GEMINI_API_KEY not set in environment variables.")
+            print("❌ CRITICAL ERROR: GEMINI_API_KEY not found in environment variables.")
         else:
+            print("✅ GEMINI_API_KEY loaded successfully.")
             genai.configure(api_key=self.api_key)
         
         # Initialize Desktop Service
@@ -119,8 +130,8 @@ class GeminiService:
         elements = self.desktop_service.get_ui_manifest()
         screen_size = self.desktop_service.get_screen_size()
         
-        # 2. Ask Gemini (Internal Thought) to map Task -> Coordinates
-        # We use a separate model call here to reason about the UI
+        # 2. Ask Gemini (Internal Thought) to map Task -> Action Plan
+        # Updated Prompt: explicitly asks for a 'plan' array to support macros.
         prompt = f"""
         You are a UI Automation Agent.
         Screen Size: {screen_size}
@@ -128,33 +139,54 @@ class GeminiService:
         
         Visible UI Elements (Text & Coordinates):
         {json.dumps(elements[:50])} 
-        (List truncated to top 50 elements for context)
 
-        Determine the best single action (click, type, or hotkey).
-        Return ONLY valid JSON. Format:
-        {{ "action": "click", "x": 123, "y": 456, "reason": "Clicked File menu" }}
-        OR
-        {{ "action": "type", "text": "hello", "reason": "Typed into text box" }}
+        Determine the plan. You can return a SINGLE action or a SEQUENCE of actions (Macro).
+        
+        GUIDELINES:
+        - If the task involves multiple steps (e.g. "Create a file and write X"), generate the full sequence.
+        - Use "hotkey": ["win"] to open Start Menu reliably.
+        - If the user asks to write content (e.g. a poem), YOU must generate the content and put it in the "type" action.
+        
+        Return JSON Object with a "plan" array.
+        Example for "Open notepad and write hello":
+        {{
+            "plan": [
+                {{ "action": "hotkey", "keys": ["win"], "reason": "Open Start Menu" }},
+                {{ "action": "type", "text": "notepad", "reason": "Search for Notepad" }},
+                {{ "action": "hotkey", "keys": ["enter"], "reason": "Launch Notepad" }},
+                {{ "action": "type", "text": "Hello world", "reason": "Write text" }}
+            ]
+        }}
         """
 
         try:
             model = genai.GenerativeModel("gemini-3-flash-preview")
             result = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
-            plan = json.loads(result.text)
+            response_json = json.loads(result.text)
+            plan = response_json.get("plan", [])
             
-            # 3. Store the pending action
+            if not plan:
+                return "No plan generated."
+
+            # Summarize the plan for the description
+            step_count = len(plan)
+            first_step = plan[0].get('reason', 'Unknown step')
+            description = f"Desktop Macro ({step_count} steps): {first_step}..."
+
+            # 3. Store the pending action as a 'macro'
             self.latest_pending_action = PendingAction(
-                type=plan.get("action"),
-                description=f"Desktop Action: {plan.get('reason', task_description)}",
-                data=plan
+                type="macro",
+                description=description,
+                data={"plan": plan}
             )
             
-            return f"ACTION_PROPOSED: {plan.get('reason')}. Waiting for user confirmation."
+            return f"ACTION_PROPOSED: {description}. Waiting for user confirmation."
         except Exception as e:
             print(f"Planning failed: {e}")
             return f"Failed to plan desktop action: {e}"
 
     async def generate_reflex_response(self, prompt: str) -> str:
+        if not self.api_key: return "System Error: API Key missing."
         model = genai.GenerativeModel(self.FAST_TEXT_MODEL)
         response = await asyncio.to_thread(model.generate_content, prompt)
         return response.text
@@ -163,6 +195,7 @@ class GeminiService:
         """
         Executes with tools. Checks for desktop actions.
         """
+        if not self.api_key: return "System Error: API Key missing."
         self.latest_pending_action = None # Reset state
 
         # Register tools including the bound method for desktop
@@ -196,6 +229,7 @@ class GeminiService:
             return f"Error (Deep Thought): {str(e)}"
 
     async def process_vision_command(self, image_bytes: bytes, user_prompt: str) -> str:
+        if not self.api_key: return "System Error: API Key missing."
         model = genai.GenerativeModel(self.VISION_MODEL)
         response = await asyncio.to_thread(
             model.generate_content,

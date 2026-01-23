@@ -86,13 +86,33 @@ class DesktopService:
     def execute_action(self, action_type: str, data: dict):
         """
         Executes the physical action on the desktop.
+        Supports atomic actions (click, type) and 'macro' sequences.
         """
         try:
+            if action_type == "macro":
+                # Execute a sequence of actions
+                results = []
+                steps = data.get("plan", [])
+                print(f"Executing Macro with {len(steps)} steps...")
+                
+                for i, step in enumerate(steps):
+                    # Extract the type and execute recursively
+                    step_type = step.get("action")
+                    if not step_type: continue
+                    
+                    print(f"Macro Step {i+1}: {step_type}")
+                    step_result = self.execute_action(step_type, step)
+                    results.append(step_result)
+                    
+                    # Add delay between steps to allow UI to react (e.g., windows opening)
+                    time.sleep(1.5) 
+                    
+                return f"Macro complete. Steps executed: {len(results)}"
+
             if action_type == "click":
                 x = data.get("x")
                 y = data.get("y")
                 if x is not None and y is not None:
-                    # Move duration allows visual tracking
                     pyautogui.moveTo(x, y, duration=0.5)
                     pyautogui.click()
                     return f"Clicked at ({x}, {y})"
@@ -101,7 +121,7 @@ class DesktopService:
                 text = data.get("text")
                 if text:
                     # Interval mimics human typing speed
-                    pyautogui.write(text, interval=0.05)
+                    pyautogui.write(text, interval=0.01)
                     return f"Typed: '{text}'"
             
             elif action_type == "hotkey":
