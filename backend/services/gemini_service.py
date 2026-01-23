@@ -138,6 +138,7 @@ class GeminiService:
             "update_github_file": update_github_file,
             "create_github_issue": create_github_issue,
             "click_at": self.click_at,
+            "drag_mouse": self.drag_mouse,
             "type_text": self.type_text,
             "press_hotkey": self.press_hotkey,
             "get_screen_map": self.get_screen_map,
@@ -149,6 +150,11 @@ class GeminiService:
     def click_at(self, x: int, y: int):
         log_system(f"TOOL_CALL: click_at({x}, {y})", "ACTION")
         if self.desktop_service: return self.desktop_service.click_at(x, y)
+        return "Desktop Service Unavailable"
+
+    def drag_mouse(self, start_x: int, start_y: int, end_x: int, end_y: int):
+        log_system(f"TOOL_CALL: drag_mouse({start_x},{start_y} -> {end_x},{end_y})", "ACTION")
+        if self.desktop_service: return self.desktop_service.drag_mouse(start_x, start_y, end_x, end_y)
         return "Desktop Service Unavailable"
 
     def type_text(self, text: str):
@@ -224,11 +230,18 @@ class GeminiService:
         # 2. System Prompt
         system_instruction = """
         You are Proxi, a Headless Operator.
-        Interact via voice. 
-        CRITICAL OUTPUT RULES:
-        1. **PLAIN TEXT ONLY**: Do NOT use markdown. No bold (**), italics (*), or code blocks (```).
-        2. **CONCISE**: Keep responses short, direct, and spoken-language friendly.
-        3. **PROTOCOL**: Prefer Shell over GUI. Use `run_terminal_command` for ops.
+        Interact via voice and tools.
+        
+        CRITICAL OPERATIONAL RULES:
+        1. **THINK FIRST**: Before calling ANY tool, you MUST output a brief thought explaining your plan. This is vital for the Neural Trace UI.
+        2. **PLAIN TEXT ONLY**: Do NOT use markdown in your final spoken response.
+        3. **POWERSHELL SYNTAX**: The user is on Windows. 
+           - Use `;` to separate commands, NOT `||` or `&&`.
+           - Example: `command1 ; if ($?) { command2 }`
+        4. **DRAWING**: If asked to draw:
+           - First `start mspaint`.
+           - Use `drag_mouse(start_x, start_y, end_x, end_y)` to draw lines.
+           - Canvas is usually roughly centered. Guess coordinates if needed (e.g., 500,500 to 700,700).
         """
         
         full_prompt = f"{system_instruction}\n\nUser Task: {message}"
@@ -250,7 +263,7 @@ class GeminiService:
             response = await asyncio.to_thread(chat.send_message, full_prompt)
             
             # Loop for multi-turn tool use
-            max_turns = 5
+            max_turns = 8
             current_turn = 0
 
             while current_turn < max_turns:
@@ -272,8 +285,8 @@ class GeminiService:
 
                 # Streaming Thought to UI
                 if text_content:
-                    # Heuristic: If we have function calls, this text is a "Thought/Plan"
-                    # If no function calls, it's likely the "Final Response"
+                    # If we have text AND function calls, it's a Thought.
+                    # If we ONLY have text and no function calls, it's the Final Response.
                     msg_type = "llm_thought" if function_calls else "response"
                     yield json.dumps({"type": msg_type, "content": text_content}) + "\n"
                     

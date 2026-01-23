@@ -45,6 +45,9 @@ class DesktopService:
         print(f"[DEBUG] Request to execute: {command}", flush=True)
         
         clean_cmd = command.strip()
+        # Fix common LLM syntax errors for PowerShell 5.1
+        clean_cmd = clean_cmd.replace(" || ", " ; if ($?) { ").replace(" && ", " ; if ($?) { ") 
+
         if clean_cmd.lower().startswith("powershell -command"):
             clean_cmd = clean_cmd[19:].strip().strip('"').strip("'")
         elif clean_cmd.lower().startswith("powershell"):
@@ -129,8 +132,6 @@ class DesktopService:
                 img_np = cv2.resize(img_np, (0, 0), fx=scale, fy=scale)
 
             # Convert to BGR for OpenCV encoding (if needed) or just use PIL
-            # Using standard PIL to Bytes is safer/easier than CV2 here
-            # But since we have numpy array:
             is_success, buffer = cv2.imencode(".jpg", cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR))
             if not is_success:
                 return None
@@ -189,6 +190,16 @@ class DesktopService:
             return f"Clicked ({ix}, {iy})"
         except Exception as e:
             return f"Click Failed: {e}"
+
+    def drag_mouse(self, start_x: int, start_y: int, end_x: int, end_y: int):
+        """Drags mouse from point A to point B. Useful for drawing."""
+        try:
+            print(f"[DEBUG] Dragging from ({start_x},{start_y}) to ({end_x},{end_y})", flush=True)
+            pyautogui.moveTo(start_x, start_y)
+            pyautogui.dragTo(end_x, end_y, duration=0.5, button='left')
+            return f"Dragged from {start_x},{start_y} to {end_x},{end_y}"
+        except Exception as e:
+            return f"Drag Failed: {e}"
 
     def type_text(self, text: str):
         try:
