@@ -1,6 +1,6 @@
 # Proxi Windows Environment Setup Script
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "   🚀 PROXI WINDOWS SETUP"
+Write-Host "   🚀 PROXI WINDOWS SETUP (ISOLATED)"
 Write-Host "========================================" -ForegroundColor Cyan
 
 # 1. Privilege Check
@@ -16,33 +16,52 @@ Write-Host "✅ Administrator privileges confirmed." -ForegroundColor Green
 if (Get-Command python -ErrorAction SilentlyContinue) {
     $pyVersion = python --version 2>&1
     Write-Host "✅ Python found: $pyVersion" -ForegroundColor Green
-    # Ensure pip is available
-    if (-not (Get-Command pip -ErrorAction SilentlyContinue)) {
-        Write-Host "❌ Error: pip is not found." -ForegroundColor Red
-        exit
-    }
 } else {
     Write-Host "❌ Error: Python is not installed or not in PATH." -ForegroundColor Red
     Write-Host "👉 Please install Python 3.10+ and check 'Add Python to PATH' during installation."
     exit
 }
 
-# 3. Dependency Installation
-Write-Host "[1/4] Installing Python dependencies..." -ForegroundColor Yellow
-if (Test-Path "backend/requirements.txt") {
-    pip install -r backend/requirements.txt
+# 3. Virtual Environment Setup
+Write-Host "[1/5] Setting up Virtual Environment..." -ForegroundColor Yellow
+if (-not (Test-Path "venv")) {
+    Write-Host "   Creating 'venv' folder..."
+    python -m venv venv
+    if (-not $?) {
+        Write-Host "❌ Failed to create venv." -ForegroundColor Red
+        exit
+    }
 } else {
-    Write-Host "⚠️ Warning: backend/requirements.txt not found. Installing manually..." -ForegroundColor Yellow
+    Write-Host "   'venv' already exists."
+}
+
+# Define paths to venv executables
+$VenvPython = ".\venv\Scripts\python.exe"
+$VenvPip = ".\venv\Scripts\pip.exe"
+
+if (-not (Test-Path $VenvPython)) {
+    Write-Host "❌ Error: Virtual Environment not created correctly." -ForegroundColor Red
+    exit
+}
+
+# 4. Dependency Installation (Inside Venv)
+Write-Host "[2/5] Installing dependencies into venv..." -ForegroundColor Yellow
+# Upgrade pip first
+& $VenvPython -m pip install --upgrade pip
+
+if (Test-Path "backend/requirements.txt") {
+    & $VenvPip install -r backend/requirements.txt
+} else {
+    Write-Host "⚠️ Warning: backend/requirements.txt not found." -ForegroundColor Yellow
 }
 # Explicitly ensure desktop libs are present
-pip install pyautogui easyocr opencv-python pillow python-dotenv fastapi uvicorn google-generativeai psutil PyGithub
+& $VenvPip install pyautogui easyocr opencv-python pillow python-dotenv fastapi uvicorn google-generativeai psutil PyGithub
 
-# 4. Desktop Permissions / GUI Check
-Write-Host "[2/4] Testing Desktop Interaction..." -ForegroundColor Yellow
-Write-Host "   Moving mouse 100px right and back..."
+# 5. Desktop Permissions / GUI Check
+Write-Host "[3/5] Testing Desktop Interaction..." -ForegroundColor Yellow
 try {
-    # Tiny snippet to test GUI session access
-    python -c "import pyautogui; pyautogui.FAILSAFE=False; pyautogui.moveRel(100, 0, duration=0.5); pyautogui.moveRel(-100, 0, duration=0.5); print('GUI Access OK')"
+    # Run the test using the VENV python
+    & $VenvPython -c "import pyautogui; pyautogui.FAILSAFE=False; pyautogui.moveRel(10, 0, duration=0.2); pyautogui.moveRel(-10, 0, duration=0.2); print('GUI Access OK')"
     if ($LASTEXITCODE -eq 0) {
         Write-Host "✅ GUI Session Active & Accessible." -ForegroundColor Green
     } else {
@@ -53,8 +72,8 @@ try {
     Write-Host "👉 Ensure you are running in an interactive session (RDP/Console), not SSH/Service."
 }
 
-# 5. Environment Setup
-Write-Host "[3/4] Configuring Environment..." -ForegroundColor Yellow
+# 6. Environment Setup
+Write-Host "[4/5] Configuring Environment..." -ForegroundColor Yellow
 if (-not (Test-Path ".env")) {
     Write-Host "Creating .env template..."
     $envContent = @"
@@ -67,14 +86,15 @@ GITHUB_TOKEN=your_github_token_here
     Write-Host "✅ .env file exists." -ForegroundColor Green
 }
 
-# 6. Startup Script Generation
-Write-Host "[4/4] Generating Startup Script..." -ForegroundColor Yellow
+# 7. Startup Script Generation
+Write-Host "[5/5] Generating Startup Script..." -ForegroundColor Yellow
+# We generate a bat file that uses the venv python explicitly
 $batContent = @"
 @echo off
-echo Starting Proxi Ghost Operator...
-echo Access the frontend at http://localhost:8080 (if serving locally) or configure Nginx/Frontend separately.
+echo Starting Proxi Ghost Operator (Virtual Env)...
 cd %~dp0
-call python -m uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload
+call venv\Scripts\activate
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8080 --reload
 pause
 "@
 Set-Content "run_proxi.bat" $batContent
@@ -82,6 +102,6 @@ Write-Host "✅ Generated run_proxi.bat" -ForegroundColor Green
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "   🎉 Setup Complete."
-Write-Host "   1. Edit '.env' to add your GEMINI_API_KEY."
-Write-Host "   2. Run 'run_proxi.bat' to start the backend."
+Write-Host "   1. Edit '.env' to add your keys."
+Write-Host "   2. Run 'run_proxi.bat' to start (Uses local venv)."
 Write-Host "========================================" -ForegroundColor Cyan
