@@ -63,6 +63,18 @@ if env_path.exists():
 else:
     log_system(f".env file NOT found at: {env_path}", "ERROR")
 
+# --- Helper for Protobuf Conversion ---
+def proto_to_dict(obj):
+    """
+    Recursively converts Google Protobuf MapComposite/RepeatedComposite 
+    objects to native Python dicts and lists for JSON serialization.
+    """
+    if hasattr(obj, 'items'): # MapComposite or dict
+        return {k: proto_to_dict(v) for k, v in obj.items()}
+    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes)): # RepeatedComposite or list
+        return [proto_to_dict(v) for v in obj]
+    return obj # Scalar
+
 # --- Standard Tools ---
 
 def get_server_time():
@@ -233,7 +245,9 @@ class GeminiService:
         Interact via voice and tools.
         
         CRITICAL OPERATIONAL RULES:
-        1. **THINK FIRST**: Before calling ANY tool, you MUST output a brief thought explaining your plan. This is vital for the Neural Trace UI.
+        1. **THINK OUT LOUD**: Before calling ANY tool, you MUST output a brief thought explaining your plan. This is vital for the Neural Trace UI. 
+           - Example: "I will first check the logs to see the error."
+           - Example: "I need to open Paint before drawing."
         2. **PLAIN TEXT ONLY**: Do NOT use markdown in your final spoken response.
         3. **POWERSHELL SYNTAX**: The user is on Windows. 
            - Use `;` to separate commands, NOT `||` or `&&`.
@@ -296,16 +310,24 @@ class GeminiService:
 
                 # Handle Parallel Function Calls
                 if function_calls:
+                    # Convert Protobuf Args to Dict safe for JSON
+                    safe_calls = []
+                    for fc in function_calls:
+                         safe_calls.append({
+                             "name": fc.name,
+                             "args": proto_to_dict(fc.args) # Recursive fix for RepeatedComposite
+                         })
+
                     # Notify UI of upcoming tools
                     yield json.dumps({
                         "type": "tool_call_batch", 
-                        "calls": [{"name": fc.name, "args": dict(fc.args)} for fc in function_calls]
+                        "calls": safe_calls
                     }) + "\n"
 
                     # Execute in Parallel
                     tasks = []
-                    for fc in function_calls:
-                        tasks.append(self._execute_tool_wrapper(fc.name, dict(fc.args)))
+                    for call_info in safe_calls:
+                        tasks.append(self._execute_tool_wrapper(call_info['name'], call_info['args']))
                     
                     log_system(f"Executing {len(tasks)} tools in PARALLEL...", "EXEC")
                     results = await asyncio.gather(*tasks)
@@ -328,6 +350,7 @@ class GeminiService:
                                 response={"result": res}
                             ))
                         )
+                        
                     
                     # Send results back to model
                     response = await asyncio.to_thread(chat.send_message, response_parts)
