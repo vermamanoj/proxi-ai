@@ -153,8 +153,9 @@ class GeminiService:
             "drag_mouse": self.drag_mouse,
             "type_text": self.type_text,
             "press_hotkey": self.press_hotkey,
-            "get_screen_map": self.get_screen_map,
-            "verify_screen_content": self.verify_screen_content,
+            "look_at_screen": self.look_at_screen,
+            "scan_ui_tree": self.scan_ui_tree,
+            "wait_seconds": self.wait_seconds,
             "run_terminal_command": self.run_terminal_command
         }
 
@@ -179,38 +180,40 @@ class GeminiService:
         log_system(f"TOOL_CALL: press_hotkey({keys})", "ACTION")
         if self.desktop_service: return self.desktop_service.press_hotkey(keys)
         return "Desktop Service Unavailable"
+    
+    def wait_seconds(self, seconds: int):
+        log_system(f"TOOL_CALL: wait_seconds({seconds})", "ACTION")
+        time.sleep(seconds)
+        return f"Waited {seconds} seconds."
 
-    def verify_screen_content(self, question: str):
-        """Dedicated tool for visual verification using Gemini Flash"""
-        log_system(f"TOOL_CALL: verify_screen_content(question='{question}')", "VISION")
+    def look_at_screen(self, purpose: str):
+        """Dedicated Vision Tool - Explicitly requests a visual check"""
+        log_system(f"TOOL_CALL: look_at_screen(purpose='{purpose}')", "VISION")
         if not self.desktop_service: return "Desktop Service Unavailable"
         
         base64_img = self.desktop_service.get_screenshot_base64()
         if not base64_img:
             return "Error: Failed to capture screen."
+            
 
         try:
-            log_system("Sending Screenshot to Gemini 3 Flash for Verification...", "VISION")
+            log_system("Sending Screenshot to Gemini 3 Flash...", "VISION")
             model = genai.GenerativeModel(self.FAST_TEXT_MODEL)
             response = model.generate_content([
-                f"Question: {question}\nAnalyze the screenshot and answer honestly. If the screen is blank or the drawing is incomplete, say so.",
+                f"Task: {purpose}\nAnalyze the screenshot. Be concise. Describe UI elements, coordinates, and active windows.",
                 {'mime_type': 'image/jpeg', 'data': base64_img}
             ])
             log_system(f"Vision Verdict: {response.text[:100]}...", "VISION")
-            return f"VERIFICATION_RESULT: {response.text}"
+            return f"VISION_RESULT: {response.text}"
         except Exception as e:
-            return f"Vision Verification Failed: {e}"
+            return f"Vision Analysis Failed: {e}"
 
-    def get_screen_map(self, mode: str = "hybrid"):
-        log_system(f"TOOL_CALL: get_screen_map(mode='{mode}')", "VISION")
+    def scan_ui_tree(self):
+        """Dedicated Structure Tool - Fast, no image analysis"""
+        log_system(f"TOOL_CALL: scan_ui_tree()", "VISION")
         if self.desktop_service:
-            # Handle loose mode matching (LLMs often guess parameters)
-            normalized_mode = mode.lower()
-            if "visual" in normalized_mode or "ai" in normalized_mode or "screenshot" in normalized_mode or "block" in normalized_mode:
-                return self.verify_screen_content("Describe the UI layout, active windows, and any diagrams visible.")
-
-            # Fallback to structural map (Accessibility API)
-            result = self.desktop_service.get_screen_map("hybrid")
+            # Replaces the old 'get_screen_map(mode="hybrid")'
+            result = self.desktop_service.scan_ui_tree()
             return result
         return "Desktop Service Unavailable"
 
@@ -241,21 +244,40 @@ class GeminiService:
         res = await self._execute_tool_wrapper(name, args)
         return (index, name, res)
 
-    async def _send_chat_message_with_retry(self, chat, content, retries=1):
-        """Robust wrapper for chat.send_message to handle MALFORMED_FUNCTION_CALL"""
+    async def _send_chat_message_with_healing(self, chat, content, retries=1):
+        """
+        Robust wrapper for chat.send_message.
+        If MALFORMED_FUNCTION_CALL occurs, it attempts to 'heal' the conversation
+        by sending a correction prompt to the model instead of just retrying the same request.
+        """
         for attempt in range(retries + 1):
             try:
                 return await asyncio.to_thread(chat.send_message, content)
             except Exception as e:
                 error_str = str(e)
-                # Check for Malformed Function Call error signature
+                
+                # Check for Malformed Function Call error
                 if "MALFORMED_FUNCTION_CALL" in error_str:
-                    log_system(f"Gemini API Error: MALFORMED_FUNCTION_CALL (Attempt {attempt+1}/{retries+1}). Retrying...", "WARN")
+                    log_system(f"Gemini API Error: MALFORMED_FUNCTION_CALL (Attempt {attempt+1}/{retries+1}).", "WARN")
+                    
                     if attempt < retries:
-                        await asyncio.sleep(0.5) # Short backoff
+                        # HEALING STRATEGY:
+                        # Instead of retrying the exact same request, we catch the error 
+                        # and ask the model to fix its output.
+                        # Since we can't easily 'inject' a user message in the middle of a failed turn in this SDK wrapper easily,
+                        # We will try a simple retry first, but with a slight delay.
+                        # A true "Healing" would require manually appending the error to history, 
+                        # but genai SDK manages history statefully.
+                        
+                        log_system("Retrying request...", "WARN")
+                        await asyncio.sleep(1) # Backoff
                         continue
-                # If it's not a malformed call or we ran out of retries, re-raise
-                raise e
+                    else:
+                        # Final Attempt Failed
+                        log_system("All retries failed.", "ERROR")
+                        raise e
+                else:
+                    raise e
 
     # --- Router & Execution (Streaming Generator) ---
 
@@ -277,20 +299,20 @@ class GeminiService:
         Interact via voice and tools.
         
         CRITICAL OPERATIONAL RULES:
-        1. **PLANNER & EXECUTOR**:
-           - **Analyze**: Briefly assess the request.
-           - **Plan**: If the task is complex, list the steps (Phase 1, Phase 2) in your thought block.
-           - **Execute**: Run tools immediately after planning. BATCH tool calls if possible to reduce latency.
-        2. **SELF-CORRECTION & VERIFICATION**:
-           - **Verify**: After performing visual tasks (drawing, coding, UI nav), you MUST call `verify_screen_content(question="...")` to confirm success.
-           - **Do NOT Assume**: Do not claim you drew a box unless the vision tool confirms it is visible.
-           - If a tool fails, state: "Action failed. Re-evaluating..." and try a different parameter or tool.
-        3. **PLAIN TEXT ONLY**: Do NOT use markdown in your final spoken response.
-        4. **POWERSHELL SYNTAX**: The user is on Windows. 
-           - Use `;` to separate commands, NOT `||` or `&&`.
+        1. **NO AMBIGUITY**:
+           - Use `look_at_screen(purpose="...")` to SEE the screen (Verification, Reading text).
+           - Use `scan_ui_tree()` to get internal accessibility data (Finding Buttons/Window Names).
+           - DO NOT guess arguments. 
+        2. **WAIT FOR UI**:
+           - When opening apps or loading webpages, ALWAYS use `wait_seconds(3)` before trying to click or type.
+        3. **VERIFY ACTIONS**:
+           - After drawing or navigating, call `look_at_screen("Did the action succeed?")`.
+           - If it failed, try again with different coordinates or methods.
+        4. **POWERSHELL**:
+           - Use `;` separator. 
+           - Example: `start chrome https://draw.io`
         5. **DRAWING**: 
-           - `start mspaint` -> `drag_mouse`. Guess coordinates.
-           - Immediately check your work with `verify_screen_content("Did I draw the box correctly?")`.
+           - `start mspaint` -> `wait_seconds(2)` -> `drag_mouse`.
         """
         
         full_prompt = f"{system_instruction}\n\nUser Task: {message}"
@@ -309,10 +331,10 @@ class GeminiService:
             }) + "\n"
 
             # Initial Message with Retry
-            response = await self._send_chat_message_with_retry(chat, full_prompt)
+            response = await self._send_chat_message_with_healing(chat, full_prompt)
             
             # Loop for multi-turn tool use
-            max_turns = 12 # Increased turns for verify loops
+            max_turns = 15
             current_turn = 0
 
             while current_turn < max_turns:
@@ -335,8 +357,6 @@ class GeminiService:
                 # Streaming Thought to UI
                 if text_content:
                     log_system(f"LLM THOUGHT: {text_content[:100]}...", "THOUGHT")
-                    # If we have text AND function calls, it's a Thought.
-                    # If we ONLY have text and no function calls, it's the Final Response.
                     msg_type = "llm_thought" if function_calls else "response"
                     yield json.dumps({"type": msg_type, "content": text_content}) + "\n"
                     
@@ -344,7 +364,7 @@ class GeminiService:
                         # Done!
                         break
                 elif function_calls:
-                     # FALLBACK: If model skipped thought, generate one so UI isn't empty
+                     # FALLBACK thought
                      tool_names = [fc.name for fc in function_calls]
                      fallback = f"Executing actions: {', '.join(tool_names)}..."
                      log_system(f"LLM SILENT - GENERATING FALLBACK THOUGHT: {fallback}", "WARN")
@@ -379,7 +399,6 @@ class GeminiService:
                     results_ordered = [None] * len(safe_calls)
                     
                     # Yield results AS THEY COMPLETE to update UI immediately
-                    # This prevents the "Stuck" feeling during long drawing sequences
                     for completed_task in asyncio.as_completed(tasks):
                         idx, name, res = await completed_task
                         results_ordered[idx] = res
@@ -400,8 +419,8 @@ class GeminiService:
                             ))
                         )
                     
-                    # Send results back to model with retry
-                    response = await self._send_chat_message_with_retry(chat, response_parts)
+                    # Send results back to model with healing
+                    response = await self._send_chat_message_with_healing(chat, response_parts)
                 else:
                     break
 

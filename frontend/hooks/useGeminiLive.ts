@@ -257,6 +257,7 @@ export const useGeminiLive = () => {
                     1
                  );
                  
+                 
                  const source = ctx.createBufferSource();
                  source.buffer = audioBuffer;
                  source.connect(ctx.destination);

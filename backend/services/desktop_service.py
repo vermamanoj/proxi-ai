@@ -116,23 +116,22 @@ class DesktopService:
             return f"SYSTEM ERROR: {str(e)}"
 
     # --- GUI Capabilities (Windows/Desktop Only) ---
-    def get_screen_map(self, mode: str = "hybrid"):
+    def scan_ui_tree(self):
+        """Explicitly scans accessibility tree without ambiguity"""
         ok, msg = self._check_availability()
         if not ok: return msg
-
-        if mode == "visual":
-            return "USE_GEMINI_VISION_API"
 
         if USE_ACCESSIBILITY:
             try:
                 ui_elements = self._scan_accessibility_tree()
                 if ui_elements:
                     return json.dumps(ui_elements, separators=(',', ':')) 
+                return "Scanning UI Tree returned no elements. Try 'look_at_screen' for visual analysis."
             except Exception as e:
                 print(f"[DEBUG] Accessibility Scan failed: {e}", flush=True)
+                return f"Error scanning UI tree: {e}"
 
-        # Fallback to simple coordinate hint if vision needed
-        return json.dumps([{"text": "ACCESSIBILITY_FAILED_TRY_VISUAL_MODE", "x": 0, "y": 0}])
+        return "Accessibility API unavailable. Use 'look_at_screen' instead."
 
     def get_screenshot_base64(self):
         ok, _ = self._check_availability()
@@ -198,6 +197,7 @@ class DesktopService:
         ok, msg = self._check_availability()
         if not ok: return msg
         
+        
         with self._input_lock:
             try:
                 pyautogui.moveTo(start_x, start_y)
@@ -213,6 +213,8 @@ class DesktopService:
         with self._input_lock:
             try:
                 pyautogui.write(text, interval=0.01)
+                # Small wait after typing to let UI react
+                time.sleep(0.2)
                 return f"Typed '{text}'"
             except Exception as e:
                 return f"Type Failed: {e}"
