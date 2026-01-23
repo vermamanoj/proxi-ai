@@ -6,7 +6,8 @@
 ## ⚡ Key Features
 
 *   **Executive Relay Architecture:** Combines the low-latency voice capabilities of **Gemini 2.5 Live** with the deep reasoning power of **Gemini 3 Pro**.
-*   **Unified Brain:** All complex logic and tool execution happen on the backend, ensuring consistent behavior across Voice and Text modes.
+*   **Hive Orchestrator:** The backend uses a "Planner-Executor" model. It validates requests against a Knowledge Base, formulates a plan, and then executes it using specialized tools.
+*   **Team Productivity:** Integrated with (Mock) **Slack**, **Linear**, and **RAG** (Knowledge Base) to handle real-world workflow tasks like ticketing and communication.
 *   **Neural Trace:** Visualize the agent's internal thought process, tool planning, and execution steps in real-time.
 *   **OS Agnostic:** 
     *   **Cloud Mode:** Runs on Linux (Docker/Cloud Run) for GitHub & GCP tasks.
@@ -23,10 +24,11 @@ Proxi consists of three distinct modules that work in a relay:
 *   **Visualization**: Renders the "Neural Trace" streamed from the backend.
 
 ### 2. Proxi Core (Backend / The Brain)
-*   **Gemini 3 Pro**: Receives delegated tasks, plans execution, and writes code.
-*   **Gemini 3 Flash**: Used for high-speed tasks and Vision analysis.
-*   **Tooling**: Hosts all integrations (GitHub, GCP, Desktop).
-*   **Resilience**: Includes auto-retry logic for stochastic LLM tool errors (`MALFORMED_FUNCTION_CALL`).
+*   **Gemini 3 Pro**: Acts as the Hive Orchestrator.
+*   **Planner Phase**: Breaks complex requests ("Fix production") into atomic steps.
+*   **Executor Phase**: Runs tools in parallel where possible.
+*   **Tooling**: GitHub, GCP, Desktop, Slack, Linear, Knowledge Base.
+*   **Resilience**: Includes auto-retry logic for stochastic LLM tool errors.
 
 ### 3. Proxi Ghost (Desktop Agent)
 *   **Module**: `desktop_service.py`
@@ -96,6 +98,7 @@ Click **"INITIATE UPLINK"** on the console.
 Use the terminal input at the bottom.
 *   **Text**: "Analyze the system architecture." (Streams thoughts and actions)
 *   **Vision**: Click the Camera icon to upload a diagram or screenshot.
+*   **Ops**: "Restart the auth service and notify the team on Slack."
 
 ## 🏗️ Architecture
 
@@ -104,14 +107,15 @@ graph TD
     User((User Voice)) -->|WebRTC Audio| Front[Frontend: Gemini 2.5 Live]
     Front -->|Tool Call: delegate_task| Back[Backend: FastAPI]
     
-    subgraph "The Proxi Brain (Gemini 3)"
-        Back -->|Reasoning & Plan| Logic[Gemini 3 Pro]
+    subgraph "The Hive Mind (Gemini 3)"
+        Back -->|Consult| RAG[(Knowledge Base)]
+        Back -->|Plan & Execute| Logic[Gemini 3 Pro]
         Logic -->|Action Stream| Trace[Neural Trace (NDJSON)]
     end
     
     subgraph "Tool Execution"
         Logic -->|Review PR| GitHub[GitHub API]
-        Logic -->|Check Logs| GCP[Google Cloud SDK]
+        Logic -->|Comms| Slack[Slack / Linear]
         Logic -->|Control Desktop| Ghost{OS Check}
         Ghost -->|Windows| Win[PyAutoGUI/Win32]
         Ghost -->|Linux| Linux[Shell Only]

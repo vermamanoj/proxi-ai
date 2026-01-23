@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit, Camera, Play, Square, Mic, MicOff, MousePointerClick, X, GitGraph, Eye, EyeOff } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
@@ -85,7 +86,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-proxi-black text-gray-200 flex flex-col font-mono selection:bg-proxi-accent selection:text-proxi-black">
+    <div className="min-h-screen bg-proxi-black text-gray-200 flex flex-col font-mono selection:bg-proxi-accent selection:text-proxi-black overflow-hidden">
       {/* Header */}
       <header className="border-b border-proxi-gray bg-proxi-dark/80 backdrop-blur-md p-4 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -125,13 +126,13 @@ const App: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 pb-24">
+      <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)] overflow-hidden">
         
         {/* Left Column: Visualizer & Controls (4 Cols) */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
+        <div className="lg:col-span-4 flex flex-col gap-6 h-full overflow-y-auto pr-2 custom-scrollbar">
           
           {/* Main Visualizer Card */}
-          <div className="bg-proxi-dark border border-proxi-gray rounded-lg p-6 relative overflow-hidden group">
+          <div className="bg-proxi-dark border border-proxi-gray rounded-lg p-6 relative overflow-hidden group shrink-0">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-proxi-accent to-transparent opacity-50" />
             
             <div className="flex justify-between items-center mb-6">
@@ -213,9 +214,10 @@ const App: React.FC = () => {
         </div>
 
         {/* Right Column: Terminal/Logs/Trace (8 Cols) */}
-        <div className="lg:col-span-8 flex flex-col h-[500px] lg:h-auto bg-proxi-dark border border-proxi-gray rounded-lg overflow-hidden relative">
+        {/* CHANGED: Fixed height container to ensure scrolling works within the child LogView */}
+        <div className="lg:col-span-8 flex flex-col bg-proxi-dark border border-proxi-gray rounded-lg overflow-hidden relative h-full max-h-[calc(100vh-160px)]">
           {/* Header with Toggles */}
-          <div className="bg-proxi-gray/30 p-3 border-b border-proxi-gray flex items-center justify-between">
+          <div className="bg-proxi-gray/30 p-3 border-b border-proxi-gray flex items-center justify-between shrink-0">
             <div className="flex gap-4">
                 <button 
                     onClick={() => setViewMode('terminal')}
@@ -249,7 +251,7 @@ const App: React.FC = () => {
             </div>
           </div>
           
-          <div className="flex-1 overflow-hidden relative bg-black/40">
+          <div className="flex-1 overflow-hidden relative bg-black/40 min-h-0">
             {viewMode === 'terminal' ? (
                 <LogView logs={allLogs} />
             ) : (

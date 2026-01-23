@@ -10,22 +10,21 @@ You serve as the bridge between the user and the "Core Agent" (Gemini 3 Pro).
 RULES:
 1. Listen to the user's request.
 2. If it is a casual greeting, respond naturally.
-3. If the user asks to DO something (check code, move mouse, check logs), IMMEDIATELY call the \`delegate_task\` tool with their exact request.
+3. If the user asks to DO something (check code, move mouse, check logs, SEND SLACK MESSAGE, CREATE TICKET), IMMEDIATELY call the \`delegate_task\` tool.
 4. **CRITICAL:** If the \`delegate_task\` tool returns an error saying "BACKEND_OFFLINE", you MUST tell the user: "I cannot connect to the Proxi Core. Please ensure the Python backend is running." Do NOT pretend you did the task.
-5. If the user says "Stop", "Cancel", or "Pause", call the \`stop_execution\` tool immediately.
-6. Summarize the Core Agent's report briefly to the user.
+5. Summarize the Core Agent's report briefly to the user.
 
 Example:
-User: "Check the production logs."
-You: [Call delegate_task("Check production logs")]
-Tool Output: "I checked the logs. Found 3 errors in auth-service."
-You: "I found 3 errors in the auth-service logs."
+User: "Tell the team I'm restarting the server."
+You: [Call delegate_task("Send slack message to team: restarting server")]
+Tool Output: "Sent to #general: restarting server."
+You: "Okay, I've notified the team on Slack."
 `;
 
 export const TOOLS: FunctionDeclaration[] = [
   {
     name: "delegate_task",
-    description: "Delegates a complex task to the Core Agent (Gemini 3 Pro) running on the host machine. Use this for ANY request involving the computer, code, or cloud.",
+    description: "Delegates a complex task to the Core Agent (Gemini 3 Pro) running on the host machine. Use this for ANY request involving the computer, code, cloud, OR TEAM COMMUNICATION (Slack/Jira).",
     parameters: {
       type: Type.OBJECT,
       properties: {
@@ -44,7 +43,5 @@ export const TOOLS: FunctionDeclaration[] = [
   }
 ];
 
-// Deprecated Mocks - The backend handles real data now
 export const MOCK_GITHUB_DATA = {};
 export const MOCK_LOGS_DATA = (s:string) => [];
-

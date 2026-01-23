@@ -81,7 +81,6 @@ export const useGeminiLive = () => {
                 });
 
                 if (!response.body) {
-                     // Check if it was a connection error before response body
                      throw new Error("Empty Response from Backend");
                 }
 
@@ -89,6 +88,7 @@ export const useGeminiLive = () => {
                 const decoder = new TextDecoder();
                 let done = false;
                 let finalSummary = "";
+                let failureDetected = false;
 
                 while (!done) {
                     const { value, done: doneReading } = await reader.read();
@@ -109,13 +109,18 @@ export const useGeminiLive = () => {
                             }
                             else if (data.type === 'tool_result') {
                                 addLog(MessageSource.TOOL, `Result: ${data.name}`, { output: data.content });
+                                // Passive Failure Detection
+                                if (String(data.content).toLowerCase().includes("error") || String(data.content).toLowerCase().includes("failed")) {
+                                    failureDetected = true;
+                                }
                             }
                             else if (data.type === 'response') {
                                 finalSummary = data.content;
                                 addLog(MessageSource.AGENT, `Core Result: ${data.content}`);
                             }
                             else if (data.type === 'error') {
-                                throw new Error(data.content);
+                                addLog(MessageSource.SYSTEM, `Core Error Detected: ${data.content}`);
+                                failureDetected = true;
                             }
                         } catch (e) {
                             // JSON Parse errors on chunks are common in streams, ignore partials
@@ -123,15 +128,20 @@ export const useGeminiLive = () => {
                     }
                 }
 
+                // INTELLIGENT ERROR INJECTION:
+                // If the backend didn't crash but logged errors, force the Voice Agent to acknowledge it.
+                if (failureDetected && !finalSummary.toLowerCase().includes("error")) {
+                    finalSummary = `(SYSTEM WARNING: Some tools reported errors during execution). ${finalSummary}`;
+                }
+
                 // Return the final text from Gemini 3 back to Gemini 2.5 (Voice)
                 responses.push({
                     id: call.id,
                     name: call.name,
-                    response: { result: finalSummary || "Task completed, but no text summary was generated." }
+                    response: { result: finalSummary || "Task finished, but no summary was provided." }
                 });
 
             } catch (err: any) {
-                // --- ERROR HANDLING & OFFLINE DETECTION ---
                 const errMsg = err.message || "";
                 
                 if (err.name === 'AbortError') {
@@ -141,7 +151,6 @@ export const useGeminiLive = () => {
                          response: { result: "Task was cancelled by user." }
                     });
                 } 
-                // Detect connection failure (Fetch error)
                 else if (errMsg.includes("Failed to fetch") || errMsg.includes("NetworkError") || errMsg.includes("Connection refused")) {
                     addLog(MessageSource.SYSTEM, "❌ CRITICAL: Backend Connection Failed. Is the Python server running?");
                     responses.push({
@@ -154,7 +163,7 @@ export const useGeminiLive = () => {
                     responses.push({
                         id: call.id,
                         name: call.name,
-                        response: { result: `Error executing task: ${errMsg}` }
+                        response: { result: `Critical Error executing task: ${errMsg}. Please report this to the user.` }
                     });
                 }
             } finally {
@@ -235,9 +244,6 @@ export const useGeminiLive = () => {
           onmessage: async (message: LiveServerMessage) => {
              // Handle Tool Calls (The Relay Logic)
              if (message.toolCall) {
-                // DO NOT AWAIT if we want to support concurrency, but strict turn-taking usually requires it.
-                // For "Stop" commands to work during "Delegate", delegate must handle the signal or we must process messages async.
-                // Given the protocol, we must respond to the specific tool call ID.
                 const responses = await handleToolCall(message.toolCall.functionCalls);
                 sessionPromise.then(session => {
                     session.sendToolResponse({ functionResponses: responses });
@@ -256,7 +262,6 @@ export const useGeminiLive = () => {
                     24000,
                     1
                  );
-                 
                  
                  const source = ctx.createBufferSource();
                  source.buffer = audioBuffer;
