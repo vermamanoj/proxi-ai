@@ -3,28 +3,37 @@
 
 **Mission:** To build an agentic, voice-first interface that allows developers to perform "Headless SDLC" tasks (Triage, Ops, Architecture) without looking at a screen. It acts as a remote control for Google Cloud, GitHub, and your local desktop.
 
+## ⚡ Key Features
+
+*   **Voice-First Control:** Full duplex voice interaction using **Gemini Live API** (WebRTC) and Text-to-Speech.
+*   **Neural Trace:** Visualize the agent's internal thought process, tool planning, and execution steps in real-time.
+*   **Parallel Execution:** The agent intelligently batches tool calls (e.g., checking multiple logs simultaneously) for maximum speed.
+*   **Ghost Mode:** Run the backend locally on Windows to control your mouse, keyboard, and read the screen using accessibility trees and **Gemini Vision**.
+*   **Streaming Brain:** The backend streams thoughts and actions via NDJSON, providing immediate feedback during complex tasks.
+
 ## 📦 System Modules
 
-Proxi consists of three distinct modules that can be deployed together or independently depending on the use case.
+Proxi consists of three distinct modules that can be deployed together or independently.
 
 ### 1. Proxi Core (Backend)
 The brain of the operation. Built with Python (FastAPI), it handles:
 *   **Gemini 3 Pro Integration**: For high-level reasoning and complex tool planning.
-*   **Gemini Live API**: For real-time, low-latency, interruptible voice interaction.
-*   **Standard Tools**: Integration with GitHub API (PRs/Issues) and Google Cloud SDK (Logs/Restarts).
+*   **Streaming Architecture**: Uses Async Generators to stream "Thoughts" and "Tool Outputs" to the UI line-by-line.
+*   **Parallel Tooling**: Automatically detects independent tasks and runs them concurrently using `asyncio.gather`.
+*   **Standard Tools**: Integration with GitHub API (PRs/Issues) and Google Cloud SDK.
 
 ### 2. Proxi Console (Frontend)
 A React-based visual control plane for the human operator.
 *   **Visualizer**: Real-time audio waveform visualization (WebRTC/PCM).
-*   **Terminal**: Streaming logs of agent thoughts, tool execution, and raw JSON outputs.
+*   **Neural Trace View**: A graphical timeline showing the decision tree (User Input -> LLM Thought -> Tool Call -> Result -> Speech).
+*   **Terminal**: Raw streaming logs of agent activity.
 *   **Controls**: Toggles for "Deep Thought" mode (reasoning models) vs "Reflex" mode (fast models).
 
 ### 3. Proxi Ghost (Windows Agent)
 *Experimental Feature.*
 A specialized mode where the backend runs locally on a Windows machine to act as a "Ghost Operator".
-*   **Shell-First Architecture**: Prioritizes `PowerShell` commands for reliability (works even if screen is locked).
-*   **OS Accessibility**: Uses Windows UIAutomation to read window state instantly.
-*   **Gemini Vision Integration**: Replaces local OCR with **Gemini 3 Flash API** to understand complex UI states, charts, and images via screenshots.
+*   **Shell-First Architecture**: Prioritizes `PowerShell` commands for reliability.
+*   **Hybrid Vision**: Uses Windows UIAutomation for fast UI reading, falling back to **Gemini 3 Flash Vision** for complex visual analysis (screenshots).
 *   **Use Case**: "Proxi, restart the Nginx service," or "Click the 'Deploy' button in the legacy app."
 
 ---
@@ -32,11 +41,7 @@ A specialized mode where the backend runs locally on a Windows machine to act as
 ## 🛠️ Deployment Guide
 
 ### Scenario A: Production / Cloud Deployment (Standard)
-*Best for: Hosting the full stack (Core + Console) on a Linux server or Google Cloud Run for standard DevOps tasks.*
-
-This sets up the entire stack using Docker containers behind an Nginx reverse proxy.
-
-**Prerequisites:** Docker, Docker Compose, Git.
+*Best for: Hosting the full stack (Core + Console) on a Linux server or Google Cloud Run.*
 
 1.  **Setup Environment:**
     Create a `.env` file in the root:
@@ -49,56 +54,34 @@ This sets up the entire stack using Docker containers behind an Nginx reverse pr
     ```bash
     ./deploy.sh
     ```
-    This script will:
-    *   Pull the latest code.
-    *   Build Docker images for Frontend and Backend.
-    *   Start services via `docker-compose`.
-    *   Configure Nginx for reverse proxying (Port 80 -> Frontend, /api -> Backend).
+    This pulls the latest code, builds Docker images, and configures Nginx.
 
 3.  **Access:**
-    *   Frontend: `http://localhost` (or your domain)
+    *   Frontend: `http://localhost`
     *   Backend API: `http://localhost/api`
 
 ---
 
 ### Scenario B: Ghost Operator Setup (Windows Local)
-*Best for: Running Proxi on a specific Windows machine to control its desktop.*
+*Best for: Controlling a specific Windows machine's desktop.*
 
-This installs the backend directly on Windows (bare metal) with desktop automation libraries enabled.
-
-**Prerequisites:**
-*   Windows 10/11 or Windows Server 2019+.
-*   **PowerShell** (Run as Administrator).
-*   **Python 3.10+** installed and added to system PATH.
+**Prerequisites:** Windows 10/11, PowerShell (Admin), Python 3.10+.
 
 1.  **Run Windows Setup:**
     Open PowerShell as Administrator in the project root:
     ```powershell
     .\setup_windows.ps1
     ```
-    This script performs the following:
-    *   Creates a secure Python Virtual Environment (`venv`) to isolate dependencies.
-    *   Installs desktop-specific libraries (`pyautogui`, `opencv`).
-    *   **Safety Check**: Briefly moves the mouse to verify GUI session access.
-    *   Generates a startup script `run_proxi.bat`.
+    This creates a Python Virtual Environment (`venv`), installs desktop automation libs (`pyautogui`, `opencv`), and generates a startup script.
 
 2.  **Configuration:**
-    *   The script creates a `.env` file if one doesn't exist. **Edit this file** to add your `GEMINI_API_KEY`.
+    Edit the generated `.env` file to add your `GEMINI_API_KEY`.
 
 3.  **Start the Agent:**
-    Double-click `run_proxi.bat` or run via command line:
-    ```cmd
-    run_proxi.bat
-    ```
-    The backend will listen on `0.0.0.0:8080`.
+    Double-click `run_proxi.bat`. The backend will listen on `0.0.0.0:8080`.
 
-4.  **Unattended Access (Road Warrior Mode):**
-    If you are accessing via RDP and need to disconnect while keeping Proxi active:
-    *   **DO NOT** close the RDP window normally (this locks the screen and kills GUI automation).
-    *   **DO** run the included `disconnect_keep_alive.bat` script.
-    *   This forces the RDP session to detach but remain **unlocked and rendering** on the server console, allowing Proxi's Vision/Click tools to keep working.
-
-    *> **Note**: The Windows setup only runs the Backend. To use the Console UI, you must run the frontend separately (e.g., `npm run dev` in the frontend folder) or make API calls directly.*
+4.  **Unattended Access:**
+    Use `disconnect_keep_alive.bat` when exiting RDP to keep the session active and unlocked for the vision agent.
 
 ---
 
@@ -108,12 +91,12 @@ This installs the backend directly on Windows (bare metal) with desktop automati
 Click **"INITIATE UPLINK"** on the console.
 *   *"Check the logs for the auth-service."* (Uses Shell/PowerShell)
 *   *"Is there an open PR for the JWT feature?"* (Uses GitHub API)
-*   *(Ghost Mode)* *"Click the start button and type 'Notepad'."* (Uses Hybrid Vision/Accessibility)
+*   *(Ghost Mode)* *"Click the start button and type 'Notepad'."* (Uses Hybrid Vision)
 
 ### Text / Vision Mode
 Use the terminal input at the bottom.
-*   **Text**: "Analyze the system architecture."
-*   **Vision**: Click the Camera icon to upload a diagram or screenshot for technical analysis.
+*   **Text**: "Analyze the system architecture." (Streams thoughts and actions)
+*   **Vision**: Click the Camera icon to upload a diagram or screenshot.
 
 ## 🏗️ Architecture
 
@@ -124,18 +107,19 @@ graph TD
     
     subgraph "Proxi Core (Backend)"
         Gemini -->|Decide Intent| Router{Router}
-        Router -->|Action?| Tools[Tool Manager]
+        Router -->|NDJSON Stream| Trace[Neural Trace Stream]
     end
     
     subgraph "The Hands (Tools)"
-        Tools -->|Review PR| GitHub[GitHub API]
-        Tools -->|Check Logs| GCP[Google Cloud SDK]
-        Tools -->|Terminal Cmd| Shell[PowerShell Subprocess]
-        Tools -->|GUI Interaction| Ghost[Windows Desktop Service]
+        Trace -->|Parallel Exec| ToolBatch{Batch Executor}
+        ToolBatch -->|Review PR| GitHub[GitHub API]
+        ToolBatch -->|Check Logs| GCP[Google Cloud SDK]
+        ToolBatch -->|Terminal Cmd| Shell[PowerShell Subprocess]
+        ToolBatch -->|GUI Interaction| Ghost[Windows Desktop Service]
         Ghost -->|Screenshot| Vision[Gemini 3 Flash Vision]
     end
     
-    Shell -->|Stdout/Stderr| Router
-    Vision -->|Scene Description| Router
-    Ghost -->|Click/Type| Desktop((Local PC))
+    Shell -->|Stdout/Stderr| Trace
+    Vision -->|Scene Description| Trace
+    Trace -->|Text Response| TTS[Text-to-Speech]
 ```
