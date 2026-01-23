@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { LogEntry, MessageSource, ActiveToolState } from '../types';
-import { SYSTEM_INSTRUCTION, TOOLS, MOCK_GITHUB_DATA, MOCK_LOGS_DATA } from '../constants';
+import { SYSTEM_INSTRUCTION, TOOLS } from '../constants';
 import { blobToBase64, createPcmBlob, decodeAudioData, encodePcm } from '../utils/audio';
 
 export const useGeminiLive = () => {
@@ -17,7 +17,7 @@ export const useGeminiLive = () => {
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const nextStartTimeRef = useRef<number>(0);
-  const sessionRef = useRef<any>(null); // To store the active session promise
+  const sessionRef = useRef<any>(null); 
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
 
   const addLog = useCallback((source: MessageSource, text: string, metadata?: any) => {
@@ -32,31 +32,89 @@ export const useGeminiLive = () => {
 
   const handleToolCall = async (functionCalls: any[]) => {
     const responses = [];
+    
     for (const call of functionCalls) {
-        addLog(MessageSource.SYSTEM, `Intercepted Tool Call: ${call.name}`, call.args);
-        setActiveTool({ name: call.name, startTime: Date.now() });
+        if (call.name === 'delegate_task') {
+            const task = call.args.task_description;
+            
+            addLog(MessageSource.SYSTEM, `Handing off to Gemini 3 Core...`, { task });
+            setActiveTool({ name: "Gemini 3 Pro (Reasoning)", startTime: Date.now() });
 
-        // Simulate network delay for realism
-        await new Promise(resolve => setTimeout(resolve, 1500));
+            try {
+                // RELAY PATTERN:
+                // We send the text to the Backend API. 
+                // The Backend (Gemini 3) executes the REAL tools (Mouse, Shell, etc.)
+                // We stream the logs so the user sees the Neural Trace updates in real-time.
+                
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: task, complexity: 'deep' }) // Force 'deep' for Gemini 3
+                });
 
-        let result;
-        if (call.name === 'check_github_pr') {
-            result = MOCK_GITHUB_DATA;
-        } else if (call.name === 'check_gcp_logs') {
-            result = { logs: MOCK_LOGS_DATA(call.args.service || 'unknown-service') };
-        } else if (call.name === 'restart_cloud_run_service') {
-            result = { status: "OK", revision: "v20240124-002", message: "Service restarting..." };
+                if (!response.body) throw new Error("No response body from Core");
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let done = false;
+                let finalSummary = "";
+
+                while (!done) {
+                    const { value, done: doneReading } = await reader.read();
+                    done = doneReading;
+                    const chunkValue = decoder.decode(value, { stream: !done });
+                    const lines = chunkValue.split('\n').filter(line => line.trim() !== '');
+
+                    for (const line of lines) {
+                        try {
+                            const data = JSON.parse(line);
+                            
+                            // Visualize the "Thought Process" of Gemini 3 in the logs
+                            if (data.type === 'llm_thought') {
+                                addLog(MessageSource.AGENT, `(Thinking) ${data.content}`);
+                            } 
+                            else if (data.type === 'tool_call_batch') {
+                                data.calls.forEach((c: any) => addLog(MessageSource.TOOL, `Core Executing: ${c.name}`, c.args));
+                            }
+                            else if (data.type === 'tool_result') {
+                                addLog(MessageSource.TOOL, `Result: ${data.name}`, { output: data.content });
+                            }
+                            else if (data.type === 'response') {
+                                finalSummary = data.content;
+                                addLog(MessageSource.AGENT, `Core Result: ${data.content}`);
+                            }
+                        } catch (e) {
+                            console.warn("Parse error on chunk", line);
+                        }
+                    }
+                }
+
+                // Return the final text from Gemini 3 back to Gemini 2.5 (Voice)
+                // so it can speak it to the user.
+                responses.push({
+                    id: call.id,
+                    name: call.name,
+                    response: { result: finalSummary || "Task completed, but no text summary was generated." }
+                });
+
+            } catch (err: any) {
+                addLog(MessageSource.SYSTEM, `Core Agent Error: ${err.message}`);
+                responses.push({
+                    id: call.id,
+                    name: call.name,
+                    response: { result: `Error executing task: ${err.message}` }
+                });
+            } finally {
+                setActiveTool(null);
+            }
         } else {
-            result = { error: "Unknown tool" };
+            // Fallback for unknown tools (shouldn't happen with strict schema)
+            responses.push({
+                id: call.id,
+                name: call.name,
+                response: { result: "Error: Unknown tool." }
+            });
         }
-
-        addLog(MessageSource.TOOL, `Tool Output (${call.name})`, result);
-        responses.push({
-            id: call.id,
-            name: call.name,
-            response: { result }
-        });
-        setActiveTool(null);
     }
     return responses;
   };
@@ -80,15 +138,15 @@ export const useGeminiLive = () => {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Connect to Gemini
+      // Connect to Gemini 2.5 (The Voice Interface)
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         config: {
           responseModalities: [Modality.AUDIO],
           systemInstruction: SYSTEM_INSTRUCTION,
           tools: [{ functionDeclarations: TOOLS }],
-          inputAudioTranscription: {}, 
-          outputAudioTranscription: {},
+          // We disable native transcription logging to keep console clean, 
+          // relying on the logs we generate manually.
         },
         callbacks: {
           onopen: () => {
@@ -123,12 +181,7 @@ export const useGeminiLive = () => {
             processorRef.current = processor;
           },
           onmessage: async (message: LiveServerMessage) => {
-             // Handle Transcriptions
-             if (message.serverContent?.inputTranscription?.text) {
-                 addLog(MessageSource.USER, message.serverContent.inputTranscription.text);
-             }
-
-             // Handle Tool Calls
+             // Handle Tool Calls (The Relay Logic)
              if (message.toolCall) {
                 const responses = await handleToolCall(message.toolCall.functionCalls);
                 sessionPromise.then(session => {

@@ -230,6 +230,22 @@ class GeminiService:
         res = await self._execute_tool_wrapper(name, args)
         return (index, name, res)
 
+    async def _send_chat_message_with_retry(self, chat, content, retries=1):
+        """Robust wrapper for chat.send_message to handle MALFORMED_FUNCTION_CALL"""
+        for attempt in range(retries + 1):
+            try:
+                return await asyncio.to_thread(chat.send_message, content)
+            except Exception as e:
+                error_str = str(e)
+                # Check for Malformed Function Call error signature
+                if "MALFORMED_FUNCTION_CALL" in error_str:
+                    log_system(f"Gemini API Error: MALFORMED_FUNCTION_CALL (Attempt {attempt+1}/{retries+1}). Retrying...", "WARN")
+                    if attempt < retries:
+                        await asyncio.sleep(0.5) # Short backoff
+                        continue
+                # If it's not a malformed call or we ran out of retries, re-raise
+                raise e
+
     # --- Router & Execution (Streaming Generator) ---
 
     async def route_and_execute_stream(self, message: str, complexity_request: str = "fast"):
@@ -278,8 +294,8 @@ class GeminiService:
                 "content": message
             }) + "\n"
 
-            # Initial Message
-            response = await asyncio.to_thread(chat.send_message, full_prompt)
+            # Initial Message with Retry
+            response = await self._send_chat_message_with_retry(chat, full_prompt)
             
             # Loop for multi-turn tool use
             max_turns = 8
@@ -370,8 +386,8 @@ class GeminiService:
                             ))
                         )
                     
-                    # Send results back to model
-                    response = await asyncio.to_thread(chat.send_message, response_parts)
+                    # Send results back to model with retry
+                    response = await self._send_chat_message_with_retry(chat, response_parts)
                 else:
                     break
 

@@ -1,88 +1,112 @@
-import pyautogui
-import cv2
-import numpy as np
 import json
 import platform
-import ctypes
 import time
 import subprocess
 import os
 import tempfile
 import base64
-import io
 import threading
+import sys
 from datetime import datetime
 
+# Conditional Imports for OS Independence
+try:
+    import pyautogui
+    import cv2
+    import numpy as np
+    DESKTOP_AVAILABLE = True
+except ImportError:
+    print("[WARN] Desktop automation libraries (pyautogui/cv2) not found. Desktop tools disabled.", flush=True)
+    DESKTOP_AVAILABLE = False
+except KeyError:
+    # Pyautogui can fail on headless linux if DISPLAY is not set
+    print("[WARN] Headless environment detected (No DISPLAY). Desktop tools disabled.", flush=True)
+    DESKTOP_AVAILABLE = False
+
 # Windows Accessibility Imports
+USE_ACCESSIBILITY = False
 if platform.system() == "Windows":
     try:
+        import ctypes
         from pywinauto import Desktop, Application
-        from pywinauto.controls.hwndwrapper import HwndWrapper
+        USE_ACCESSIBILITY = True
     except ImportError:
-        print("[WARN] pywinauto not found. Install it for faster automation.")
+        print("[WARN] pywinauto not found. Install it for faster automation.", flush=True)
 
 class DesktopService:
     def __init__(self):
-        print("[INIT] Desktop Service instantiated (Hybrid: Shell + UIAutomation + Vision API).", flush=True)
-        self.use_accessibility = platform.system() == "Windows"
+        self.os_type = platform.system()
+        self.desktop_enabled = DESKTOP_AVAILABLE
         
-        # Thread lock to serialize physical inputs (mouse/keyboard)
-        # prevents race conditions when LLM calls multiple tools in parallel
+        # Thread lock to serialize physical inputs
         self._input_lock = threading.Lock()
         
-        pyautogui.FAILSAFE = True
-        pyautogui.PAUSE = 0.1 # Reduced pause for snappier execution
+        print(f"[INIT] Desktop Service | OS: {self.os_type} | Desktop Tools: {'ACTIVE' if self.desktop_enabled else 'DISABLED'}", flush=True)
+
+        if self.desktop_enabled:
+            pyautogui.FAILSAFE = True
+            pyautogui.PAUSE = 0.1 
+            self.screen_width, self.screen_height = pyautogui.size()
         
-        if self.use_accessibility:
+        if USE_ACCESSIBILITY:
             try:
                 ctypes.windll.user32.SetProcessDPIAware()
-                print("[INIT] Windows Accessibility Hook Ready.", flush=True)
-            except Exception as e:
-                print(f"[WARN] Failed to set DPI awareness: {e}", flush=True)
-        
-        self.screen_width, self.screen_height = pyautogui.size()
+            except Exception:
+                pass
 
-    # --- NEW: Headless Capabilities ---
+    def _check_availability(self):
+        if not self.desktop_enabled:
+            return False, "Error: Desktop tools are unavailable. The backend is likely running in a headless Cloud environment (Linux Container). I can only perform Cloud/GitHub tasks here."
+        return True, ""
+
+    # --- Headless Capabilities (Works on Linux too, usually) ---
     def run_terminal_command(self, command: str):
         """
-        Executes a shell command via a temporary PowerShell script.
+        Executes a shell command. Adapts to PowerShell (Windows) or Bash (Linux).
         """
         print(f"[DEBUG] Request to execute: {command}", flush=True)
         
+        is_windows = self.os_type == "Windows"
+        shell_type = "powershell" if is_windows else "bash"
+        
         clean_cmd = command.strip()
-        # Fix common LLM syntax errors for PowerShell 5.1
-        clean_cmd = clean_cmd.replace(" || ", " ; if ($?) { ").replace(" && ", " ; if ($?) { ") 
+        
+        # Syntax Normalization
+        if is_windows:
+            clean_cmd = clean_cmd.replace(" || ", " ; if ($?) { ").replace(" && ", " ; if ($?) { ") 
+            if clean_cmd.lower().startswith("powershell"):
+                clean_cmd = clean_cmd.replace("powershell -command", "").replace("powershell", "").strip().strip('"').strip("'")
+        
+        print(f"[DEBUG] Executing via {shell_type}: {clean_cmd}", flush=True)
 
-        if clean_cmd.lower().startswith("powershell -command"):
-            clean_cmd = clean_cmd[19:].strip().strip('"').strip("'")
-        elif clean_cmd.lower().startswith("powershell"):
-            clean_cmd = clean_cmd[10:].strip()
-
-        print(f"[DEBUG] Sanitized Shell Command: {clean_cmd}", flush=True)
-
-        script_path = None
         try:
-            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.ps1') as tmp:
-                # Add preferences to suppress interactive prompts
-                preamble = "$ProgressPreference = 'SilentlyContinue'; $ConfirmPreference = 'None'; "
-                tmp.write(preamble + clean_cmd)
-                script_path = tmp.name
-            
-            # Added -NonInteractive to prevent hanging on prompts
-            result = subprocess.run(
-                ["powershell", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script_path], 
-                capture_output=True, 
-                text=True, 
-                timeout=45 
-            )
-            
+            if is_windows:
+                # Windows PowerShell Execution
+                with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.ps1') as tmp:
+                    preamble = "$ProgressPreference = 'SilentlyContinue'; $ConfirmPreference = 'None'; "
+                    tmp.write(preamble + clean_cmd)
+                    script_path = tmp.name
+                
+                result = subprocess.run(
+                    ["powershell", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script_path], 
+                    capture_output=True, text=True, timeout=45 
+                )
+                try: os.remove(script_path)
+                except: pass
+
+            else:
+                # Linux Bash Execution
+                result = subprocess.run(
+                    ["/bin/bash", "-c", clean_cmd],
+                    capture_output=True, text=True, timeout=45
+                )
+
             stdout = result.stdout.strip()
             stderr = result.stderr.strip()
             
             if result.returncode == 0:
-                if len(stdout) > 2000:
-                    stdout = stdout[:2000] + "\n...[TRUNCATED]"
-                return f"SUCCESS:\n{stdout}" if stdout else "SUCCESS (No Output)"
+                out = stdout[:2000] + "\n...[TRUNCATED]" if len(stdout) > 2000 else stdout
+                return f"SUCCESS:\n{out}" if out else "SUCCESS (No Output)"
             else:
                 return f"ERROR:\n{stderr}"
 
@@ -90,59 +114,46 @@ class DesktopService:
             return "ERROR: Command timed out after 45 seconds."
         except Exception as e:
             return f"SYSTEM ERROR: {str(e)}"
-        finally:
-            if script_path and os.path.exists(script_path):
-                try:
-                    os.remove(script_path)
-                except:
-                    pass
 
-    # --- Existing GUI Capabilities ---
+    # --- GUI Capabilities (Windows/Desktop Only) ---
     def get_screen_map(self, mode: str = "hybrid"):
-        """
-        Smart Scan.
-        mode="hybrid" (Default): Tries Accessibility first (Fast).
-        mode="visual": Returns a special signal to use Gemini Vision API.
-        """
+        ok, msg = self._check_availability()
+        if not ok: return msg
+
         if mode == "visual":
             return "USE_GEMINI_VISION_API"
 
-        # Hybrid attempts Accessibility First
-        if self.use_accessibility:
+        if USE_ACCESSIBILITY:
             try:
                 ui_elements = self._scan_accessibility_tree()
-                if len(ui_elements) > 3: 
-                    print(f"[DEBUG] Accessibility Scan: Found {len(ui_elements)} elements (Fast).", flush=True)
-                    if ui_elements:
-                        ui_elements[0]["_meta_source"] = "WINDOWS_UIA"
+                if ui_elements:
                     return json.dumps(ui_elements, separators=(',', ':')) 
             except Exception as e:
-                print(f"[DEBUG] Accessibility Scan skipped/failed: {e}.", flush=True)
+                print(f"[DEBUG] Accessibility Scan failed: {e}", flush=True)
 
+        # Fallback to simple coordinate hint if vision needed
         return json.dumps([{"text": "ACCESSIBILITY_FAILED_TRY_VISUAL_MODE", "x": 0, "y": 0}])
 
     def get_screenshot_base64(self):
-        """Captures screen and returns base64 encoded string for Vision API."""
+        ok, _ = self._check_availability()
+        if not ok: return None
+
         try:
-            print("[DEBUG] Capturing screenshot for Vision API...", flush=True)
+            print("[DEBUG] Capturing screenshot...", flush=True)
             screenshot = pyautogui.screenshot()
-            
-            # Convert to RGB (pyautogui is RGB)
             img_np = np.array(screenshot)
             
-            # Resize for bandwidth efficiency if 4K
+            # Resize if huge
             height, width = img_np.shape[:2]
             if width > 1920:
                 scale = 1920 / width
                 img_np = cv2.resize(img_np, (0, 0), fx=scale, fy=scale)
 
-            # Convert to BGR for OpenCV encoding (if needed) or just use PIL
+            # RGB -> BGR for OpenCV
             is_success, buffer = cv2.imencode(".jpg", cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR))
-            if not is_success:
-                return None
+            if not is_success: return None
             
-            base64_str = base64.b64encode(buffer).decode("utf-8")
-            return base64_str
+            return base64.b64encode(buffer).decode("utf-8")
         except Exception as e:
             print(f"[ERROR] Screenshot failed: {e}", flush=True)
             return None
@@ -151,77 +162,67 @@ class DesktopService:
         elements = []
         try:
             hwnd = ctypes.windll.user32.GetForegroundWindow()
-            if not hwnd:
-                raise Exception("No active window handle found")
-
+            if not hwnd: return []
             app = Application(backend="uia").connect(handle=hwnd)
             active_window = app.top_window()
-            
-            window_title = active_window.window_text()
-            print(f"[DEBUG] Active Window: {window_title}", flush=True)
-
             controls = active_window.descendants()
             for ctrl in controls:
                 try:
                     rect = ctrl.rectangle()
                     text = ctrl.window_text()
-                    if rect.width() == 0 or rect.height() == 0: continue
-                    if not text.strip(): continue
-                    center_x = int((rect.left + rect.right) / 2)
-                    center_y = int((rect.top + rect.bottom) / 2)
-                    if center_x < 0 or center_y < 0: continue
-
+                    if rect.width() == 0 or not text.strip(): continue
                     elements.append({
                         "text": text,
                         "type": ctrl.friendly_class_name(),
-                        "x": center_x,
-                        "y": center_y,
-                        "w": rect.width(),
-                        "h": rect.height()
+                        "x": int((rect.left + rect.right) / 2),
+                        "y": int((rect.top + rect.bottom) / 2)
                     })
                     if len(elements) > 60: break 
-                except Exception:
-                    continue
-        except Exception as e:
-            raise e 
+                except: continue
+        except: pass 
         return elements
 
     def click_at(self, x: int, y: int):
+        ok, msg = self._check_availability()
+        if not ok: return msg
+        
         with self._input_lock:
             try:
-                ix, iy = int(x), int(y)
-                print(f"[DEBUG] Clicking at {ix}, {iy}", flush=True)
-                pyautogui.moveTo(ix, iy, duration=0.1)
+                pyautogui.moveTo(int(x), int(y), duration=0.1)
                 pyautogui.click()
-                return f"Clicked ({ix}, {iy})"
+                return f"Clicked ({x}, {y})"
             except Exception as e:
                 return f"Click Failed: {e}"
 
     def drag_mouse(self, start_x: int, start_y: int, end_x: int, end_y: int):
-        """Drags mouse from point A to point B. Useful for drawing."""
+        ok, msg = self._check_availability()
+        if not ok: return msg
+        
         with self._input_lock:
             try:
-                print(f"[DEBUG] Dragging from ({start_x},{start_y}) to ({end_x},{end_y})", flush=True)
                 pyautogui.moveTo(start_x, start_y)
-                # Reduced duration for faster drawing
                 pyautogui.dragTo(end_x, end_y, duration=0.2, button='left')
                 return f"Dragged from {start_x},{start_y} to {end_x},{end_y}"
             except Exception as e:
                 return f"Drag Failed: {e}"
 
     def type_text(self, text: str):
+        ok, msg = self._check_availability()
+        if not ok: return msg
+
         with self._input_lock:
             try:
-                print(f"[DEBUG] Typing: {text}", flush=True)
                 pyautogui.write(text, interval=0.01)
                 return f"Typed '{text}'"
             except Exception as e:
                 return f"Type Failed: {e}"
 
     def press_hotkey(self, keys: list):
+        ok, msg = self._check_availability()
+        if not ok: return msg
+
         with self._input_lock:
             try:
-                print(f"[DEBUG] Hotkey: {keys}", flush=True)
                 pyautogui.hotkey(*keys)
                 return f"Pressed {'+'.join(keys)}"
             except Exception as e:
