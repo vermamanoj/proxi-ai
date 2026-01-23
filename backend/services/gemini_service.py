@@ -147,11 +147,37 @@ class GeminiService:
         if self.desktop_service: return self.desktop_service.press_hotkey(keys)
         return "Desktop Service Unavailable"
 
-    def get_screen_map(self):
-        log_system("TOOL_CALL: get_screen_map() - Scanning...", "VISION")
-        if self.desktop_service: 
-            result = self.desktop_service.get_screen_map()
-            log_system(f"VISION_RESULT_LEN: {len(result)} chars", "VISION")
+    def get_screen_map(self, mode: str = "hybrid"):
+        """
+        Scans the screen for text and controls.
+        Args:
+            mode: "hybrid" (default) for fast UI checking, or "visual" for Gemini Vision reading (slow).
+        """
+        log_system(f"TOOL_CALL: get_screen_map(mode='{mode}')", "VISION")
+        if self.desktop_service:
+            # Check for API Vision Request
+            if mode == "visual":
+                base64_img = self.desktop_service.get_screenshot_base64()
+                if not base64_img:
+                    return "Error: Failed to capture screen for Vision API."
+                
+                log_system("Sending Screenshot to Gemini 3 Flash...", "VISION")
+                try:
+                    # We use a fresh model instance for the Vision task
+                    model = genai.GenerativeModel(self.FAST_TEXT_MODEL)
+                    response = model.generate_content([
+                        "Analyze this screenshot. List all active windows, UI elements, and read any visible text. Describe the layout.",
+                        {'mime_type': 'image/jpeg', 'data': base64_img}
+                    ])
+                    log_system("Vision API Analysis Complete.", "VISION")
+                    return f"VISION_ANALYSIS_RESULT:\n{response.text}"
+                except Exception as e:
+                    log_system(f"Vision API Error: {e}", "ERROR")
+                    return f"Vision API Error: {e}"
+
+            # Standard Accessibility Scan
+            result = self.desktop_service.get_screen_map(mode)
+            log_system(f"ACCESSIBILITY_RESULT_LEN: {len(result)} chars", "VISION")
             return result
         return "Desktop Service Unavailable"
 
@@ -186,9 +212,6 @@ class GeminiService:
             model_name = self.SMART_TEXT_MODEL
             reasoning_path = "pro_escalation_user"
         else:
-            # Expanded heuristics to catch more operational/sensory verbs
-            # "see", "find", "look" -> Vision/OCR tasks should be fast
-            # "run", "list", "start" -> Shell tasks should be fast
             fast_keywords = [
                 "check", "click", "open", "type", "press", 
                 "find", "see", "look", "list", "run", "start", "what"
@@ -212,29 +235,29 @@ class GeminiService:
             CRITICAL PROTOCOL:
             1. **PREFER SHELL OVER GUI:** The server screen might be locked or black. 
                - If the user asks to "check logs", "restart service", or "list files", USE `run_terminal_command`.
-               - Do NOT try to open the Event Viewer or Task Manager GUI unless explicitly asked.
-               - Example: Use `run_terminal_command('Get-Service *nginx*')` instead of clicking menus.
             
-            2. **GUI FALLBACK (Hybrid):** 
-               - Only if the task requires a visual interface (e.g., "Click the button in this specific app"), use `get_screen_map` and `click_at`.
-               - Note: If `get_screen_map` returns errors or blank data, report that the session appears locked and offer to try a shell command instead.
+            2. **SHELL SAFETY:**
+               - **DO NOT** use `curl` for web requests in PowerShell (it aliases to Invoke-WebRequest and hangs).
+               - **USE** `Invoke-RestMethod` (irm) or `Start-Process curl` instead.
+               - Example: `irm wttr.in/Noida`
+            
+            3. **VISION & GUI:** 
+               - To "Click" buttons: Use `get_screen_map(mode='hybrid')` then `click_at`.
+               - To "Read" or "Describe" an image/window: Use `get_screen_map(mode='visual')`.
+               - **Important:** `mode='visual'` sends the screenshot to Gemini Vision API. Use this to understand complex images, charts, or error dialogs that Accessibility cannot read.
 
-            3. **FILE SAFETY (IMPORTANT):**
-               - Windows blocks downloaded files (Mark of the Web).
-               - **BEFORE opening any file** (e.g., images, text logs) with `Invoke-Item` or `Start-Process`, you **MUST** run `Unblock-File` first.
-               - Example: `Unblock-File 'C:\\Users\\...\\image.jpg'; Invoke-Item 'C:\\Users\\...\\image.jpg'`
-               - If you fail to do this, a security popup will block your vision.
+            4. **FILE SAFETY:**
+               - **BEFORE opening any file**, run `Unblock-File` first.
+               - Example: `Unblock-File 'C:\\...\\image.jpg'; Invoke-Item 'C:\\...\\image.jpg'`
             
-            4. **TOOLS:**
-               - `run_terminal_command(str)`: Execute PowerShell/CMD. **(Primary)**
-               - `get_screen_map()`: See the screen. (Secondary)
-               - `click_at(x,y)`, `type_text(str)`: Interact physically. (Secondary)
+            5. **TOOLS:**
+               - `run_terminal_command(str)`: Execute PowerShell.
+               - `get_screen_map(mode='hybrid'|'visual')`: See the screen.
             """
             
             full_prompt = f"{system_instruction}\n\nUser Task: {message}"
             
             exec_start = time.time()
-            # Added timeout to prevent 10-minute hangs on Pro models
             response = await asyncio.to_thread(
                 chat.send_message, 
                 full_prompt, 
@@ -262,4 +285,3 @@ class GeminiService:
     
     def execute_pending_action(self):
         return "Atomic Mode Active."
-        

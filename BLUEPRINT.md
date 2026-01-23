@@ -1,3 +1,4 @@
+
 # PROXI: SYSTEM BLUEPRINT & CONTEXT
 **Project Name:** Proxi (The Headless Operator for Google Cloud)
 **Date:** Jan 2026
@@ -24,8 +25,8 @@ To build an agentic, voice-first interface that allows developers to perform "He
                                                   |
                             -----------------------------------------------------------
                             |                   |                     |               |
-                     [Tool: GitHub]     [Tool: Google Cloud]  [Tool: Shell]    [Tool: GUI]
-                     (PRs, Issues)      (Logs, Restart Pods)  (PowerShell)     (Click, OCR)
+                     [Tool: GitHub]     [Tool: Google Cloud]  [Tool: Shell]    [Tool: Vision]
+                     (PRs, Issues)      (Logs, Restart Pods)  (PowerShell)     (Gemini 3 Flash)
 
 ## 4. CODING STANDARDS
 *   **Async First:** All I/O operations (DB, API calls) must be `async/await`.
@@ -57,7 +58,7 @@ graph TD
         Tools -->|Review PR| GitHub[GitHub API]
         Tools -->|Check Logs| GCP[Google Cloud SDK]
         Tools -->|PowerShell| Shell[Terminal Execution]
-        Tools -->|GUI/OCR| Desktop[Windows Desktop Service]
+        Tools -->|Visual Scan| VisionAPI[Gemini 3 Flash Vision]
     end
     
     Tools -->|Result| Gemini

@@ -1,3 +1,4 @@
+
 # Proxi: The Headless Operator
 
 **Mission:** To build an agentic, voice-first interface that allows developers to perform "Headless SDLC" tasks (Triage, Ops, Architecture) without looking at a screen. It acts as a remote control for Google Cloud, GitHub, and your local desktop.
@@ -23,7 +24,7 @@ A React-based visual control plane for the human operator.
 A specialized mode where the backend runs locally on a Windows machine to act as a "Ghost Operator".
 *   **Shell-First Architecture**: Prioritizes `PowerShell` commands for reliability (works even if screen is locked).
 *   **OS Accessibility**: Uses Windows UIAutomation to read window state instantly.
-*   **Computer Vision**: Fallback to `EasyOCR` if the OS API fails.
+*   **Gemini Vision Integration**: Replaces local OCR with **Gemini 3 Flash API** to understand complex UI states, charts, and images via screenshots.
 *   **Use Case**: "Proxi, restart the Nginx service," or "Click the 'Deploy' button in the legacy app."
 
 ---
@@ -77,7 +78,7 @@ This installs the backend directly on Windows (bare metal) with desktop automati
     ```
     This script performs the following:
     *   Creates a secure Python Virtual Environment (`venv`) to isolate dependencies.
-    *   Installs desktop-specific libraries (`pyautogui`, `easyocr`, `opencv`).
+    *   Installs desktop-specific libraries (`pyautogui`, `opencv`).
     *   **Safety Check**: Briefly moves the mouse to verify GUI session access.
     *   Generates a startup script `run_proxi.bat`.
 
@@ -131,8 +132,10 @@ graph TD
         Tools -->|Check Logs| GCP[Google Cloud SDK]
         Tools -->|Terminal Cmd| Shell[PowerShell Subprocess]
         Tools -->|GUI Interaction| Ghost[Windows Desktop Service]
+        Ghost -->|Screenshot| Vision[Gemini 3 Flash Vision]
     end
     
     Shell -->|Stdout/Stderr| Router
-    Ghost -->|OCR/Click| Desktop((Local PC))
+    Vision -->|Scene Description| Router
+    Ghost -->|Click/Type| Desktop((Local PC))
 ```

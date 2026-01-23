@@ -1,5 +1,4 @@
 import pyautogui
-import easyocr
 import cv2
 import numpy as np
 import json
@@ -9,13 +8,9 @@ import time
 import subprocess
 import os
 import tempfile
-import warnings
+import base64
+import io
 from datetime import datetime
-import psutil
-
-# 1. Global Warning Suppression
-warnings.filterwarnings("ignore", category=UserWarning, message=".*pin_memory.*")
-warnings.filterwarnings("ignore", category=FutureWarning)
 
 # Windows Accessibility Imports
 if platform.system() == "Windows":
@@ -27,8 +22,7 @@ if platform.system() == "Windows":
 
 class DesktopService:
     def __init__(self):
-        print("[INIT] Desktop Service instantiated (Hybrid: Shell + UIAutomation + Vision).", flush=True)
-        self._reader = None  # Lazy load placeholder for OCR
+        print("[INIT] Desktop Service instantiated (Hybrid: Shell + UIAutomation + Vision API).", flush=True)
         self.use_accessibility = platform.system() == "Windows"
         
         pyautogui.FAILSAFE = True
@@ -43,34 +37,13 @@ class DesktopService:
         
         self.screen_width, self.screen_height = pyautogui.size()
 
-    @property
-    def reader(self):
-        """Lazy loader for EasyOCR (Fallback only)."""
-        if self._reader is None:
-            print("[INFO] 🐢 Loading EasyOCR Model (Fallback)...", flush=True)
-            try:
-                # Extra suppression scope just for the loader
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    self._reader = easyocr.Reader(['en'], gpu=False)
-            except Exception as e:
-                print(f"[ERROR] EasyOCR failed to load: {e}", flush=True)
-                # Return a dummy object to prevent crashes
-                class DummyReader:
-                    def readtext(self, img, detail=1): return []
-                self._reader = DummyReader()
-        return self._reader
-
     # --- NEW: Headless Capabilities ---
     def run_terminal_command(self, command: str):
         """
         Executes a shell command via a temporary PowerShell script.
-        This avoids all quoting/escaping issues that occur when wrapping commands in strings.
         """
         print(f"[DEBUG] Request to execute: {command}", flush=True)
         
-        # Cleanup: The model sometimes mistakenly adds 'powershell' or 'powershell -Command'
-        # We strip this because we are going to run it IN powershell anyway.
         clean_cmd = command.strip()
         if clean_cmd.lower().startswith("powershell -command"):
             clean_cmd = clean_cmd[19:].strip().strip('"').strip("'")
@@ -81,15 +54,15 @@ class DesktopService:
 
         script_path = None
         try:
-            # Create a temp .ps1 file
             with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.ps1') as tmp:
-                tmp.write(clean_cmd)
+                # Add preferences to suppress interactive prompts
+                preamble = "$ProgressPreference = 'SilentlyContinue'; $ConfirmPreference = 'None'; "
+                tmp.write(preamble + clean_cmd)
                 script_path = tmp.name
             
-            # Run the script with Bypass policy
-            # We use a timeout to prevent 'Start-Sleep 1000' from hanging the agent forever
+            # Added -NonInteractive to prevent hanging on prompts
             result = subprocess.run(
-                ["powershell", "-ExecutionPolicy", "Bypass", "-File", script_path], 
+                ["powershell", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script_path], 
                 capture_output=True, 
                 text=True, 
                 timeout=45 
@@ -110,7 +83,6 @@ class DesktopService:
         except Exception as e:
             return f"SYSTEM ERROR: {str(e)}"
         finally:
-            # Clean up temp file
             if script_path and os.path.exists(script_path):
                 try:
                     os.remove(script_path)
@@ -118,55 +90,70 @@ class DesktopService:
                     pass
 
     # --- Existing GUI Capabilities ---
-    def get_screen_map(self):
+    def get_screen_map(self, mode: str = "hybrid"):
         """
-        Smart Scan:
-        1. Try to get the Active Window via OS API (Fast, structured).
-        2. If that fails or yields few results, fallback to OCR (Slow, visual).
+        Smart Scan.
+        mode="hybrid" (Default): Tries Accessibility first (Fast).
+        mode="visual": Returns a special signal to use Gemini Vision API.
         """
-        scan_source = "UNKNOWN"
-        result_json = "[]"
+        if mode == "visual":
+            return "USE_GEMINI_VISION_API"
 
+        # Hybrid attempts Accessibility First
         if self.use_accessibility:
             try:
-                # Attempt Accessibility Scan first
                 ui_elements = self._scan_accessibility_tree()
-                
-                # Heuristic: If we found > 3 elements, we assume the UIA tree is valid.
                 if len(ui_elements) > 3: 
                     print(f"[DEBUG] Accessibility Scan: Found {len(ui_elements)} elements (Fast).", flush=True)
-                    scan_source = "ACCESSIBILITY_API"
-                    # Inject metadata into the first element
                     if ui_elements:
                         ui_elements[0]["_meta_source"] = "WINDOWS_UIA"
-                    result_json = json.dumps(ui_elements, separators=(',', ':'))
-                    return result_json 
+                    return json.dumps(ui_elements, separators=(',', ':')) 
             except Exception as e:
-                # This is common if the RDP session is minimized or locked, so we downgrade to DEBUG/WARN
-                # to avoid panicking the user.
-                print(f"[DEBUG] Accessibility Scan skipped/failed: {e}. Fallback to OCR.", flush=True)
+                print(f"[DEBUG] Accessibility Scan skipped/failed: {e}.", flush=True)
 
-        # Fallback to Visual Scan
-        scan_source = "COMPUTER_VISION"
-        result_json = self._scan_visual_ocr()
-        return result_json
+        return json.dumps([{"text": "ACCESSIBILITY_FAILED_TRY_VISUAL_MODE", "x": 0, "y": 0}])
+
+    def get_screenshot_base64(self):
+        """Captures screen and returns base64 encoded string for Vision API."""
+        try:
+            print("[DEBUG] Capturing screenshot for Vision API...", flush=True)
+            screenshot = pyautogui.screenshot()
+            
+            # Convert to RGB (pyautogui is RGB)
+            img_np = np.array(screenshot)
+            
+            # Resize for bandwidth efficiency if 4K
+            height, width = img_np.shape[:2]
+            if width > 1920:
+                scale = 1920 / width
+                img_np = cv2.resize(img_np, (0, 0), fx=scale, fy=scale)
+
+            # Convert to BGR for OpenCV encoding (if needed) or just use PIL
+            # Using standard PIL to Bytes is safer/easier than CV2 here
+            # But since we have numpy array:
+            is_success, buffer = cv2.imencode(".jpg", cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR))
+            if not is_success:
+                return None
+            
+            base64_str = base64.b64encode(buffer).decode("utf-8")
+            return base64_str
+        except Exception as e:
+            print(f"[ERROR] Screenshot failed: {e}", flush=True)
+            return None
 
     def _scan_accessibility_tree(self):
         elements = []
         try:
-            # 1. Get the Foreground Window Handle (Reliable)
             hwnd = ctypes.windll.user32.GetForegroundWindow()
             if not hwnd:
                 raise Exception("No active window handle found")
 
-            # 2. Connect pywinauto to this handle
             app = Application(backend="uia").connect(handle=hwnd)
             active_window = app.top_window()
             
             window_title = active_window.window_text()
             print(f"[DEBUG] Active Window: {window_title}", flush=True)
 
-            # 3. Walk the tree
             controls = active_window.descendants()
             for ctrl in controls:
                 try:
@@ -190,56 +177,11 @@ class DesktopService:
                 except Exception:
                     continue
         except Exception as e:
-            # Raising this exception allows the main try/catch to switch to OCR
             raise e 
         return elements
 
-    def _scan_visual_ocr(self):
-        try:
-            print("[DEBUG] Running Visual OCR Scan...", flush=True)
-            start_time = time.time()
-            screenshot = pyautogui.screenshot()
-            img_np = np.array(screenshot)
-            img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
-            
-            if img_cv is None or img_cv.size == 0:
-                print("[ERROR] Screenshot failed (Empty Image). RDP might be minimized.", flush=True)
-                return json.dumps([{"text": "ERROR_SCREEN_BLANK", "x": 0, "y": 0}])
-
-            scale_percent = 50
-            width = int(img_cv.shape[1] * scale_percent / 100)
-            height = int(img_cv.shape[0] * scale_percent / 100)
-            resized_img = cv2.resize(img_cv, (width, height), interpolation=cv2.INTER_AREA)
-            
-            # Use property reader with suppressed warnings
-            results = self.reader.readtext(resized_img, detail=1)
-            elements = []
-            elements.append({"text": "Metadata:Source=VISION_OCR", "x": 0, "y": 0, "type": "meta"})
-
-            for (bbox, text, prob) in results:
-                if prob < 0.4: continue 
-                x1, y1 = bbox[0]
-                x2, y2 = bbox[2]
-                center_x = int(((x1 + x2) / 2) * (100 / scale_percent))
-                center_y = int(((y1 + y2) / 2) * (100 / scale_percent))
-                elements.append({
-                    "text": text,
-                    "type": "VisualText",
-                    "x": center_x,
-                    "y": center_y
-                })
-            
-            duration = round(time.time() - start_time, 2)
-            print(f"[DEBUG] OCR Scan Complete: {len(elements)} items in {duration}s", flush=True)
-            return json.dumps(elements, separators=(',', ':'))
-        except Exception as e:
-            print(f"[ERROR] OCR Failed: {e}", flush=True)
-            return "[]"
-            
-
     def click_at(self, x: int, y: int):
         try:
-            # Ensure coordinates are integers
             ix, iy = int(x), int(y)
             print(f"[DEBUG] Clicking at {ix}, {iy}", flush=True)
             pyautogui.moveTo(ix, iy, duration=0.2)
