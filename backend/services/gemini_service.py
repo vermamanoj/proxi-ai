@@ -51,7 +51,6 @@ if env_path.exists():
 
 # --- Helper for Dict Conversion ---
 def to_dict(obj):
-    # The new SDK returns types that might need conversion
     if hasattr(obj, 'to_dict'): return obj.to_dict()
     if isinstance(obj, dict): return {k: to_dict(v) for k, v in obj.items()}
     if isinstance(obj, list): return [to_dict(v) for v in obj]
@@ -67,7 +66,6 @@ class GeminiService:
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
         if not self.api_key:
-             # Manual fallback
             try:
                 with open(env_path, 'r', encoding='utf-8') as f:
                     for line in f:
@@ -75,24 +73,20 @@ class GeminiService:
                             self.api_key = line.split('=', 1)[1].strip().strip('"').strip("'")
             except: pass
         
-        # Initialize Client
         if self.api_key:
             self.client = genai.Client(api_key=self.api_key)
         else:
             log_system("CRITICAL: GEMINI_API_KEY not found.", "ERR")
         
-        # Initialize DB
         try:
             init_db()
         except Exception as e:
             log_system(f"DB Init Failed: {e}", "ERR")
 
-        # Initialize Desktop Service via Factory
         self.desktop_service = get_desktop_service()
 
-        # MAPPING: Combines Standard Tools + Service Wrappers
+        # 1. EXECUTION MAP (Actual Python Functions)
         self.tools_map = {
-            # Standard
             "get_server_time": get_server_time,
             "get_system_health": self.get_system_health_wrapper, 
             "update_github_file": update_github_file,
@@ -100,16 +94,12 @@ class GeminiService:
             "send_slack_message": send_slack_message,
             "create_linear_ticket": create_linear_ticket,
             "query_knowledge_base": query_knowledge_base,
-            
-            # Orchestrator (Truth Layer)
             "assign_mission": assign_mission,
             "report_execution": report_execution,
             "verify_mission": verify_mission,
             "escalate_to_human": escalate_to_human,
             "add_item": add_item,
             "update_item_status": update_item_status,
-
-            # Desktop (Motor + Sense)
             "click_at": self.click_at,
             "drag_mouse": self.drag_mouse,
             "type_text": self.type_text,
@@ -121,10 +111,87 @@ class GeminiService:
             "open_target": self.open_target,
             "read_page_content": self.read_page_content,
             "scroll_page": self.scroll_page,
-            
-            # New Semantic Browser
             "browser_command": self.browser_command
         }
+
+        # 2. DEFINITION LIST (Schemas for LLM)
+        # We explicitly define these to prevent the SDK from auto-executing Python callables.
+        self.tool_definitions = [
+            types.FunctionDeclaration(
+                name="assign_mission",
+                description="Starts a new verifiable mission. REQUIRED at the start of complex tasks.",
+                parameters=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "goal": types.Schema(type=types.Type.STRING, description="Objective"),
+                        "verification_criteria": types.Schema(
+                            type=types.Type.OBJECT, 
+                            description="Success metrics (e.g. {'metric': 'cpu', 'threshold': 50})"
+                        )
+                    },
+                    required=["goal", "verification_criteria"]
+                )
+            ),
+            types.FunctionDeclaration(
+                name="get_system_health",
+                description="Retrieves current CPU, Memory, and System Status.",
+                parameters=types.Schema(type=types.Type.OBJECT, properties={})
+            ),
+             types.FunctionDeclaration(
+                name="get_server_time",
+                description="Gets server clock time.",
+                parameters=types.Schema(type=types.Type.OBJECT, properties={})
+            ),
+            types.FunctionDeclaration(
+                name="run_terminal_command",
+                description="Executes a shell command (PowerShell/Bash). Use for system ops.",
+                parameters=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={"command": types.Schema(type=types.Type.STRING)},
+                    required=["command"]
+                )
+            ),
+            types.FunctionDeclaration(
+                name="look_at_screen",
+                description="Takes a screenshot and analyzes it using Gemini Vision.",
+                parameters=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={"purpose": types.Schema(type=types.Type.STRING, description="What to look for")},
+                    required=["purpose"]
+                )
+            ),
+            types.FunctionDeclaration(
+                name="report_execution",
+                description="Call this when the task is done to trigger verification.",
+                parameters=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "mission_id": types.Schema(type=types.Type.STRING),
+                        "summary": types.Schema(type=types.Type.STRING)
+                    },
+                    required=["mission_id", "summary"]
+                )
+            ),
+            types.FunctionDeclaration(
+                name="browser_command",
+                description="Controls the web browser (NAVIGATE, NEW_TAB, REFRESH).",
+                parameters=types.Schema(
+                    type=types.Type.OBJECT,
+                    properties={
+                        "action": types.Schema(type=types.Type.STRING, enum=["NAVIGATE", "NEW_TAB", "CLOSE_TAB", "REFRESH", "SEARCH"]),
+                        "url": types.Schema(type=types.Type.STRING)
+                    },
+                    required=["action"]
+                )
+            ),
+            # Add generic schema for other tools to ensure they are available but not auto-executed
+            types.FunctionDeclaration(name="create_linear_ticket", description="Creates a ticket.", parameters=types.Schema(type=types.Type.OBJECT, properties={"title": types.Schema(type=types.Type.STRING), "priority": types.Schema(type=types.Type.STRING)})),
+            types.FunctionDeclaration(name="send_slack_message", description="Sends a Slack msg.", parameters=types.Schema(type=types.Type.OBJECT, properties={"channel": types.Schema(type=types.Type.STRING), "message": types.Schema(type=types.Type.STRING)})),
+            types.FunctionDeclaration(name="query_knowledge_base", description="Searches docs.", parameters=types.Schema(type=types.Type.OBJECT, properties={"query": types.Schema(type=types.Type.STRING)})),
+            types.FunctionDeclaration(name="escalate_to_human", description="Escalates failure.", parameters=types.Schema(type=types.Type.OBJECT, properties={"mission_id": types.Schema(type=types.Type.STRING), "reason": types.Schema(type=types.Type.STRING)})),
+            types.FunctionDeclaration(name="wait_seconds", description="Waits for X seconds.", parameters=types.Schema(type=types.Type.OBJECT, properties={"seconds": types.Schema(type=types.Type.INTEGER)})),
+        ]
+        
         log_system(f"Gemini Service Initialized (New SDK) with {len(self.tools_map)} tools.", "INIT")
 
     # --- DESKTOP WRAPPERS ---
@@ -132,7 +199,6 @@ class GeminiService:
     def click_at(self, x: int, y: int): return self.desktop_service.click_at(x, y)
     def drag_mouse(self, start_x: int, start_y: int, end_x: int, end_y: int): return self.desktop_service.drag_mouse(start_x, start_y, end_x, end_y)
     def type_text(self, text: str): return self.desktop_service.type_text(text)
-    # FIX: Explicitly type hint as list[str] so SDK schema generation works
     def press_hotkey(self, keys: list[str]): return self.desktop_service.press_hotkey(keys)
     def wait_seconds(self, seconds: int): return self.desktop_service.wait_seconds(seconds)
     def run_terminal_command(self, command: str): return self.desktop_service.run_terminal_command(command)
@@ -146,7 +212,6 @@ class GeminiService:
         base64_img = self.desktop_service.get_screenshot_base64()
         if not base64_img: return "Screenshot failed"
         try:
-            # Synchronous call via standard client for simplicity in tools
             response = self.client.models.generate_content(
                 model=self.FAST_TEXT_MODEL,
                 contents=[
@@ -157,8 +222,6 @@ class GeminiService:
             return f"VISION: {response.text}"
         except Exception as e: return f"Vision Error: {e}"
 
-    # --- EXECUTION ENGINE ---
-
     async def _execute_with_index(self, index: int, name: str, args: dict):
         func = self.tools_map.get(name)
         if not func: return (index, name, f"Error: Tool {name} not found")
@@ -168,68 +231,47 @@ class GeminiService:
             return (index, name, res)
         except Exception as e: return (index, name, str(e))
 
-    # --- THE HIVE ORCHESTRATOR (NEW SDK) ---
-    
+    # --- THE HIVE ORCHESTRATOR ---
     async def route_and_execute_stream(self, message: str, complexity_request: str = "fast"):
-        """
-        HIVE Architecture using google-genai SDK (Gemini 3 Native).
-        """
         log_system(f"HIVE ORCHESTRATOR: {message} [Mode: {complexity_request}]", "ROUTER")
         
         if not self.api_key: 
             yield json.dumps({"type": "error", "content": "API Key Missing"})
             return
 
-        # Provide tools as a list of callables. The SDK handles schema generation.
-        tools_list = list(self.tools_map.values())
+        # Prepare Tool definitions (Not callables)
+        final_tools = [types.Tool(function_declarations=self.tool_definitions)]
         
-        # --- DYNAMIC CONFIGURATION ---
         if complexity_request == "deep":
-            # DEEP MODE: Gemini 3 Pro with Thinking
-            # Capable of complex planning, but risks "over-thinking" loops on simple tasks.
             active_model = self.SMART_TEXT_MODEL
             config = types.GenerateContentConfig(
                 temperature=0.7,
-                tools=tools_list,
+                tools=final_tools,
                 thinking_config=types.ThinkingConfig(include_thoughts=True)
             )
             log_system("Activated DEEP Mode (Thinking Enabled)", "CFG")
         else:
-            # FAST MODE (Default): Gemini 3 Flash without Thinking
-            # Snappy, tool-use oriented, no philosophy loops. Best for demos.
             active_model = self.FAST_TEXT_MODEL
             config = types.GenerateContentConfig(
                 temperature=0.5,
-                tools=tools_list
-                # No thinking_config
+                tools=final_tools
             )
             log_system("Activated FAST Mode (Reflex Only)", "CFG")
 
         hive_instruction = """
         You are Proxi, a Verifiable Autonomous Agent.
         
-        **CORE PROTOCOL (The Triple Handshake):**
+        **CORE PROTOCOL:**
         1. **ASSIGN**: Start by using `assign_mission(goal, verification_criteria)`.
-           - Criteria E.g.: {"metric": "cpu", "threshold": 80, "condition": "less_than"}.
-        2. **EXECUTE**: Use tools (GCP, GitHub, Desktop) to fix the issue.
+        2. **EXECUTE**: Use tools to fix the issue.
         3. **REPORT**: When done, call `report_execution(mission_id, summary)`.
-        
-        **HIGH-SPEED BROWSER NAVIGATION:**
-        - You have access to `browser_command(action, url)`.
-        - Actions: NEW_TAB, CLOSE_TAB, REFRESH, NAVIGATE, SEARCH.
-        - PREFER this tool over manual clicking for web tasks.
-        
-        **STUCK DETECTION:**
-        - If you try the same fix twice and it fails, STOP and call `escalate_to_human`.
         """
         
-        # Create Async Chat Session
         chat = self.client.aio.chats.create(
             model=active_model,
             config=config
         )
 
-        # Emit Initial Status
         yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Initializing Mission ({complexity_request} mode)..."}) + "\n"
 
         full_prompt = f"{hive_instruction}\n\nGOAL: {message}"
@@ -239,8 +281,6 @@ class GeminiService:
         current_criteria = None
         verification_fails = 0
         stall_count = 0
-        
-        # The ReAct Loop Variable
         next_input = full_prompt
 
         try:
@@ -251,69 +291,45 @@ class GeminiService:
                 current_turn += 1
                 
                 function_calls = []
-                results_ordered = []
                 text_buffer = ""
                 has_thoughts = False
                 
-                # STREAMING REQUEST
                 stream_iter = await chat.send_message_stream(next_input)
                 
                 async for chunk in stream_iter:
                     if not chunk.candidates: continue
-                    
                     for part in chunk.candidates[0].content.parts:
-                        
-                        # 1. Handle Thoughts (Only in Deep Mode)
                         if part.thought:
                              has_thoughts = True
                              log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
                              yield json.dumps({"type": "llm_thought", "content": part.text}) + "\n"
-                        
-                        # 2. Handle Text Response
                         elif part.text:
                              text_buffer += part.text
-                             
-                        # 3. Handle Function Calls
                         if part.function_call:
                              if not function_calls:
                                  yield json.dumps({"type": "status_change", "phase": "executing", "tool": part.function_call.name}) + "\n"
                              function_calls.append(part.function_call)
 
-                # End of Stream for this Turn
                 log_system(f"Turn {current_turn} finished. Thoughts: {has_thoughts}, Calls: {len(function_calls)}", "DEBUG")
                 
-                # If we received text, send it to UI
                 if text_buffer:
                     yield json.dumps({"type": "response", "content": text_buffer}) + "\n"
 
-                # CHECK FOR STALLS (Only relevant if Thinking was active)
                 if not function_calls:
-                    if text_buffer:
-                        break # Final answer given
-                    
-                    # If we are in Deep Mode and we got thoughts but no actions: NUDGE.
+                    if text_buffer: break
                     if has_thoughts:
                         stall_count += 1
-                        log_system(f"Stall detected (Thoughts only). Stall Count: {stall_count}", "WARN")
-                        
                         yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Aligning thoughts to actions (Attempt {stall_count})..."}) + "\n"
-                        
                         if stall_count >= 3:
-                            # CRITICAL ESCALATION
                             next_input = "CRITICAL: You are looping. Stop thinking. You MUST output a Function Call immediately."
                         else:
-                            # Gentle Nudge
-                            next_input = "Observation: You are thinking but not acting. Please generate the Function Call for your planned action."
+                            next_input = "Observation: You are thinking but not acting. Please generate the Function Call."
                         continue 
                     
-                    # Dead end (No thoughts, no tools, no text)
                     yield json.dumps({"type": "response", "content": "Task planning complete (No actions generated)."}) + "\n"
                     break
                 
-                # Reset stall count if we got a function call
                 stall_count = 0
-
-                # PROCESS TOOLS
                 safe_calls = []
                 for fc in function_calls:
                     args = to_dict(fc.args)
@@ -321,7 +337,6 @@ class GeminiService:
                 
                 yield json.dumps({"type": "tool_call_batch", "calls": safe_calls}) + "\n"
 
-                # Execute
                 tool_output_parts = []
                 
                 for i, call in enumerate(safe_calls):
@@ -331,7 +346,6 @@ class GeminiService:
                     yield json.dumps({"type": "status_change", "phase": "executing", "tool": name}) + "\n"
                     _, _, res = await self._execute_with_index(i, name, args)
                     
-                    # --- ORCHESTRATOR LOGIC (Intercepts) ---
                     if name == "assign_mission":
                         if "Mission" in str(res):
                             current_mission_id = str(res).split("Mission ")[1].split(" ")[0]
@@ -340,7 +354,6 @@ class GeminiService:
                         if current_mission_id:
                             log_system(f"Verifying {current_mission_id}...", "SYS")
                             yield json.dumps({"type": "status_change", "phase": "verifying"}) + "\n"
-                            
                             evidence = await asyncio.to_thread(verify_mission, current_mission_id)
                             judgment = await self._verify_outcome(args.get('summary', 'Done'), evidence, json.dumps(current_criteria))
                             
@@ -354,7 +367,6 @@ class GeminiService:
                                 res = f"VERIFICATION FAILED: {judgment['reason']}"
                                 yield json.dumps({"type": "verification", "status": "failed", "reason": judgment['reason']}) + "\n"
 
-                    # Build Response
                     tool_output_parts.append(
                         types.Part(
                             function_response=types.FunctionResponse(
@@ -374,10 +386,8 @@ class GeminiService:
             yield json.dumps({"type": "error", "content": str(e)}) + "\n"
 
     async def _verify_outcome(self, claim, evidence, criteria):
-        # Using a one-off generation for verification (Standard Client)
         verifier_instruction = "You are a QA Auditor. Output JSON: {verified: bool, reason: str}."
         prompt = f"Claim: {claim}\nEvidence: {evidence}\nCriteria: {criteria}"
-        
         try:
             response = await self.client.aio.models.generate_content(
                 model=self.SMART_TEXT_MODEL,
@@ -391,7 +401,6 @@ class GeminiService:
             return {"verified": False, "reason": f"Verifier crash: {e}"}
 
     async def process_vision_command(self, image_bytes, user_prompt):
-        # Async Vision
         response = await self.client.aio.models.generate_content(
             model=self.VISION_MODEL,
             contents=[
