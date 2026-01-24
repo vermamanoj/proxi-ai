@@ -397,23 +397,25 @@ class GeminiService:
                     # Logic hooks
                     if name == "assign_mission":
                         if "Mission" in str(res):
-                            current_mission_id = str(res).split("Mission ")[1].split(" ")[0]
-                            current_criteria = args.get('verification_criteria', {})
+                            try:
+                                current_mission_id = str(res).split("Mission ")[1].split(" ")[0]
+                                current_criteria = args.get('verification_criteria', {})
+                            except: pass
                     elif name == "report_execution":
                         if current_mission_id:
                             yield json.dumps({"type": "status_change", "phase": "verifying"}) + "\n"
                             evidence = await asyncio.to_thread(verify_mission, current_mission_id)
                             judgment = await self._verify_outcome(args.get('summary', 'Done'), evidence, json.dumps(current_criteria))
                             
-                            if judgment['verified']:
+                            if judgment.get('verified'):
                                 finalize_mission(current_mission_id, "VERIFIED")
-                                res = f"VERIFICATION PASSED: {judgment['reason']}"
-                                yield json.dumps({"type": "verification", "status": "success", "reason": judgment['reason']}) + "\n"
+                                res = f"VERIFICATION PASSED: {judgment.get('reason')}"
+                                yield json.dumps({"type": "verification", "status": "success", "reason": judgment.get('reason')}) + "\n"
                             else:
                                 finalize_mission(current_mission_id, "FAILED")
                                 verification_fails += 1
-                                res = f"VERIFICATION FAILED: {judgment['reason']}"
-                                yield json.dumps({"type": "verification", "status": "failed", "reason": judgment['reason']}) + "\n"
+                                res = f"VERIFICATION FAILED: {judgment.get('reason')}"
+                                yield json.dumps({"type": "verification", "status": "failed", "reason": judgment.get('reason')}) + "\n"
 
                     # Construct Response Part
                     tool_response_parts.append(
