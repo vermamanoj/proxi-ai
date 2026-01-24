@@ -15,3 +15,4 @@ numpy==1.26.4
 pywinauto==0.6.8
 comtypes==1.2.0
 pyperclip==1.8.2
+requests==2.31.0

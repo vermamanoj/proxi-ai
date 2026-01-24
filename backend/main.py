@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.models.api_models import ChatRequest, ChatResponse, ActionConfirmation
 from backend.services.gemini_service import GeminiService
 from backend.database import get_missions_list, get_mission_items_list, update_item_status_record
+from backend.services.desktop.factory import get_desktop_service
 
 app = FastAPI(
     title="Proxi Backend",
@@ -26,7 +27,8 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    return {"message": "Proxi Backend is running", "status": "online"}
+    mode = os.getenv("RUNTIME_MODE", "DEMO")
+    return {"message": "Proxi Backend is running", "status": "online", "mode": mode}
 
 @app.get("/api/health")
 async def health_check():
@@ -85,6 +87,26 @@ async def update_item_status(item_id: int, status_update: dict = Body(...)):
 @app.post("/api/desktop/execute")
 async def execute_desktop_action():
     return {"status": "executed", "result": "Atomic Mode"}
+
+# --- DEMO / JUDGE TOOLS ---
+
+@app.post("/api/demo/trigger_chaos")
+async def trigger_chaos():
+    """DEMO: Triggers a simulated high-CPU incident in the Mock Desktop."""
+    ds = get_desktop_service()
+    if hasattr(ds, 'trigger_incident'):
+        ds.trigger_incident()
+        return {"status": "chaos_triggered", "message": "Simulated incident started. CPU at 99%."}
+    return {"status": "ignored", "message": "Not in DEMO mode."}
+
+@app.post("/api/demo/reset")
+async def reset_demo():
+    """DEMO: Resets the simulated environment."""
+    ds = get_desktop_service()
+    if hasattr(ds, 'resolve_incident'):
+        ds.resolve_incident()
+        return {"status": "reset", "message": "Simulated environment normalized."}
+    return {"status": "ignored"}
 
 if __name__ == "__main__":
     uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)

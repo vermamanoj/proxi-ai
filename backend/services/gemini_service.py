@@ -16,10 +16,18 @@ from google.generativeai.types import GenerationConfig
 from google.ai.generativelanguage import FunctionResponse, Part
 
 # Internal Imports
-from backend.services.desktop_service import DesktopService
+from backend.services.desktop.factory import get_desktop_service
 from backend.utils.logger import log_system
 from backend.database import init_db
-from backend.services.orchestrator import create_mission, add_item, update_item_status
+from backend.services.orchestrator import (
+    assign_mission, 
+    report_execution, 
+    verify_mission, 
+    finalize_mission,
+    escalate_to_human,
+    add_item, 
+    update_item_status
+)
 
 from backend.tools.standard_tools import (
     get_server_time,
@@ -74,24 +82,25 @@ class GeminiService:
         except Exception as e:
             log_system(f"DB Init Failed: {e}", "ERR")
 
-        try:
-            self.desktop_service = DesktopService()
-        except:
-            self.desktop_service = None
+        # Initialize Desktop Service via Factory
+        self.desktop_service = get_desktop_service()
 
         # MAPPING: Combines Standard Tools + Service Wrappers
         self.tools_map = {
             # Standard
             "get_server_time": get_server_time,
-            "get_system_health": get_system_health,
+            "get_system_health": self.get_system_health_wrapper, # Route through wrapper
             "update_github_file": update_github_file,
             "create_github_issue": create_github_issue,
             "send_slack_message": send_slack_message,
             "create_linear_ticket": create_linear_ticket,
             "query_knowledge_base": query_knowledge_base,
             
-            # Orchestrator (Memory)
-            "create_mission": create_mission,
+            # Orchestrator (Truth Layer)
+            "assign_mission": assign_mission,
+            "report_execution": report_execution,
+            "verify_mission": verify_mission,
+            "escalate_to_human": escalate_to_human,
             "add_item": add_item,
             "update_item_status": update_item_status,
 
@@ -111,61 +120,38 @@ class GeminiService:
         log_system(f"Gemini Service Initialized with {len(self.tools_map)} tools.", "INIT")
 
     # --- DESKTOP WRAPPERS ---
+    def get_system_health_wrapper(self):
+        """Wrapper to route health check through desktop service (Real or Mock)."""
+        return self.desktop_service.get_system_health()
+
     def click_at(self, x: int, y: int):
-        """Moves mouse to (x, y) and clicks."""
-        if self.desktop_service: return self.desktop_service.click_at(x, y)
-        return "Desktop Unavailable"
+        return self.desktop_service.click_at(x, y)
         
     def drag_mouse(self, start_x: int, start_y: int, end_x: int, end_y: int):
-        """Drags mouse from start to end coordinates."""
-        if self.desktop_service: return self.desktop_service.drag_mouse(start_x, start_y, end_x, end_y)
-        return "Desktop Unavailable"
+        return self.desktop_service.drag_mouse(start_x, start_y, end_x, end_y)
         
     def type_text(self, text: str):
-        """Types text into the active window."""
-        if self.desktop_service: return self.desktop_service.type_text(text)
-        return "Desktop Unavailable"
+        return self.desktop_service.type_text(text)
         
     def press_hotkey(self, keys: list):
-        """Presses a hotkey combination (e.g. ['ctrl', 'c'])."""
-        if self.desktop_service: return self.desktop_service.press_hotkey(keys)
-        return "Desktop Unavailable"
+        return self.desktop_service.press_hotkey(keys)
         
     def wait_seconds(self, seconds: int):
-        """Pauses execution."""
-        time.sleep(seconds)
-        return f"Waited {seconds}s"
+        return self.desktop_service.wait_seconds(seconds)
         
     def run_terminal_command(self, command: str):
-        """Executes a shell command."""
-        if self.desktop_service: return self.desktop_service.run_terminal_command(command)
-        return "Desktop Unavailable"
+        return self.desktop_service.run_terminal_command(command)
     
     def open_target(self, resource: str):
-        """
-        Opens a URL in the browser or a local file. 
-        Use this to start researching a topic or inspecting a file.
-        """
-        if self.desktop_service: return self.desktop_service.open_target(resource)
-        return "Desktop Unavailable"
+        return self.desktop_service.open_target(resource)
 
     def read_page_content(self):
-        """
-        INSTANTLY reads the text content of the active window/page.
-        It simulates Ctrl+A (Select All) -> Ctrl+C (Copy) and reads the clipboard.
-        Use this to ingest web pages, documents, or logs efficiently.
-        """
-        if self.desktop_service: return self.desktop_service.read_page_content()
-        return "Desktop Unavailable"
+        return self.desktop_service.read_page_content()
 
     def scroll_page(self, direction: str = 'down'):
-        """Scrolls the active window 'down' or 'up'."""
-        if self.desktop_service: return self.desktop_service.scroll_page(direction)
-        return "Desktop Unavailable"
+        return self.desktop_service.scroll_page(direction)
 
     def look_at_screen(self, purpose: str):
-        """Takes a screenshot and analyzes it visually."""
-        if not self.desktop_service: return "Desktop Unavailable"
         base64_img = self.desktop_service.get_screenshot_base64()
         if not base64_img: return "Screenshot failed"
         try:
@@ -175,9 +161,7 @@ class GeminiService:
         except Exception as e: return f"Vision Error: {e}"
 
     def scan_ui_tree(self):
-        """Scans accessibility tree for clickable elements."""
-        if self.desktop_service: return self.desktop_service.scan_ui_tree()
-        return "Desktop Unavailable"
+        return self.desktop_service.scan_ui_tree()
 
     # --- EXECUTION ENGINE ---
 
@@ -201,11 +185,71 @@ class GeminiService:
                     continue
                 raise e
 
+    async def _verify_outcome(self, claim: str, evidence_json: str, criteria: str):
+        """
+        The Verifier Persona: A QA Auditor that judges if the task is complete.
+        """
+        verifier_instruction = """
+        You are a Quality Assurance Auditor for Proxi.
+        Your Job: Verify if the Worker Agent successfully completed the mission based on HARD EVIDENCE.
+        
+        INPUTS:
+        1. Worker Claim: What the agent says it did.
+        2. Real Metrics (Evidence): What the system actually shows (CPU, HTTP status, Visuals).
+        3. Success Criteria: The conditions required for success.
+        
+        OUTPUT:
+        Return ONLY a JSON object:
+        {
+            "verified": boolean,
+            "reason": "Explanation of why it passed or failed based on the metrics."
+        }
+        
+        Do not trust the Worker's claim unless the Metrics support it.
+        """
+        
+        # Parse evidence to check for images
+        evidence = {}
+        try:
+            evidence = json.loads(evidence_json)
+        except:
+            evidence = {"raw": evidence_json}
+
+        # Build prompt parts
+        prompt_text = f"Worker Claim: {claim}\nCriteria: {criteria}\n"
+        
+        prompt_parts = [prompt_text]
+        
+        # Multimodal Injection (Screenshots)
+        if "screenshot_base64" in evidence:
+            prompt_parts.append(f"Visual Evidence Target: {evidence.get('visual_target', 'Screen State')}")
+            prompt_parts.append({'mime_type': 'image/jpeg', 'data': evidence['screenshot_base64']})
+            # Remove huge base64 from text log to avoid clutter
+            evidence_lite = evidence.copy()
+            del evidence_lite['screenshot_base64']
+            prompt_parts.append(f"System Vitals: {json.dumps(evidence_lite)}")
+        else:
+            prompt_parts.append(f"Real Metrics: {evidence_json}")
+
+        try:
+            model = genai.GenerativeModel(self.SMART_TEXT_MODEL, system_instruction=verifier_instruction)
+            res = await asyncio.to_thread(model.generate_content, prompt_parts)
+            
+            # Extract JSON
+            text = res.text
+            start = text.find('{')
+            end = text.rfind('}') + 1
+            if start != -1 and end != -1:
+                return json.loads(text[start:end])
+            return {"verified": False, "reason": "Verifier output malformed."}
+        except Exception as e:
+            return {"verified": False, "reason": f"Verifier Error: {e}"}
+
     # --- THE HIVE ORCHESTRATOR ---
     
     async def route_and_execute_stream(self, message: str, complexity_request: str = "fast"):
         """
-        HIVE Architecture: Planner -> Executor.
+        HIVE Architecture: Planner -> Executor -> Verifier.
         """
         log_system(f"HIVE ORCHESTRATOR: {message}", "ROUTER")
         
@@ -214,28 +258,24 @@ class GeminiService:
             return
 
         hive_instruction = """
-        You are Proxi, an Autonomous Orchestrator Agent.
+        You are Proxi, a Verifiable Autonomous Agent.
         
-        **CORE MISSION:**
-        You can execute long-running tasks by interacting with the computer and saving your findings to memory.
-
-        **RESEARCH & MEMORY TOOLS:**
-        1. `create_mission(goal)`: Start a new task.
-        2. `open_target(url)`: Open a webpage.
-        3. `read_page_content()`: INSTANTLY read the page text (via Clipboard). PREFER THIS over Vision for text.
-        4. `add_item(mission_id, type, source, attributes)`: SAVE what you found.
+        **CORE PROTOCOL (The Triple Handshake):**
+        1. **ASSIGN**: Start by using `assign_mission(goal, verification_criteria)`.
+           - ALWAYS define criteria. E.g. {"metric": "cpu", "threshold": 80, "condition": "less_than"}.
+           - For Visuals: {"metric": "visual", "description": "Login button visible"}.
+        2. **EXECUTE**: Use tools (GCP, GitHub, Desktop) to fix the issue.
+        3. **REPORT**: When done, call `report_execution(mission_id, summary)`.
         
-        **EXAMPLE WORKFLOW (Researching Startups):**
-        1. `create_mission("Find 3 AI startups")` -> returns ID "123".
-        2. `open_target("google.com")` -> `type_text("AI startups SF")` -> `press_hotkey(['enter'])`.
-        3. `read_page_content()` -> You see search results.
-        4. `open_target("found_url.com")`
-        5. `read_page_content()` -> You see "CEO: Jane Doe".
-        6. `add_item("123", "LEAD", "found_url.com", {"ceo": "Jane Doe", "name": "AI Co"})`.
+        **STUCK DETECTION:**
+        - If you try the same fix twice and it fails, STOP and call `escalate_to_human`.
+        - Do not lie about success. The Verifier will catch you.
         
-        **STANDARD OPS:**
-        - Consult `query_knowledge_base` for internal docs.
-        - Use `send_slack_message` to notify humans.
+        **TOOLS:**
+        - `assign_mission`: Start.
+        - `report_execution`: End.
+        - `open_target`/`read_page_content`: Research.
+        - `run_terminal_command`: Fix stuff.
         """
 
         tools = list(self.tools_map.values())
@@ -246,11 +286,15 @@ class GeminiService:
 
         full_prompt = f"{hive_instruction}\n\nGOAL: {message}"
         
+        # State Tracking
+        current_mission_id = None
+        current_criteria = None
+        verification_fails = 0
+        
         try:
             response = await self._send_chat_message_with_healing(chat, full_prompt)
             
-            # The Executor Loop
-            max_turns = 30 # Increased for research loops
+            max_turns = 30
             current_turn = 0
             
             while current_turn < max_turns:
@@ -268,17 +312,64 @@ class GeminiService:
                     log_system(f"AGENT THOUGHT: {text_content[:100]}...", "THOUGHT")
                     msg_type = "llm_thought" if function_calls else "response"
                     yield json.dumps({"type": msg_type, "content": text_content}) + "\n"
+                    # If no function calls, we might be done, but we force report_execution in prompt
                     if not function_calls: break
 
                 if function_calls:
                     safe_calls = [{"name": fc.name, "args": proto_to_dict(fc.args)} for fc in function_calls]
                     yield json.dumps({"type": "tool_call_batch", "calls": safe_calls}) + "\n"
 
-                    # Serial Execution for Desktop Tasks (Important for Mouse/Keyboard/Clipboard)
-                    # We cannot run `click` and `type` in parallel.
                     results_ordered = []
+                    
+                    # Intercept Special Calls for State Tracking
                     for i, call in enumerate(safe_calls):
-                        _, name, res = await self._execute_with_index(i, call['name'], call['args'])
+                        name = call['name']
+                        args = call['args']
+                        
+                        # EXECUTE
+                        _, _, res = await self._execute_with_index(i, name, args)
+                        
+                        # POST-EXECUTION HOOKS
+                        if name == "assign_mission":
+                            try:
+                                # Extract ID from string like "Mission 1234 assigned..."
+                                if "Mission" in str(res):
+                                    current_mission_id = str(res).split("Mission ")[1].split(" ")[0]
+                                    current_criteria = args.get('verification_criteria', {})
+                            except: pass
+                            
+                        elif name == "report_execution":
+                            # TRIGGER VERIFICATION
+                            if current_mission_id:
+                                log_system(f"Triggering Auto-Verification for {current_mission_id}...", "SYS")
+                                yield json.dumps({"type": "llm_thought", "content": "Verifying work (Truth Layer)..."}) + "\n"
+                                
+                                # 1. Get Evidence (Orchestrator Logic)
+                                evidence_json = verify_mission(current_mission_id)
+                                
+                                # 2. Judge (Verifier Logic)
+                                judgment = await self._verify_outcome(
+                                    claim=args.get('summary', 'Done'),
+                                    evidence_json=evidence_json,
+                                    criteria=json.dumps(current_criteria)
+                                )
+                                
+                                if judgment['verified']:
+                                    finalize_mission(current_mission_id, "VERIFIED")
+                                    res = f"VERIFICATION PASSED: {judgment['reason']}"
+                                    yield json.dumps({"type": "tool_result", "name": "VERIFIER", "content": "PASSED"}) + "\n"
+                                else:
+                                    finalize_mission(current_mission_id, "FAILED")
+                                    verification_fails += 1
+                                    res = f"VERIFICATION FAILED: {judgment['reason']}. You must try a different approach."
+                                    yield json.dumps({"type": "tool_result", "name": "VERIFIER", "content": f"FAILED: {judgment['reason']}"}) + "\n"
+                                    
+                                    # STUCK DETECTION
+                                    if verification_fails >= 2:
+                                        log_system("Stuck detected. Escalating...", "SYS")
+                                        esc_res = escalate_to_human(current_mission_id, f"Failed verification {verification_fails} times. Last error: {judgment['reason']}")
+                                        res += f" \nAUTO-ESCALATION: {esc_res}"
+
                         results_ordered.append(res)
                         yield json.dumps({"type": "tool_result", "name": name, "content": str(res)[:500]}) + "\n"
 

@@ -1,6 +1,5 @@
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit, Camera, Play, Square, Mic, MicOff, MousePointerClick, X, GitGraph, Eye, EyeOff } from 'lucide-react';
+import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit, Camera, Play, Square, Mic, MicOff, MousePointerClick, X, GitGraph, Eye, EyeOff, Flame } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { Visualizer } from './components/Visualizer';
@@ -37,7 +36,7 @@ const App: React.FC = () => {
   const [input, setInput] = useState('');
   const [micEnabled, setMicEnabled] = useState(true);
   const [viewMode, setViewMode] = useState<'terminal' | 'trace'>('terminal');
-  const [showThoughts, setShowThoughts] = useState(true); // Default to showing thoughts, but user can toggle
+  const [showThoughts, setShowThoughts] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,14 +48,12 @@ const App: React.FC = () => {
   // Combined Status Logic
   const globalStatus = pendingAction ? 'AWAITING_APPROVAL' : liveConnected ? 'UPLINK_ACTIVE' : brainStatus === 'idle' ? 'STANDBY' : brainStatus.toUpperCase();
 
-  // Auto-focus input
   useEffect(() => {
     if (globalStatus === 'STANDBY') {
       inputRef.current?.focus();
     }
   }, [globalStatus]);
 
-  // Auto switch to Trace View when a new trace comes in
   useEffect(() => {
       if (lastTrace.length > 0) {
           setViewMode('trace');
@@ -83,6 +80,15 @@ const App: React.FC = () => {
 
   const triggerFileUpload = () => {
     fileInputRef.current?.click();
+  };
+
+  const triggerChaos = async () => {
+      try {
+          await fetch('/api/demo/trigger_chaos', { method: 'POST' });
+          sendCommand("Proxi, perform a system health check immediately.");
+      } catch (e) {
+          console.error(e);
+      }
   };
 
   return (
@@ -121,6 +127,16 @@ const App: React.FC = () => {
                 {complexity === 'deep' ? <BrainCircuit className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
                 {complexity === 'deep' ? 'DEEP THOUGHT' : 'REFLEX MODE'}
              </button>
+             
+             {/* DEMO TRIGGER */}
+             <button 
+                onClick={triggerChaos}
+                className="flex items-center gap-2 px-3 py-1.5 rounded border border-orange-500/50 bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 transition-all text-xs font-bold"
+                title="Simulate Incident (Demo)"
+             >
+                <Flame className="w-3 h-3" />
+                <span>TRIGGER INCIDENT</span>
+             </button>
           </div>
         </div>
       </header>
@@ -140,7 +156,6 @@ const App: React.FC = () => {
                 <Activity className="w-4 h-4 text-proxi-accent" />
                 {liveConnected ? 'AUDIO STREAM (WEBRTC)' : 'VOICE SYNTHESIS (TTS)'}
               </h2>
-              {/* Mic Toggle (Only relevant for Live Mode) */}
               {liveConnected && (
                 <button 
                   onClick={() => setMicEnabled(!micEnabled)}
@@ -152,13 +167,10 @@ const App: React.FC = () => {
             </div>
 
             <div className="h-48 bg-black/50 rounded border border-proxi-gray/50 flex items-center justify-center relative">
-               {/* Visualizer handles both Live Volume and TTS Status */}
                <Visualizer 
                   active={liveConnected || brainStatus === 'speaking'} 
                   volume={liveConnected ? liveVolume : 0} 
                />
-               
-               {/* Overlay Scanlines */}
                <div className="absolute inset-0 pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
                
                {!liveConnected && brainStatus === 'idle' && !pendingAction && (
@@ -174,17 +186,14 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* System Status */}
           <SystemStatus 
             connected={liveConnected} 
             processing={brainStatus === 'processing' || !!liveActiveTool} 
             analyzing={brainStatus === 'analyzing_visuals'}
           />
 
-          {/* Tool Execution Status (The "Hands") */}
           <ToolStatus activeTool={liveActiveTool} />
           
-          {/* CONFIRMATION DIALOG FOR GHOST OPERATOR */}
           {pendingAction && (
             <div className="bg-proxi-dark border border-proxi-accent rounded-lg p-4 animate-pulse relative overflow-hidden shadow-[0_0_20px_rgba(0,240,255,0.2)]">
                 <div className="flex items-start gap-3">
@@ -214,7 +223,6 @@ const App: React.FC = () => {
         </div>
 
         {/* Right Column: Terminal/Logs/Trace (8 Cols) */}
-        {/* CHANGED: Fixed height container to ensure scrolling works within the child LogView */}
         <div className="lg:col-span-8 flex flex-col bg-proxi-dark border border-proxi-gray rounded-lg overflow-hidden relative h-full max-h-[calc(100vh-160px)]">
           {/* Header with Toggles */}
           <div className="bg-proxi-gray/30 p-3 border-b border-proxi-gray flex items-center justify-between shrink-0">
@@ -233,7 +241,6 @@ const App: React.FC = () => {
                     <GitGraph className="w-4 h-4" />
                     <span>NEURAL_TRACE</span>
                 </button>
-                {/* Thinking Out Loud Toggle */}
                 {viewMode === 'trace' && (
                   <button 
                       onClick={() => setShowThoughts(!showThoughts)}
@@ -257,7 +264,6 @@ const App: React.FC = () => {
             ) : (
                 <TraceView trace={lastTrace} showThoughts={showThoughts} />
             )}
-             {/* Decorative grid overlay */}
              <div className="absolute inset-0 pointer-events-none" 
                   style={{
                     backgroundImage: 'linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06))',
@@ -273,7 +279,6 @@ const App: React.FC = () => {
       <footer className="fixed bottom-0 left-0 w-full bg-proxi-dark border-t border-proxi-gray p-4 z-40 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
         <div className="max-w-7xl mx-auto">
             <form onSubmit={handleSubmit} className="flex gap-3 items-center font-mono">
-                {/* Prompt Symbol */}
                 <div className="text-proxi-accent font-bold text-lg">{'>'}</div>
                 
                 <input 
@@ -282,13 +287,11 @@ const App: React.FC = () => {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder={liveConnected ? "Voice Uplink Active. Speak now..." : "Enter system command or upload visual..."}
-                    // We allow typing even if connected, for Hybrid mode
                     className="flex-1 bg-transparent border-none outline-none text-gray-100 placeholder-gray-700 focus:ring-0 text-lg"
                     autoComplete="off"
                     spellCheck="false"
                 />
                 
-                {/* Hidden File Input */}
                 <input 
                     type="file" 
                     ref={fileInputRef} 
@@ -297,7 +300,6 @@ const App: React.FC = () => {
                     accept="image/*"
                 />
 
-                {/* Camera / Upload Button */}
                 <button 
                     type="button"
                     onClick={triggerFileUpload}
