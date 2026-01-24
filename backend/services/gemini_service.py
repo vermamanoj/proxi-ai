@@ -132,7 +132,8 @@ class GeminiService:
     def click_at(self, x: int, y: int): return self.desktop_service.click_at(x, y)
     def drag_mouse(self, start_x: int, start_y: int, end_x: int, end_y: int): return self.desktop_service.drag_mouse(start_x, start_y, end_x, end_y)
     def type_text(self, text: str): return self.desktop_service.type_text(text)
-    def press_hotkey(self, keys: list): return self.desktop_service.press_hotkey(keys)
+    # FIX: Explicitly type hint as list[str] so SDK schema generation works
+    def press_hotkey(self, keys: list[str]): return self.desktop_service.press_hotkey(keys)
     def wait_seconds(self, seconds: int): return self.desktop_service.wait_seconds(seconds)
     def run_terminal_command(self, command: str): return self.desktop_service.run_terminal_command(command)
     def open_target(self, resource: str): return self.desktop_service.open_target(resource)

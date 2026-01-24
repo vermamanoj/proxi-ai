@@ -245,7 +245,7 @@ class RealDesktopService(DesktopInterface):
             except Exception as e:
                 return f"Type Failed: {e}"
 
-    def press_hotkey(self, keys: list):
+    def press_hotkey(self, keys: list[str]):
         ok, msg = self._check_availability()
         if not ok: return msg
         with self._input_lock:

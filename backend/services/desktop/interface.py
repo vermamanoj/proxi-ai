@@ -20,7 +20,7 @@ class DesktopInterface(ABC):
         pass
 
     @abstractmethod
-    def press_hotkey(self, keys: list):
+    def press_hotkey(self, keys: list[str]):
         pass
 
     @abstractmethod

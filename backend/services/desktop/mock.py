@@ -73,7 +73,7 @@ class MockDesktopService(DesktopInterface):
     def click_at(self, x, y): return f"Simulated Click at {x},{y}"
     def drag_mouse(self, sx, sy, ex, ey): return f"Simulated Drag from {sx},{sy} to {ex},{ey}"
     def type_text(self, text): return f"Simulated Typing: {text}"
-    def press_hotkey(self, keys): return f"Simulated Keys: {keys}"
+    def press_hotkey(self, keys: list[str]): return f"Simulated Keys: {keys}"
     def wait_seconds(self, seconds): return f"Waited {seconds}s"
     def open_target(self, resource): return f"Simulated Open: {resource}"
     def scroll_page(self, direction): return f"Simulated Scroll {direction}"
