@@ -5,6 +5,7 @@ import json
 import warnings
 import time
 import sys
+import base64
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -74,7 +75,7 @@ class GeminiService:
                             self.api_key = line.split('=', 1)[1].strip().strip('"').strip("'")
             except: pass
         
-        # Initialize New Client
+        # Initialize Client
         if self.api_key:
             self.client = genai.Client(api_key=self.api_key)
         else:
@@ -144,7 +145,7 @@ class GeminiService:
         base64_img = self.desktop_service.get_screenshot_base64()
         if not base64_img: return "Screenshot failed"
         try:
-            # Using synchronous call for vision to keep tool implementation simple
+            # Synchronous call via standard client for simplicity in tools
             response = self.client.models.generate_content(
                 model=self.FAST_TEXT_MODEL,
                 contents=[
@@ -207,8 +208,8 @@ class GeminiService:
         )
         
         # Create Async Chat Session
-        # Note: We use client.aio for async operations
-        chat = self.client.chats.create(
+        # CRITICAL FIX: Use client.aio for Async Chat
+        chat = self.client.aio.chats.create(
             model=self.SMART_TEXT_MODEL,
             config=config
         )
@@ -223,23 +224,23 @@ class GeminiService:
         current_criteria = None
         verification_fails = 0
         
+        # The ReAct Loop Variable
+        next_input = full_prompt
+
         try:
             max_turns = 30
             current_turn = 0
             
-            # ReAct Loop
             while current_turn < max_turns:
                 current_turn += 1
                 
-                # Send message (Non-streaming to get full tool calls, or streaming for thoughts?)
-                # Streaming is better for Thinking visibility.
-                
                 function_calls = []
                 results_ordered = []
+                text_buffer = ""
                 
-                # We need to accumulate thought text
-                
-                async for chunk in await chat.send_message_stream(full_prompt if current_turn == 1 else None):
+                # STREAMING REQUEST
+                # We iterate the AsyncIterator returned by send_message_stream
+                async for chunk in chat.send_message_stream(next_input):
                     if not chunk.candidates: continue
                     part = chunk.candidates[0].content.parts[0]
                     
@@ -248,107 +249,84 @@ class GeminiService:
                          log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
                          yield json.dumps({"type": "llm_thought", "content": part.text}) + "\n"
                     
-                    # 2. Handle Text Response
+                    # 2. Handle Text Response (The actual answer)
                     elif part.text:
-                         # Sometimes text comes with function calls in same turn, but usually separate chunks
-                         pass 
-
+                         text_buffer += part.text
+                         # Optional: Yield partial text if desired, but buffering helps cleanliness
+                         
                     # 3. Handle Function Calls
-                    # In streaming, function calls might be built up. The SDK usually yields a chunk with the call when complete?
-                    # Actually, for tool use in streaming, it is safer to wait for the stream to finish or check `function_call` property.
-                    # The `google-genai` SDK chunks might contain partials.
-                    # HOWEVER, let's look at `chunk.function_calls`.
-                    
-                    # We will collect function calls from the chunks
                     if part.function_call:
                          function_calls.append(part.function_call)
 
-                # After stream finishes, if we have function calls, execute them.
-                # If no function calls and we have text, we are done? 
-                # Wait, we need to output the final text response to the user.
+                # End of Stream for this Turn
                 
-                # Check history to see the full model turn if streaming logic is complex?
-                # For simplicity in this fix, let's assume the collected `function_calls` are valid.
+                # If we received text (and it wasn't just a thought), send it to UI
+                if text_buffer:
+                    yield json.dumps({"type": "response", "content": text_buffer}) + "\n"
+
+                # If no function calls, we are done
+                if not function_calls:
+                    break
+
+                # PROCESS TOOLS
+                safe_calls = []
+                for fc in function_calls:
+                    args = to_dict(fc.args)
+                    safe_calls.append({"name": fc.name, "args": args, "id": fc.id if hasattr(fc, 'id') else None})
                 
-                if function_calls:
-                    safe_calls = []
-                    for fc in function_calls:
-                        # Convert args to dict if needed
-                        args = to_dict(fc.args)
-                        safe_calls.append({"name": fc.name, "args": args, "id": fc.id if hasattr(fc, 'id') else None})
+                yield json.dumps({"type": "tool_call_batch", "calls": safe_calls}) + "\n"
+
+                # Execute
+                tool_output_parts = []
+                
+                for i, call in enumerate(safe_calls):
+                    name = call['name']
+                    args = call['args']
                     
-                    yield json.dumps({"type": "tool_call_batch", "calls": safe_calls}) + "\n"
+                    yield json.dumps({"type": "status_change", "phase": "executing", "tool": name}) + "\n"
+                    _, _, res = await self._execute_with_index(i, name, args)
+                    
+                    # --- ORCHESTRATOR LOGIC (Intercepts) ---
+                    if name == "assign_mission":
+                        if "Mission" in str(res):
+                            current_mission_id = str(res).split("Mission ")[1].split(" ")[0]
+                            current_criteria = args.get('verification_criteria', {})
+                    elif name == "report_execution":
+                        # Verification Logic
+                            if current_mission_id:
+                            log_system(f"Verifying {current_mission_id}...", "SYS")
+                            yield json.dumps({"type": "status_change", "phase": "verifying"}) + "\n"
+                            
+                            # Run verification in thread to avoid blocking loop
+                            evidence = await asyncio.to_thread(verify_mission, current_mission_id)
+                            
+                            # Judge
+                            judgment = await self._verify_outcome(args.get('summary', 'Done'), evidence, json.dumps(current_criteria))
+                            
+                            if judgment['verified']:
+                                finalize_mission(current_mission_id, "VERIFIED")
+                                res = f"VERIFICATION PASSED: {judgment['reason']}"
+                                yield json.dumps({"type": "verification", "status": "success", "reason": judgment['reason']}) + "\n"
+                            else:
+                                finalize_mission(current_mission_id, "FAILED")
+                                verification_fails += 1
+                                res = f"VERIFICATION FAILED: {judgment['reason']}"
+                                yield json.dumps({"type": "verification", "status": "failed", "reason": judgment['reason']}) + "\n"
 
-                    # EXECUTE TOOLS
-                    for i, call in enumerate(safe_calls):
-                        name = call['name']
-                        args = call['args']
-                        
-                        yield json.dumps({"type": "status_change", "phase": "executing", "tool": name}) + "\n"
-                        _, _, res = await self._execute_with_index(i, name, args)
-                        
-                        # --- ORCHESTRATOR LOGIC (Intercepts) ---
-                        if name == "assign_mission":
-                            if "Mission" in str(res):
-                                current_mission_id = str(res).split("Mission ")[1].split(" ")[0]
-                                current_criteria = args.get('verification_criteria', {})
-                        elif name == "report_execution":
-                            # Verification Logic
-                             if current_mission_id:
-                                log_system(f"Verifying {current_mission_id}...", "SYS")
-                                yield json.dumps({"type": "status_change", "phase": "verifying"}) + "\n"
-                                
-                                evidence = verify_mission(current_mission_id)
-                                judgment = await self._verify_outcome(args.get('summary', 'Done'), evidence, json.dumps(current_criteria))
-                                
-                                if judgment['verified']:
-                                    finalize_mission(current_mission_id, "VERIFIED")
-                                    res = f"VERIFICATION PASSED: {judgment['reason']}"
-                                    yield json.dumps({"type": "verification", "status": "success", "reason": judgment['reason']}) + "\n"
-                                else:
-                                    finalize_mission(current_mission_id, "FAILED")
-                                    verification_fails += 1
-                                    res = f"VERIFICATION FAILED: {judgment['reason']}"
-                                    yield json.dumps({"type": "verification", "status": "failed", "reason": judgment['reason']}) + "\n"
-
-                        results_ordered.append(types.Part(
+                    # Build Response Part for Next Turn
+                    tool_output_parts.append(
+                        types.Part(
                             function_response=types.FunctionResponse(
                                 name=name,
                                 response={"result": res}
                             )
-                        ))
-                        yield json.dumps({"type": "tool_result", "name": name, "content": str(res)[:500]}) + "\n"
+                        )
+                    )
+                    yield json.dumps({"type": "tool_result", "name": name, "content": str(res)[:500]}) + "\n"
 
-                    # Send Tool Responses back to model
-                    # The SDK automatically handles history if we use the chat object
-                    await chat.send_message(results_ordered)
-                    
-                    # The loop continues to the next turn (model will generate response to tool outputs)
-                
-                else:
-                    # No tool calls? We probably have a final text response.
-                    # We need to extract the text from the history or the chunks we just saw.
-                    # Let's check the last turn of the chat history.
-                    
-                    # Or simpler: if no tool calls, we assume the thoughts/text emitted during stream were the answer.
-                    # We just break the loop.
-                    
-                    # Yield final response marker
-                    # We assume the text was already yielded or we can grab it from history
-                    # But for the UI to know we are done:
-                    last_content = ""
-                    # Re-iterate history to find last text part? 
-                    # Actually, let's just send a generic "Done" if we didn't capture text?
-                    # No, we should capture text in the stream loop.
-                    
-                    # Since we only yielded "thoughts" in the stream loop above, we might have missed the "Answer".
-                    # Let's fix the stream loop to capture "Answer" text.
-                    
-                    # In the stream loop above:
-                    # if part.text and NOT part.thought: capture as answer.
-                    pass
-                    break
-
+                # Set inputs for next loop iteration
+                next_input = tool_output_parts
+            
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
 
         except Exception as e:
@@ -373,7 +351,7 @@ class GeminiService:
             return {"verified": False, "reason": f"Verifier crash: {e}"}
 
     async def process_vision_command(self, image_bytes, user_prompt):
-        import base64
+        # Async Vision
         response = await self.client.aio.models.generate_content(
             model=self.VISION_MODEL,
             contents=[
