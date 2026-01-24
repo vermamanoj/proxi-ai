@@ -1,63 +1,50 @@
 
 # PROXI: SYSTEM BLUEPRINT & CONTEXT
 **Project Name:** Proxi (The Headless Operator for Google Cloud)
-**Date:** Jan 2026
+**Version:** v2.1.0-GHOST
 **Target:** Google Gemini 3 Hackathon (Top Prize)
 
 ## 1. THE MISSION
-To build an agentic, voice-first interface that allows developers to perform "Headless SDLC" tasks (Triage, Ops, Architecture) without looking at a screen. It acts as a remote control for Google Cloud, GitHub, and remote Windows Servers.
+To build an agentic, voice-first interface that allows developers to perform "Headless SDLC" tasks (Triage, Ops, Architecture) without looking at a screen. It acts as a verifiable remote control for Google Cloud, GitHub, and Windows Servers.
 
-## 2. THE TECH STACK (Strict Adherence)
+## 2. THE TECH STACK
 *   **AI Model (The Split Brain):** 
-    *   **Voice/Relay:** Gemini 2.5 Flash Native Audio (Frontend). Handles WebRTC I/O and delegates tasks.
-    *   **Core Reasoning:** Gemini 3 Pro (Backend). Handles complex logic, tool planning, and code generation.
-    *   **Fast Action:** Gemini 3 Flash (Backend). Used for high-speed loops and Vision.
+    *   **Voice/Relay:** Gemini 2.5 Flash Native Audio (Frontend). Handles WebRTC I/O.
+    *   **Core Reasoning:** Gemini 3 Pro (Backend). Handles the "Hive Mind" orchestration.
+    *   **Verifier:** Gemini 3 Pro (Backend). Acts as a hostile QA auditor.
+    *   **Vision:** Gemini 3 Flash (Backend). Used for high-speed screenshot analysis.
 *   **Backend:** Python 3.12+ with **FastAPI**.
 *   **Streaming Protocol:** NDJSON (Newline Delimited JSON) for real-time thought streaming.
-*   **Orchestration:** **Hive Architecture** (Planner -> Executor) with robust error recovery.
+*   **Simulation Strategy:** Factory Pattern (`MockDesktopService` vs `RealDesktopService`) for safe demos.
+*   **Orchestration:** **Triple Handshake Protocol** (Assign -> Execute -> Verify).
 *   **Frontend (Simulator):** React + Tailwind CSS + Vite.
-*   **Desktop Automation:** `pyautogui`, `pywinauto`, `opencv` (OS-Agnostic implementation).
 *   **Infrastructure:** Google Cloud Run (Dockerized) OR Windows Server (Bare Metal).
-*   **Auth:** GitHub OAuth.
 
-## 3. ARCHITECTURE OVERVIEW
+## 3. FEATURE MAPPING (Previous vs Current)
+
+| Feature | Previous Name | Current Implementation |
+| :--- | :--- | :--- |
+| **Hierarchical Agents** | "The Hive" | **Executive Relay Pattern**. Frontend (Secretary) delegates to Backend (Executive). |
+| **Desktop Control** | "Motor Cortex" | **Ghost Service (`desktop/real.py`)**. Toggled via `RUNTIME_MODE=REAL`. |
+| **RAG / Knowledge** | "Knowledge Base" | **Standard Tools**. `query_knowledge_base` is available to the backend model. |
+| **Verification** | N/A (New) | **The Truth Layer**. `orchestrator.py` independently audits task completion. |
+
+## 4. ARCHITECTURE OVERVIEW
 
 ### The Executive Relay Pattern
 Proxi uses a **Relay Architecture** to maximize the strengths of different Gemini models.
-1.  **The Ear (Gemini 2.5):** Sits in the Frontend. It listens to the user via WebRTC. It has **zero** logic tools. It only has one tool: `delegate_task`.
-2.  **The Hand-off:** When the user speaks a command ("Check logs"), Gemini 2.5 calls `delegate_task`.
-3.  **The Hive Mind (Gemini 3 Pro):** The Backend receives the intent.
-    *   **Phase 1 (Planner):** It consults the Knowledge Base and formulates a DAG (Directed Acyclic Graph) of steps.
-    *   **Phase 2 (Executor):** It executes the plan using specialized tools (Slack, Jira, GitHub, GCP, Shell).
-4.  **The Neural Trace:** The Backend streams these thoughts and tool outputs back to the Frontend in real-time for visualization.
-5.  **The Voice:** The Backend returns a final text summary. Gemini 2.5 reads this summary back to the user via the established WebRTC link.
+1.  **The Ear (Gemini 2.5):** Sits in the Frontend. It listens to the user via WebRTC. It has **zero** logic tools. It delegates intent via `delegate_task`.
+2.  **The Hive Mind (Gemini 3 Pro):** The Backend receives the intent.
+    *   **Phase 1 (Planner):** Consults Knowledge Base, creates a Mission with **Verification Criteria**.
+    *   **Phase 2 (Executor):** Executes tools (Shell, GCP, GitHub, Desktop).
+    *   **Phase 3 (Verifier):** The **Truth Layer**. Independently checks system state (CPU, HTTP, Screenshot) before marking a task complete.
+3.  **The Neural Trace:** The Backend streams thoughts, tool outputs, and verification results back to the Frontend.
 
-### The Flow
-[User Voice] 
-    | (WebRTC)
-[Frontend: Gemini 2.5 Flash] 
-    | (Tool Call: delegate_task)
-[Backend: FastAPI]
-    | (Gemini 3 Pro: Hive Orchestrator)
-    |---> [Phase 1: Plan & Consult Knowledge Base]
-    |---> [Phase 2: Execution Loop]
-          |---> [Tool: GitHub / Linear / Slack]
-          |---> [Tool: Google Cloud]
-          |---> [Tool: Windows Desktop (Ghost Mode)]
-    |
-[Text Response]
-    |
-[Frontend: Gemini 2.5 Flash]
-    | (TTS)
-[User Audio]
-
-## 4. CODING STANDARDS
-*   **Async First:** All I/O operations must be `async/await`.
-*   **Modular Tooling:** Tools must be defined in `backend/tools/` and imported into the service.
-*   **Streaming First:** Endpoints should return `StreamingResponse` where possible to reduce perceived latency.
-*   **OS Agnostic:** Desktop tools must gracefully fail or disable themselves if running in a headless Linux environment (Cloud Run).
-*   **Type Safety:** Strict Python type hinting (`pydantic.BaseModel`).
-*   **Environment:** All secrets must be loaded via `os.getenv()` using `python-dotenv`.
+### The Truth Layer (Verifiable Agent)
+To solve "LLM Hallucination" in Ops, Proxi never blindly trusts the agent.
+1.  **Mission Assignment:** `assign_mission(goal="Fix CPU", criteria={"metric": "cpu", "threshold": 50})`
+2.  **Independent Audit:** When the agent says "Done", the Orchestrator runs a hard system check (e.g., `psutil.cpu_percent()`).
+3.  **Judgment:** If the metric fails, the agent is forced to retry. If it fails twice, it triggers `escalate_to_human`.
 
 ## 5. CAPABILITIES
 
@@ -66,35 +53,23 @@ Proxi uses a **Relay Architecture** to maximize the strengths of different Gemin
 *   "Restart the pod."
 *   "List open PRs."
 
-### B. Team Collaboration (Hive)
-*   "Tell the team on Slack that I'm deploying."
-*   "Create a Linear ticket for this bug."
-*   "How do we restart the payment service?" (RAG / Knowledge Base lookup).
+### B. Ghost Operator (Desktop)
+*   **Hybrid Vision:** Uses `pyautogui` and `pywinauto` on Windows.
+*   **Simulation Mode (Demo):** If `RUNTIME_MODE=DEMO`, loads a `MockDesktopService` that simulates CPU spikes and process lists for Hackathon Judges.
 
-### C. Ghost Operator (Windows)
-*   **Hybrid Vision:**
-    1.  Tries **Windows Accessibility API** (Text-based, fast).
-    2.  If that fails, takes a **Screenshot**.
-    3.  Sends screenshot to **Gemini 3 Flash Vision API**.
-    4.  LLM decides where to click based on visual coordinate mapping.
-*   **Safety:** Prioritizes `PowerShell` over mouse clicking to avoid UI flakiness.
+### C. Visual Verification
+*   The agent can take a screenshot, send it to Gemini 3 Flash, and verify UI states (e.g., "Is the error banner gone?").
 
 ## 6. SPRINT STATUS
-*   ✅ FastAPI Server & Streaming Endpoint
-*   ✅ Gemini 3 Pro Integration (Backend)
-*   ✅ Gemini 2.5 Live Integration (Frontend Relay)
-*   ✅ Executive Relay Architecture Implementation
-*   ✅ OS-Agnostic Desktop Service (Linux/Windows compatibility)
-*   ✅ Robust Error Handling (MALFORMED_FUNCTION_CALL Retry)
-*   ✅ Neural Trace Visualization
-*   ✅ **Hive Orchestrator (Planner/Executor Split)**
-*   ✅ **Productivity Tools (Slack, Linear, Knowledge Base)**
-*   ✅ **Modular Backend Architecture**
+*   ✅ **Verifiable Agent Architecture (Truth Layer)**
+*   ✅ **Demo / Hackathon Judge Mode (Mock Incidents)**
+*   ✅ **Hive Orchestrator (Triple Handshake)**
+*   ✅ Executive Relay (Voice -> Backend -> Voice)
+*   ✅ Real-time Neural Trace Visualization
+*   ✅ OS-Agnostic Desktop Service (Factory Pattern)
 
-## 7. RISK ANALYSIS & ROADMAP (Feedback Integration)
-*   **Latency Compounding:** The voice->backend->vision->action loop is risk-prone. 
-    *   *Mitigation:* Batch tool calls where possible. Introduce "Confidence Skipping" (if LLM is 90% sure, skip Planning phase).
-*   **UX Noise:** "Thinking out loud" can be distracting.
-    *   *Mitigation:* Added `INTERNAL_MONOLOGUE` toggle in Frontend. Default to "Reflex" mode for users, "Deep" for debugging.
-*   **Recovery Primitives:**
-    *   *Mitigation:* System prompts now explicitly instruct Gemini 3 to "Self-Correct" if a tool fails ("Last action failed, re-evaluating...").
+## 7. RISK ANALYSIS & ROADMAP
+*   **Latency:** The "Verify" step adds time. 
+    *   *Mitigation:* Use Gemini 3 Flash for Vision checks to keep it fast.
+*   **Safety:** Giving an AI mouse control is dangerous.
+    *   *Mitigation:* "Atomic Mode" (Human authorization required for every click) - *Currently disabled for Demo flow.*
