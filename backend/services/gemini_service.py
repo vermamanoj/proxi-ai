@@ -234,7 +234,7 @@ class GeminiService:
             return (index, name, res)
         except Exception as e: return (index, name, str(e))
 
-    # --- THE HIVE ORCHESTRATOR ---
+    # --- THE HIVE ORCHESTRATOR (Manual History Management) ---
     async def route_and_execute_stream(self, message: str, complexity_request: str = "fast"):
         log_system(f"HIVE ORCHESTRATOR: {message} [Mode: {complexity_request}]", "ROUTER")
         
@@ -244,30 +244,29 @@ class GeminiService:
 
         final_tools = [types.Tool(function_declarations=self.tool_definitions)]
         
-        # Force AUTO tool config to prevent lazy text responses
+        # Auto Tool Config
         auto_tool_config = types.ToolConfig(
             function_calling_config=types.FunctionCallingConfig(
                 mode=types.FunctionCallingConfigMode.AUTO
             )
         )
 
+        # Config Setup
         if complexity_request == "deep":
             active_model = self.SMART_TEXT_MODEL
-            config = types.GenerateContentConfig(
+            gen_config = types.GenerateContentConfig(
                 temperature=0.7,
                 tools=final_tools,
                 tool_config=auto_tool_config,
                 thinking_config=types.ThinkingConfig(include_thoughts=True)
             )
-            log_system("Activated DEEP Mode (Thinking Enabled)", "CFG")
         else:
             active_model = self.FAST_TEXT_MODEL
-            config = types.GenerateContentConfig(
+            gen_config = types.GenerateContentConfig(
                 temperature=0.5,
                 tools=final_tools,
                 tool_config=auto_tool_config
             )
-            log_system("Activated FAST Mode (Reflex Only)", "CFG")
 
         hive_instruction = """
         You are Proxi, a Verifiable Autonomous Agent.
@@ -282,45 +281,58 @@ class GeminiService:
         - DO NOT SAY "I will now check..."
         - CALL THE FUNCTION IMMEDIATELY.
         """
-        
-        chat = self.client.aio.chats.create(
-            model=active_model,
-            config=config
-        )
 
+        # MANUAL HISTORY: We start with the System Instruction implicitly via config, 
+        # and the first User Message.
+        # Note: 'system_instruction' in config acts as preamble.
+        # We will maintain a list of `contents` to send to the API.
+        
+        contents = [
+            types.Content(
+                role="user",
+                parts=[types.Part(text=f"{hive_instruction}\n\nGOAL: {message}")]
+            )
+        ]
+        
+        # Initial yield
         yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Initializing Mission ({complexity_request} mode)..."}) + "\n"
 
-        full_prompt = f"{hive_instruction}\n\nGOAL: {message}"
-        
         # State Tracking
         current_mission_id = None
         current_criteria = None
         verification_fails = 0
         stall_count = 0
-        next_input = full_prompt
+        max_turns = 30
+        current_turn = 0
 
         try:
-            max_turns = 30
-            current_turn = 0
-            
             while current_turn < max_turns:
                 current_turn += 1
                 
+                # --- CALL LLM ---
                 function_calls = []
                 text_buffer = ""
                 has_thoughts = False
                 
-                stream_iter = await chat.send_message_stream(next_input)
+                # Buffer for the model's response parts to append to history later
+                model_response_parts = []
+                
+                stream_iter = await self.client.aio.models.generate_content_stream(
+                    model=active_model,
+                    contents=contents,
+                    config=gen_config
+                )
                 
                 async for chunk in stream_iter:
                     if not chunk.candidates: continue
-                    
-                    # SAFETY CHECK FOR STREAM CHUNKS
                     candidate = chunk.candidates[0]
                     if not candidate.content: continue
                     if not candidate.content.parts: continue 
                     
                     for part in candidate.content.parts:
+                        # Append to our local buffer for history reconstruction
+                        model_response_parts.append(part)
+                        
                         if part.thought:
                              has_thoughts = True
                              log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
@@ -334,78 +346,61 @@ class GeminiService:
 
                 log_system(f"Turn {current_turn} finished. Thoughts: {has_thoughts}, Calls: {len(function_calls)}", "DEBUG")
                 
+                # --- UPDATE HISTORY (MODEL TURN) ---
+                # We must append the EXACT parts the model generated to history
+                # so the next turn (User) is valid.
+                contents.append(types.Content(role="model", parts=model_response_parts))
+
                 if text_buffer:
                     yield json.dumps({"type": "response", "content": text_buffer}) + "\n"
 
+                # --- NO TOOLS? CHECK FOR STALLS ---
                 if not function_calls:
                     if text_buffer:
-                        # LAZY MODE DETECTION
-                        # If model returns text that looks like a structured plan (e.g. "Goal: ...") but no tool calls, it's hallucinating the tool usage.
-                        # We trap this and force a retry.
+                        # Lazy Check
                         if current_mission_id is None and ("Verification:" in text_buffer or "Goal:" in text_buffer or "I will check" in text_buffer):
                              log_system("Detected Lazy Text Plan. Forcing Retry.", "WARN")
-                             next_input = "SYSTEM ERROR: You wrote the plan as text. You must use the `assign_mission` tool. Try again."
+                             # Append USER Complaint
+                             contents.append(types.Content(role="user", parts=[types.Part(text="SYSTEM ERROR: You wrote the plan as text. You must use the `assign_mission` tool. Try again.")]))
                              continue
-                        break # Normal text response
+                        break # Normal text finish
                     
-                    # EMPTY RESPONSE HANDLING
+                    # Empty Response
                     stall_count += 1
+                    if stall_count >= 3:
+                         yield json.dumps({"type": "error", "content": "Model returned repeated empty responses."}) + "\n"
+                         break
                     
-                    if has_thoughts:
-                        yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Aligning thoughts to actions (Attempt {stall_count})..."}) + "\n"
-                        if stall_count >= 3:
-                            next_input = "CRITICAL: You are looping. Stop thinking. You MUST output a Function Call immediately."
-                        else:
-                            next_input = "Observation: You are thinking but not acting. Please generate the Function Call."
-                        continue 
-                    else:
-                        # FAST Mode Empty Response (No thoughts, no tools, no text)
-                        log_system(f"Empty response detected. Retrying (Attempt {stall_count})...", "WARN")
-                        yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Retrying empty response (Attempt {stall_count})..."}) + "\n"
-                        if stall_count >= 3:
-                             yield json.dumps({"type": "error", "content": "Model returned repeated empty responses."}) + "\n"
-                             break
-                        next_input = "System Warning: You returned an empty response. You must call a tool (e.g. assign_mission) or provide text."
-                        continue
-                    
+                    log_system(f"Empty response detected. Retrying (Attempt {stall_count})...", "WARN")
+                    contents.append(types.Content(role="user", parts=[types.Part(text="System Warning: You returned an empty response. You must call a tool (e.g. assign_mission) or provide text.")]))
+                    continue
                 
                 stall_count = 0
-                safe_calls = []
-                for fc in function_calls:
+                
+                # --- EXECUTE TOOLS ---
+                yield json.dumps({"type": "tool_call_batch", "calls": [{"name": fc.name, "args": to_dict(fc.args)} for fc in function_calls]}) + "\n"
+
+                tool_response_parts = []
+                
+                for i, fc in enumerate(function_calls):
+                    name = fc.name
                     args = to_dict(fc.args)
                     
-                    # --- ROBUST ID EXTRACTION START ---
-                    call_id = None
-                    if hasattr(fc, 'id'):
-                        call_id = fc.id
-                    elif isinstance(fc, dict) and 'id' in fc:
-                        call_id = fc['id']
-                    
-                    if not call_id:
-                        log_system(f"WARNING: FunctionCall ID missing for {fc.name}. This may cause API errors.", "WARN")
-                    # --- ROBUST ID EXTRACTION END ---
-
-                    safe_calls.append({"name": fc.name, "args": args, "id": call_id})
-                
-                yield json.dumps({"type": "tool_call_batch", "calls": safe_calls}) + "\n"
-
-                tool_output_parts = []
-                
-                for i, call in enumerate(safe_calls):
-                    name = call['name']
-                    args = call['args']
-                    call_id = call['id']
+                    # ID Handling
+                    call_id = getattr(fc, 'id', None)
+                    if not call_id and isinstance(fc, dict): call_id = fc.get('id')
                     
                     yield json.dumps({"type": "status_change", "phase": "executing", "tool": name}) + "\n"
+                    
                     _, _, res = await self._execute_with_index(i, name, args)
                     
+                    # Logic hooks
                     if name == "assign_mission":
                         if "Mission" in str(res):
                             current_mission_id = str(res).split("Mission ")[1].split(" ")[0]
                             current_criteria = args.get('verification_criteria', {})
                     elif name == "report_execution":
                         if current_mission_id:
-                            log_system(f"Verifying {current_mission_id}...", "SYS")
                             yield json.dumps({"type": "status_change", "phase": "verifying"}) + "\n"
                             evidence = await asyncio.to_thread(verify_mission, current_mission_id)
                             judgment = await self._verify_outcome(args.get('summary', 'Done'), evidence, json.dumps(current_criteria))
@@ -420,8 +415,8 @@ class GeminiService:
                                 res = f"VERIFICATION FAILED: {judgment['reason']}"
                                 yield json.dumps({"type": "verification", "status": "failed", "reason": judgment['reason']}) + "\n"
 
-                    # CRITICAL FIX: Pass the 'id' back to the model so it knows which tool call this result belongs to.
-                    tool_output_parts.append(
+                    # Construct Response Part
+                    tool_response_parts.append(
                         types.Part(
                             function_response=types.FunctionResponse(
                                 name=name,
@@ -432,7 +427,11 @@ class GeminiService:
                     )
                     yield json.dumps({"type": "tool_result", "name": name, "content": str(res)[:500]}) + "\n"
 
-                next_input = tool_output_parts
+                # --- UPDATE HISTORY (USER TURN / FUNCTION RESULTS) ---
+                # The response to a tool call is always a USER turn in the API schema
+                contents.append(types.Content(role="user", parts=tool_response_parts))
+                
+                # Loop continues, sending the updated history to the model
             
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
 
@@ -444,6 +443,7 @@ class GeminiService:
         verifier_instruction = "You are a QA Auditor. Output JSON: {verified: bool, reason: str}."
         prompt = f"Claim: {claim}\nEvidence: {evidence}\nCriteria: {criteria}"
         try:
+            # Independent verification call (Stateless)
             response = await self.client.aio.models.generate_content(
                 model=self.SMART_TEXT_MODEL,
                 contents=prompt,
