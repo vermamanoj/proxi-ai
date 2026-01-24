@@ -178,22 +178,29 @@ class GeminiService:
     async def _send_chat_message_with_healing(self, chat, content, retries=1):
         for attempt in range(retries + 1):
             try:
-                # Add strict timeout to prevent indefinite hangs
-                # Note: `request_options` is passed to the API client
+                # Add strict timeout and increase it for Thinking models
                 return await asyncio.wait_for(
-                    asyncio.to_thread(chat.send_message, content, request_options={'timeout': 30}), 
-                    timeout=35
+                    asyncio.to_thread(chat.send_message, content, request_options={'timeout': 60}), 
+                    timeout=65
                 )
             except asyncio.TimeoutError:
-                log_system("Gemini API Timeout (35s)", "WARN")
+                log_system("Gemini API Timeout (65s) - Thinking took too long", "WARN")
                 if attempt < retries: continue
                 raise Exception("Gemini API timed out")
             except Exception as e:
                 err_str = str(e)
-                if ("MALFORMED_FUNCTION_CALL" in err_str or "500" in err_str) and attempt < retries:
-                    log_system(f"Healing API Error ({attempt+1}/{retries+1}): {err_str[:50]}...", "WARN")
-                    await asyncio.sleep(2) # Backoff
-                    continue
+                log_system(f"API Error ({attempt+1}/{retries+1}): {err_str}", "WARN")
+                
+                # Check for MALFORMED_FUNCTION_CALL specifically
+                if "MALFORMED_FUNCTION_CALL" in err_str or "finish_reason" in err_str:
+                     # This usually means the model hallucinated a tool or bad JSON
+                     if attempt < retries:
+                         log_system("Retrying due to Malformed Call...", "SYS")
+                         # Small delay before retry
+                         await asyncio.sleep(2)
+                         continue
+                
+                if attempt < retries: continue
                 raise e
 
     async def _verify_outcome(self, claim: str, evidence_json: str, criteria: str):
@@ -290,7 +297,18 @@ class GeminiService:
         """
 
         tools = list(self.tools_map.values())
-        model = genai.GenerativeModel(model_name=self.SMART_TEXT_MODEL, tools=tools)
+        
+        # --- NEW: Enable Thinking Logic for Stability & Visibility ---
+        generation_config = GenerationConfig(
+            temperature=0.7,
+            thinking_config={"thinking_budget": 1024} # Give the model a budget to plan
+        )
+        
+        model = genai.GenerativeModel(
+            model_name=self.SMART_TEXT_MODEL, 
+            tools=tools,
+            generation_config=generation_config
+        )
         chat = model.start_chat(enable_automatic_function_calling=False)
 
         # Emit Initial Status
@@ -311,15 +329,52 @@ class GeminiService:
             
             while current_turn < max_turns:
                 current_turn += 1
-                parts = response.candidates[0].content.parts
+                
+                # --- CRASH FIX: Check for Valid Candidate ---
+                if not response.candidates:
+                    err_msg = "No candidates returned. Model likely blocked."
+                    if response.prompt_feedback:
+                         err_msg += f" Feedback: {response.prompt_feedback}"
+                    log_system(err_msg, "ERR")
+                    yield json.dumps({"type": "error", "content": err_msg}) + "\n"
+                    break
+                
+                # Check finish reason specifically
+                candidate = response.candidates[0]
+                # Finish Reason 5 = MALFORMED_FUNCTION_CALL
+                # Finish Reason 3 = SAFETY
+                # Finish Reason 4 = RECITATION
+                if candidate.finish_reason not in [0, 1]: # 0=STOP, 1=MAX_TOKENS
+                     reason_map = {3: "SAFETY", 4: "RECITATION", 5: "MALFORMED_FUNCTION_CALL"}
+                     reason_str = reason_map.get(candidate.finish_reason, f"UNKNOWN({candidate.finish_reason})")
+                     err_msg = f"Model stopped unexpectedly. Reason: {reason_str}."
+                     log_system(err_msg, "ERR")
+                     yield json.dumps({"type": "error", "content": err_msg}) + "\n"
+                     break
+
+                # --- Extract Content ---
+                # Check for parts
+                if not candidate.content or not candidate.content.parts:
+                     # Sometimes Thinking models have content but it is in a different structure or empty if thinking consumed it all? 
+                     # Actually standard API should return text in parts[0]
+                     log_system("Empty content parts in candidate.", "WARN")
+                     # We can try to continue or break
+                     break
+
+                parts = candidate.content.parts
                 
                 text_content = ""
                 function_calls = []
 
                 for part in parts:
-                    if part.text: text_content += part.text
-                    if part.function_call: function_calls.append(part.function_call)
+                    # Check for explicit 'thought' field if available in future SDKs, 
+                    # but currently it appears as text before the function call
+                    if part.text: 
+                        text_content += part.text
+                    if part.function_call: 
+                        function_calls.append(part.function_call)
 
+                # --- VISIBILITY: Stream the Thought/Plan ---
                 if text_content:
                     log_system(f"AGENT THOUGHT: {text_content[:100]}...", "THOUGHT")
                     msg_type = "llm_thought" if function_calls else "response"
