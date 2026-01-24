@@ -363,8 +363,18 @@ class GeminiService:
                 safe_calls = []
                 for fc in function_calls:
                     args = to_dict(fc.args)
-                    # CAPTURE THE ID FOR PARALLEL CALLING SUPPORT
-                    call_id = getattr(fc, 'id', None)
+                    
+                    # --- ROBUST ID EXTRACTION START ---
+                    call_id = None
+                    if hasattr(fc, 'id'):
+                        call_id = fc.id
+                    elif isinstance(fc, dict) and 'id' in fc:
+                        call_id = fc['id']
+                    
+                    if not call_id:
+                        log_system(f"WARNING: FunctionCall ID missing for {fc.name}. This may cause API errors.", "WARN")
+                    # --- ROBUST ID EXTRACTION END ---
+
                     safe_calls.append({"name": fc.name, "args": args, "id": call_id})
                 
                 yield json.dumps({"type": "tool_call_batch", "calls": safe_calls}) + "\n"
