@@ -1,3 +1,4 @@
+
 import json
 import platform
 import time
@@ -257,3 +258,84 @@ class RealDesktopService(DesktopInterface):
     def wait_seconds(self, seconds: int):
         time.sleep(seconds)
         return f"Waited {seconds}s"
+
+    # --- NEW SEMANTIC BROWSER CONTROLS ---
+
+    def _focus_browser(self):
+        """Attempts to bring a known browser window to the foreground."""
+        if not (self.os_type == "Windows" and USE_ACCESSIBILITY):
+             # On Linux/Mac, rely on user having it open or fallback to simple hotkeys
+             return False
+
+        try:
+            desktop = Desktop(backend="uia")
+            # Common browser names in title
+            for name in ["Chrome", "Edge", "Firefox", "Brave"]:
+                try:
+                    # Find window by title regex
+                    windows = desktop.windows(title_re=f".*{name}.*")
+                    if windows:
+                        w = windows[0]
+                        if w.is_minimized(): w.restore()
+                        w.set_focus()
+                        time.sleep(0.5) # Allow focus animation
+                        return True
+                except: continue
+        except Exception as e:
+            print(f"[DEBUG] Focus failed: {e}", flush=True)
+        return False
+
+    def browser_command(self, action: str, url: str = None):
+        """Executes browser hotkeys."""
+        ok, msg = self._check_availability()
+        if not ok: return msg
+
+        # Platform specific modifier
+        mod = 'command' if self.os_type == 'Darwin' else 'ctrl'
+
+        with self._input_lock:
+            # 1. Attempt Focus
+            focused = self._focus_browser()
+            
+            # 2. Execute Action
+            try:
+                act = action.upper()
+                
+                if act == "NEW_TAB":
+                    pyautogui.hotkey(mod, 't')
+                    return "Opened New Tab (Ctrl+T)"
+                
+                elif act == "CLOSE_TAB":
+                    pyautogui.hotkey(mod, 'w')
+                    return "Closed Tab (Ctrl+W)"
+                
+                elif act == "REFRESH":
+                    if self.os_type == "Darwin":
+                        pyautogui.hotkey(mod, 'r')
+                    else:
+                        pyautogui.press('f5')
+                    return "Refreshed Page"
+                
+                elif act == "NAVIGATE":
+                    if not url: return "Error: URL required for NAVIGATE"
+                    # Focus Bar
+                    pyautogui.hotkey(mod, 'l')
+                    time.sleep(0.2)
+                    # Type URL
+                    pyautogui.write(url, interval=0.01)
+                    pyautogui.press('enter')
+                    return f"Navigated to {url}"
+                
+                elif act == "SEARCH":
+                    if not url: return "Error: Query text required for SEARCH (passed in url param)"
+                    pyautogui.hotkey(mod, 'f')
+                    time.sleep(0.2)
+                    pyautogui.write(url, interval=0.02)
+                    pyautogui.press('enter')
+                    return f"Searched page for '{url}'"
+                
+                else:
+                    return f"Unknown browser action: {action}"
+
+            except Exception as e:
+                return f"Browser Command Failed: {e}"

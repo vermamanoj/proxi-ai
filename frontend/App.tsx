@@ -22,7 +22,8 @@ const App: React.FC = () => {
     sendVisionCommand,
     toggleComplexity,
     confirmAction,
-    cancelAction
+    cancelAction,
+    logSystemError
   } = useProxiBrain();
 
   // Hook 2: Real-time Voice (Live API / WebRTC)
@@ -86,10 +87,12 @@ const App: React.FC = () => {
 
   const triggerChaos = async () => {
       try {
-          await fetch('/api/demo/trigger_chaos', { method: 'POST' });
+          const res = await fetch('/api/demo/trigger_chaos', { method: 'POST' });
+          if (!res.ok) throw new Error(`Chaos Failed: ${res.status}`);
           sendCommand("Proxi, perform a system health check immediately.");
-      } catch (e) {
+      } catch (e: any) {
           console.error(e);
+          logSystemError(`Failed to trigger incident: ${e.message}. Is backend running?`);
       }
   };
 

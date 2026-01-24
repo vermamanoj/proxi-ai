@@ -1,3 +1,4 @@
+
 from abc import ABC, abstractmethod
 
 class DesktopInterface(ABC):
@@ -48,4 +49,8 @@ class DesktopInterface(ABC):
 
     @abstractmethod
     def get_screenshot_base64(self):
+        pass
+
+    @abstractmethod
+    def browser_command(self, action: str, url: str = None):
         pass

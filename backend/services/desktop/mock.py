@@ -1,3 +1,4 @@
+
 import json
 import time
 from datetime import datetime
@@ -8,6 +9,7 @@ class MockDesktopService(DesktopInterface):
         self.incident_active = False
         self.cpu_load = 15.4
         self.memory_load = 32.1
+        self.current_url = "about:blank"
         print("[INIT] Mock Desktop Service | Mode: DEMO", flush=True)
 
     def trigger_incident(self):
@@ -74,5 +76,16 @@ class MockDesktopService(DesktopInterface):
     def press_hotkey(self, keys): return f"Simulated Keys: {keys}"
     def wait_seconds(self, seconds): return f"Waited {seconds}s"
     def open_target(self, resource): return f"Simulated Open: {resource}"
-    def read_page_content(self): return "Simulated Page Content: Proxi Documentation..."
     def scroll_page(self, direction): return f"Simulated Scroll {direction}"
+
+    def browser_command(self, action: str, url: str = None):
+        act = action.upper()
+        if act == "NAVIGATE" and url:
+            self.current_url = url
+            return f"Simulated Navigation to {url}"
+        return f"Simulated Browser Action: {act}"
+
+    def read_page_content(self):
+        if "github" in self.current_url:
+            return "Simulated GitHub PR Page: [Open] Fix memory leak..."
+        return f"Simulated Page Content for {self.current_url}..."

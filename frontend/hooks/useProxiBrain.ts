@@ -99,7 +99,12 @@ export const useProxiBrain = () => {
         body: JSON.stringify({ message, complexity })
       });
 
-      if (!response.body) throw new Error("No response body");
+      // --- CRITICAL FIX: Handle Proxy/Network Errors ---
+      if (!response.ok) {
+          throw new Error(`Connection Failed (${response.status} ${response.statusText}). Check Backend.`);
+      }
+
+      if (!response.body) throw new Error("No response body received.");
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -179,7 +184,7 @@ export const useProxiBrain = () => {
 
     } catch (err: any) {
       console.error(err);
-      addLog(MessageSource.SYSTEM, `Error: ${err.message}`);
+      addLog(MessageSource.SYSTEM, `System Alert: ${err.message}`);
       setStatus('idle');
       setMissionState(prev => ({ ...prev, phase: 'failed', active: false }));
     }
@@ -213,6 +218,9 @@ export const useProxiBrain = () => {
   const cancelAction = () => { setPendingAction(null); setStatus('idle'); };
   const toggleComplexity = () => setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
 
+  // Helper to expose logger to external components if needed (optional)
+  const logSystemError = (msg: string) => addLog(MessageSource.SYSTEM, msg);
+
   return {
     status,
     logs,
@@ -224,6 +232,7 @@ export const useProxiBrain = () => {
     sendVisionCommand,
     toggleComplexity,
     confirmAction,
-    cancelAction
+    cancelAction,
+    logSystemError
   };
 };

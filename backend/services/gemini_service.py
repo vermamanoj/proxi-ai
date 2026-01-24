@@ -1,3 +1,4 @@
+
 import os
 import asyncio
 import json
@@ -115,13 +116,15 @@ class GeminiService:
             "run_terminal_command": self.run_terminal_command,
             "open_target": self.open_target,
             "read_page_content": self.read_page_content,
-            "scroll_page": self.scroll_page
+            "scroll_page": self.scroll_page,
+            
+            # New Semantic Browser
+            "browser_command": self.browser_command
         }
         log_system(f"Gemini Service Initialized with {len(self.tools_map)} tools.", "INIT")
 
     # --- DESKTOP WRAPPERS ---
     def get_system_health_wrapper(self):
-        """Wrapper to route health check through desktop service (Real or Mock)."""
         return self.desktop_service.get_system_health()
 
     def click_at(self, x: int, y: int):
@@ -150,6 +153,9 @@ class GeminiService:
 
     def scroll_page(self, direction: str = 'down'):
         return self.desktop_service.scroll_page(direction)
+
+    def browser_command(self, action: str, url: str = None):
+        return self.desktop_service.browser_command(action, url)
 
     def look_at_screen(self, purpose: str):
         base64_img = self.desktop_service.get_screenshot_base64()
@@ -285,6 +291,13 @@ class GeminiService:
         2. **EXECUTE**: Use tools (GCP, GitHub, Desktop) to fix the issue.
         3. **REPORT**: When done, call `report_execution(mission_id, summary)`.
         
+        **HIGH-SPEED BROWSER NAVIGATION:**
+        - You have access to `browser_command(action, url)`.
+        - Actions: NEW_TAB, CLOSE_TAB, REFRESH, NAVIGATE, SEARCH.
+        - PREFER this tool over manual clicking for web tasks. It is 10x faster.
+        - After navigating, use `read_page_content` to verify the page loaded (it scrapes text via Ctrl+A/Ctrl+C).
+        - Only use Vision/Clicking if you need to interact with a specific button or complex UI element.
+        
         **STUCK DETECTION:**
         - If you try the same fix twice and it fails, STOP and call `escalate_to_human`.
         - Do not lie about success. The Verifier will catch you.
@@ -293,6 +306,7 @@ class GeminiService:
         - `assign_mission`: Start.
         - `report_execution`: End.
         - `open_target`/`read_page_content`: Research.
+        - `browser_command`: Fast web control.
         - `run_terminal_command`: Fix stuff.
         """
 
