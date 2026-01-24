@@ -1,10 +1,11 @@
 import uvicorn
 import os
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Body
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from backend.models.api_models import ChatRequest, ChatResponse, ActionConfirmation
 from backend.services.gemini_service import GeminiService
+from backend.database import get_missions_list, get_mission_items_list, update_item_status_record
 
 app = FastAPI(
     title="Proxi Backend",
@@ -33,10 +34,7 @@ async def health_check():
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
-    """
-    Streaming Endpoint. Returns a stream of JSON lines (NDJSON).
-    Each line contains a step of the agent's thought process or the final response.
-    """
+    """Streaming Endpoint for Agent Thoughts"""
     try:
         return StreamingResponse(
             gemini_service.route_and_execute_stream(request.message, request.complexity),
@@ -63,9 +61,29 @@ async def vision_analysis(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# --- MEMORY / MISSION API ENDPOINTS ---
+
+@app.get("/api/missions")
+async def get_missions():
+    """List all active research missions"""
+    return get_missions_list()
+
+@app.get("/api/missions/{mission_id}/items")
+async def get_mission_items(mission_id: str):
+    """Get all found items (leads, bugs) for a mission"""
+    return get_mission_items_list(mission_id)
+
+@app.post("/api/items/{item_id}/status")
+async def update_item_status(item_id: int, status_update: dict = Body(...)):
+    """Update item status (e.g. APPROVED, REJECTED)"""
+    new_status = status_update.get("status")
+    if not new_status:
+        raise HTTPException(status_code=400, detail="Status required")
+    update_item_status_record(item_id, new_status)
+    return {"id": item_id, "status": new_status}
+
 @app.post("/api/desktop/execute")
 async def execute_desktop_action():
-    # Deprecated/Atomic
     return {"status": "executed", "result": "Atomic Mode"}
 
 if __name__ == "__main__":
