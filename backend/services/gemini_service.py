@@ -1,4 +1,3 @@
-
 import os
 import asyncio
 import json
@@ -313,10 +312,11 @@ class GeminiService:
         tools = list(self.tools_map.values())
         
         # --- NEW: Enable Thinking Logic for Stability & Visibility ---
-        generation_config = GenerationConfig(
-            temperature=0.7,
-            thinking_config={"thinking_budget": 1024} # Give the model a budget to plan
-        )
+        # Pass configuration as dictionary to bypass strict SDK validation for 'thinking_config'
+        generation_config = {
+            "temperature": 0.7,
+            "thinking_config": {"thinking_budget": 1024} 
+        }
         
         model = genai.GenerativeModel(
             model_name=self.SMART_TEXT_MODEL, 
