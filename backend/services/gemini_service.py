@@ -341,7 +341,9 @@ class GeminiService:
                 safe_calls = []
                 for fc in function_calls:
                     args = to_dict(fc.args)
-                    safe_calls.append({"name": fc.name, "args": args, "id": fc.id if hasattr(fc, 'id') else None})
+                    # CAPTURE THE ID FOR PARALLEL CALLING SUPPORT
+                    call_id = getattr(fc, 'id', None)
+                    safe_calls.append({"name": fc.name, "args": args, "id": call_id})
                 
                 yield json.dumps({"type": "tool_call_batch", "calls": safe_calls}) + "\n"
 
@@ -350,6 +352,7 @@ class GeminiService:
                 for i, call in enumerate(safe_calls):
                     name = call['name']
                     args = call['args']
+                    call_id = call['id']
                     
                     yield json.dumps({"type": "status_change", "phase": "executing", "tool": name}) + "\n"
                     _, _, res = await self._execute_with_index(i, name, args)
@@ -375,10 +378,12 @@ class GeminiService:
                                 res = f"VERIFICATION FAILED: {judgment['reason']}"
                                 yield json.dumps({"type": "verification", "status": "failed", "reason": judgment['reason']}) + "\n"
 
+                    # CRITICAL FIX: Pass the 'id' back to the model so it knows which tool call this result belongs to.
                     tool_output_parts.append(
                         types.Part(
                             function_response=types.FunctionResponse(
                                 name=name,
+                                id=call_id, 
                                 response={"result": res}
                             )
                         )
