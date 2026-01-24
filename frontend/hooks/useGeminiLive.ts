@@ -72,11 +72,12 @@ export const useGeminiLive = () => {
 
             try {
                 // RELAY PATTERN:
-                // We send the text to the Backend API. 
+                // We send the text to the Backend API.
+                // CHANGED: complexity from 'deep' to 'fast' to ensure reliable tool execution for demos.
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: task, complexity: 'deep' }), // Force 'deep' for Gemini 3
+                    body: JSON.stringify({ message: task, complexity: 'fast' }), 
                     signal: controller.signal
                 });
 

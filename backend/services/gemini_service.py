@@ -174,18 +174,42 @@ class GeminiService:
         """
         HIVE Architecture using google-genai SDK (Gemini 3 Native).
         """
-        log_system(f"HIVE ORCHESTRATOR: {message}", "ROUTER")
+        log_system(f"HIVE ORCHESTRATOR: {message} [Mode: {complexity_request}]", "ROUTER")
         
         if not self.api_key: 
             yield json.dumps({"type": "error", "content": "API Key Missing"})
             return
+
+        # Provide tools as a list of callables. The SDK handles schema generation.
+        tools_list = list(self.tools_map.values())
+        
+        # --- DYNAMIC CONFIGURATION ---
+        if complexity_request == "deep":
+            # DEEP MODE: Gemini 3 Pro with Thinking
+            # Capable of complex planning, but risks "over-thinking" loops on simple tasks.
+            active_model = self.SMART_TEXT_MODEL
+            config = types.GenerateContentConfig(
+                temperature=0.7,
+                tools=tools_list,
+                thinking_config=types.ThinkingConfig(include_thoughts=True)
+            )
+            log_system("Activated DEEP Mode (Thinking Enabled)", "CFG")
+        else:
+            # FAST MODE (Default): Gemini 3 Flash without Thinking
+            # Snappy, tool-use oriented, no philosophy loops. Best for demos.
+            active_model = self.FAST_TEXT_MODEL
+            config = types.GenerateContentConfig(
+                temperature=0.5,
+                tools=tools_list
+                # No thinking_config
+            )
+            log_system("Activated FAST Mode (Reflex Only)", "CFG")
 
         hive_instruction = """
         You are Proxi, a Verifiable Autonomous Agent.
         
         **CORE PROTOCOL (The Triple Handshake):**
         1. **ASSIGN**: Start by using `assign_mission(goal, verification_criteria)`.
-           - **CRITICAL**: You MUST output the function call for `assign_mission`. Thinking about it is NOT enough.
            - Criteria E.g.: {"metric": "cpu", "threshold": 80, "condition": "less_than"}.
         2. **EXECUTE**: Use tools (GCP, GitHub, Desktop) to fix the issue.
         3. **REPORT**: When done, call `report_execution(mission_id, summary)`.
@@ -197,28 +221,16 @@ class GeminiService:
         
         **STUCK DETECTION:**
         - If you try the same fix twice and it fails, STOP and call `escalate_to_human`.
-        - Do NOT loop in "Thinking" mode. If you have a plan, EXECUTE IT immediately using a tool.
         """
-
-        # Provide tools as a list of callables. The SDK handles schema generation.
-        tools_list = list(self.tools_map.values())
-        
-        # Configure Gemini 3 Thinking
-        config = types.GenerateContentConfig(
-            temperature=0.7,
-            tools=tools_list,
-            thinking_config=types.ThinkingConfig(include_thoughts=True)
-        )
         
         # Create Async Chat Session
-        # CRITICAL FIX: Use client.aio for Async Chat
         chat = self.client.aio.chats.create(
-            model=self.SMART_TEXT_MODEL,
+            model=active_model,
             config=config
         )
 
         # Emit Initial Status
-        yield json.dumps({"type": "status_change", "phase": "planning", "content": "Initializing Mission..."}) + "\n"
+        yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Initializing Mission ({complexity_request} mode)..."}) + "\n"
 
         full_prompt = f"{hive_instruction}\n\nGOAL: {message}"
         
@@ -244,67 +256,57 @@ class GeminiService:
                 has_thoughts = False
                 
                 # STREAMING REQUEST
-                # Fix: In SDK 0.x/1.x aio, send_message_stream is a coroutine returning an async iterator.
-                # We must await the call first.
                 stream_iter = await chat.send_message_stream(next_input)
                 
                 async for chunk in stream_iter:
                     if not chunk.candidates: continue
                     
-                    # Fix: Iterate over ALL parts in the chunk. 
-                    # Gemini 3 may send [Thought, FunctionCall] in the same chunk.
                     for part in chunk.candidates[0].content.parts:
                         
-                        # 1. Handle Thoughts
+                        # 1. Handle Thoughts (Only in Deep Mode)
                         if part.thought:
                              has_thoughts = True
                              log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
                              yield json.dumps({"type": "llm_thought", "content": part.text}) + "\n"
                         
-                        # 2. Handle Text Response (The actual answer)
+                        # 2. Handle Text Response
                         elif part.text:
                              text_buffer += part.text
                              
                         # 3. Handle Function Calls
                         if part.function_call:
-                             # Immediate UI Feedback: Notify that a tool is being prepared
-                             # Only yield if it's the first time we see this tool to avoid spamming on partials
                              if not function_calls:
                                  yield json.dumps({"type": "status_change", "phase": "executing", "tool": part.function_call.name}) + "\n"
-                             
                              function_calls.append(part.function_call)
 
                 # End of Stream for this Turn
                 log_system(f"Turn {current_turn} finished. Thoughts: {has_thoughts}, Calls: {len(function_calls)}", "DEBUG")
                 
-                # If we received text (and it wasn't just a thought), send it to UI
+                # If we received text, send it to UI
                 if text_buffer:
                     yield json.dumps({"type": "response", "content": text_buffer}) + "\n"
 
-                # If no function calls, check for Stall or Completion
+                # CHECK FOR STALLS (Only relevant if Thinking was active)
                 if not function_calls:
                     if text_buffer:
-                        # We have a final text response, we are done.
-                        break
+                        break # Final answer given
                     
-                    # No text, No tools. 
+                    # If we are in Deep Mode and we got thoughts but no actions: NUDGE.
                     if has_thoughts:
-                        # Case: Model thought but forgot to act. NUDGE IT.
                         stall_count += 1
                         log_system(f"Stall detected (Thoughts only). Stall Count: {stall_count}", "WARN")
                         
                         yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Aligning thoughts to actions (Attempt {stall_count})..."}) + "\n"
                         
                         if stall_count >= 3:
-                            # ESCALATION: Force specific action
-                            next_input = "CRITICAL FAILURE: You are stuck in a reasoning loop. You MUST call `assign_mission` OR `get_system_health` immediately. Do not generate more thoughts. JUST CALL THE TOOL."
+                            # CRITICAL ESCALATION
+                            next_input = "CRITICAL: You are looping. Stop thinking. You MUST output a Function Call immediately."
                         else:
                             # Gentle Nudge
-                            next_input = "You have completed the reasoning phase. Stop thinking. Strictly output the Function Calls to execute the plan."
-                            
+                            next_input = "Observation: You are thinking but not acting. Please generate the Function Call for your planned action."
                         continue 
                     
-                    # No thoughts, no text, no tools. Dead end.
+                    # Dead end (No thoughts, no tools, no text)
                     yield json.dumps({"type": "response", "content": "Task planning complete (No actions generated)."}) + "\n"
                     break
                 
@@ -335,15 +337,11 @@ class GeminiService:
                             current_mission_id = str(res).split("Mission ")[1].split(" ")[0]
                             current_criteria = args.get('verification_criteria', {})
                     elif name == "report_execution":
-                        # Verification Logic
                         if current_mission_id:
                             log_system(f"Verifying {current_mission_id}...", "SYS")
                             yield json.dumps({"type": "status_change", "phase": "verifying"}) + "\n"
                             
-                            # Run verification in thread to avoid blocking loop
                             evidence = await asyncio.to_thread(verify_mission, current_mission_id)
-                            
-                            # Judge
                             judgment = await self._verify_outcome(args.get('summary', 'Done'), evidence, json.dumps(current_criteria))
                             
                             if judgment['verified']:
@@ -356,7 +354,7 @@ class GeminiService:
                                 res = f"VERIFICATION FAILED: {judgment['reason']}"
                                 yield json.dumps({"type": "verification", "status": "failed", "reason": judgment['reason']}) + "\n"
 
-                    # Build Response Part for Next Turn
+                    # Build Response
                     tool_output_parts.append(
                         types.Part(
                             function_response=types.FunctionResponse(
@@ -367,7 +365,6 @@ class GeminiService:
                     )
                     yield json.dumps({"type": "tool_result", "name": name, "content": str(res)[:500]}) + "\n"
 
-                # Set inputs for next loop iteration
                 next_input = tool_output_parts
             
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
