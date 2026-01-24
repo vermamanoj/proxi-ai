@@ -185,7 +185,8 @@ class GeminiService:
         
         **CORE PROTOCOL (The Triple Handshake):**
         1. **ASSIGN**: Start by using `assign_mission(goal, verification_criteria)`.
-           - ALWAYS define criteria. E.g. {"metric": "cpu", "threshold": 80, "condition": "less_than"}.
+           - **CRITICAL**: You MUST output the function call for `assign_mission`. Thinking about it is NOT enough.
+           - Criteria E.g.: {"metric": "cpu", "threshold": 80, "condition": "less_than"}.
         2. **EXECUTE**: Use tools (GCP, GitHub, Desktop) to fix the issue.
         3. **REPORT**: When done, call `report_execution(mission_id, summary)`.
         
@@ -196,6 +197,7 @@ class GeminiService:
         
         **STUCK DETECTION:**
         - If you try the same fix twice and it fails, STOP and call `escalate_to_human`.
+        - Do NOT loop in "Thinking" mode. If you have a plan, EXECUTE IT immediately using a tool.
         """
 
         # Provide tools as a list of callables. The SDK handles schema generation.
@@ -224,6 +226,7 @@ class GeminiService:
         current_mission_id = None
         current_criteria = None
         verification_fails = 0
+        stall_count = 0
         
         # The ReAct Loop Variable
         next_input = full_prompt
@@ -287,15 +290,26 @@ class GeminiService:
                     # No text, No tools. 
                     if has_thoughts:
                         # Case: Model thought but forgot to act. NUDGE IT.
-                        log_system("Stall detected (Thoughts only). Nudging model...", "WARN")
-                        yield json.dumps({"type": "status_change", "phase": "planning", "content": "Aligning thoughts to actions..."}) + "\n"
-                        # Create a Nudge prompt for the next turn
-                        next_input = "You have completed the reasoning phase. Now strictly output the Function Calls to execute the plan you just created."
+                        stall_count += 1
+                        log_system(f"Stall detected (Thoughts only). Stall Count: {stall_count}", "WARN")
+                        
+                        yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Aligning thoughts to actions (Attempt {stall_count})..."}) + "\n"
+                        
+                        if stall_count >= 3:
+                            # ESCALATION: Force specific action
+                            next_input = "CRITICAL FAILURE: You are stuck in a reasoning loop. You MUST call `assign_mission` OR `get_system_health` immediately. Do not generate more thoughts. JUST CALL THE TOOL."
+                        else:
+                            # Gentle Nudge
+                            next_input = "You have completed the reasoning phase. Stop thinking. Strictly output the Function Calls to execute the plan."
+                            
                         continue 
                     
                     # No thoughts, no text, no tools. Dead end.
                     yield json.dumps({"type": "response", "content": "Task planning complete (No actions generated)."}) + "\n"
                     break
+                
+                # Reset stall count if we got a function call
+                stall_count = 0
 
                 # PROCESS TOOLS
                 safe_calls = []
@@ -378,7 +392,6 @@ class GeminiService:
             return json.loads(text[start:end])
         except Exception as e:
             return {"verified": False, "reason": f"Verifier crash: {e}"}
-
 
     async def process_vision_command(self, image_bytes, user_prompt):
         # Async Vision
