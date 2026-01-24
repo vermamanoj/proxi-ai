@@ -41,3 +41,19 @@ export interface PendingAction {
   description: string;
   data: any;
 }
+
+export type MissionPhase = 'idle' | 'listening' | 'planning' | 'executing' | 'verifying' | 'success' | 'failed';
+
+export interface VerificationState {
+    status: 'pending' | 'checking' | 'success' | 'failed';
+    reason?: string;
+}
+
+export interface MissionState {
+    active: boolean;
+    phase: MissionPhase;
+    goal: string;
+    activeTool?: string;
+    verification: VerificationState;
+    retryCount: number;
+}

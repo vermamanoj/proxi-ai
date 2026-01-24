@@ -56,6 +56,16 @@ Proxi never blindly trusts the LLM.
 
 ---
 
+## 🔧 Troubleshooting
+
+### Backend Hanging?
+If the Neural Trace stops updating or "hangs" after a thought:
+1.  **Check Terminal Output:** Proxi v2.1.0+ includes timeouts. If Gemini 3 Pro takes longer than 35s, it will timeout and report the error to the frontend.
+2.  **Malformed Calls:** If you see "Healing malformed call" logs, the system is auto-retrying. If it fails twice, it will abort to prevent infinite loops.
+3.  **Restart Backend:** `Ctrl+C` the `run_proxi.bat` window and start it again to clear any stuck threads.
+
+---
+
 ## 🛠️ Deployment
 
 1.  **Setup Environment:**

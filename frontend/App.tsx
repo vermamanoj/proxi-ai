@@ -1,11 +1,12 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Terminal, Activity, Cloud, Send, Zap, BrainCircuit, Camera, Play, Square, Mic, MicOff, MousePointerClick, X, GitGraph, Eye, EyeOff, Flame } from 'lucide-react';
+import { Terminal, Activity, Square, Play, Zap, BrainCircuit, Camera, Mic, MicOff, MousePointerClick, X, GitGraph, Eye, EyeOff, Flame } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { Visualizer } from './components/Visualizer';
 import { LogView } from './components/LogView';
 import { TraceView } from './components/TraceView';
-import { ToolStatus } from './components/ToolStatus';
+import { MissionControl } from './components/MissionControl';
 import { SystemStatus } from './components/SystemStatus';
 
 const App: React.FC = () => {
@@ -16,6 +17,7 @@ const App: React.FC = () => {
     lastTrace,
     complexity,
     pendingAction,
+    missionState,
     sendCommand, 
     sendVisionCommand,
     toggleComplexity,
@@ -186,13 +188,14 @@ const App: React.FC = () => {
             </div>
           </div>
 
+          {/* MISSION CONTROL CENTER (The New UI) */}
+          <MissionControl missionState={missionState} liveConnected={liveConnected} />
+          
           <SystemStatus 
             connected={liveConnected} 
             processing={brainStatus === 'processing' || !!liveActiveTool} 
             analyzing={brainStatus === 'analyzing_visuals'}
           />
-
-          <ToolStatus activeTool={liveActiveTool} />
           
           {pendingAction && (
             <div className="bg-proxi-dark border border-proxi-accent rounded-lg p-4 animate-pulse relative overflow-hidden shadow-[0_0_20px_rgba(0,240,255,0.2)]">

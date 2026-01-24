@@ -156,7 +156,8 @@ class GeminiService:
         if not base64_img: return "Screenshot failed"
         try:
             model = genai.GenerativeModel(self.FAST_TEXT_MODEL)
-            res = model.generate_content([f"Purpose: {purpose}. Describe UI.", {'mime_type': 'image/jpeg', 'data': base64_img}])
+            # Timeout for vision to avoid hangs
+            res = model.generate_content([f"Purpose: {purpose}. Describe UI.", {'mime_type': 'image/jpeg', 'data': base64_img}], request_options={'timeout': 15})
             return f"VISION: {res.text}"
         except Exception as e: return f"Vision Error: {e}"
 
@@ -177,11 +178,21 @@ class GeminiService:
     async def _send_chat_message_with_healing(self, chat, content, retries=1):
         for attempt in range(retries + 1):
             try:
-                return await asyncio.to_thread(chat.send_message, content)
+                # Add strict timeout to prevent indefinite hangs
+                # Note: `request_options` is passed to the API client
+                return await asyncio.wait_for(
+                    asyncio.to_thread(chat.send_message, content, request_options={'timeout': 30}), 
+                    timeout=35
+                )
+            except asyncio.TimeoutError:
+                log_system("Gemini API Timeout (35s)", "WARN")
+                if attempt < retries: continue
+                raise Exception("Gemini API timed out")
             except Exception as e:
-                if "MALFORMED_FUNCTION_CALL" in str(e) and attempt < retries:
-                    log_system("Healing malformed call...", "WARN")
-                    await asyncio.sleep(1)
+                err_str = str(e)
+                if ("MALFORMED_FUNCTION_CALL" in err_str or "500" in err_str) and attempt < retries:
+                    log_system(f"Healing API Error ({attempt+1}/{retries+1}): {err_str[:50]}...", "WARN")
+                    await asyncio.sleep(2) # Backoff
                     continue
                 raise e
 
@@ -282,7 +293,8 @@ class GeminiService:
         model = genai.GenerativeModel(model_name=self.SMART_TEXT_MODEL, tools=tools)
         chat = model.start_chat(enable_automatic_function_calling=False)
 
-        yield json.dumps({"type": "meta", "model": "HIVE_MIND", "step": "planning", "content": message}) + "\n"
+        # Emit Initial Status
+        yield json.dumps({"type": "status_change", "phase": "planning", "content": "Initializing Mission..."}) + "\n"
 
         full_prompt = f"{hive_instruction}\n\nGOAL: {message}"
         
@@ -325,6 +337,9 @@ class GeminiService:
                     for i, call in enumerate(safe_calls):
                         name = call['name']
                         args = call['args']
+
+                        # Emit Execution Status
+                        yield json.dumps({"type": "status_change", "phase": "executing", "tool": name}) + "\n"
                         
                         # EXECUTE
                         _, _, res = await self._execute_with_index(i, name, args)
@@ -342,6 +357,9 @@ class GeminiService:
                             # TRIGGER VERIFICATION
                             if current_mission_id:
                                 log_system(f"Triggering Auto-Verification for {current_mission_id}...", "SYS")
+                                
+                                # Emit Verification Status
+                                yield json.dumps({"type": "status_change", "phase": "verifying"}) + "\n"
                                 yield json.dumps({"type": "llm_thought", "content": "Verifying work (Truth Layer)..."}) + "\n"
                                 
                                 # 1. Get Evidence (Orchestrator Logic)
@@ -358,17 +376,22 @@ class GeminiService:
                                     finalize_mission(current_mission_id, "VERIFIED")
                                     res = f"VERIFICATION PASSED: {judgment['reason']}"
                                     yield json.dumps({"type": "tool_result", "name": "VERIFIER", "content": "PASSED"}) + "\n"
+                                    yield json.dumps({"type": "verification", "status": "success", "reason": judgment['reason']}) + "\n"
                                 else:
                                     finalize_mission(current_mission_id, "FAILED")
                                     verification_fails += 1
                                     res = f"VERIFICATION FAILED: {judgment['reason']}. You must try a different approach."
                                     yield json.dumps({"type": "tool_result", "name": "VERIFIER", "content": f"FAILED: {judgment['reason']}"}) + "\n"
+                                    yield json.dumps({"type": "verification", "status": "failed", "reason": judgment['reason']}) + "\n"
                                     
                                     # STUCK DETECTION
                                     if verification_fails >= 2:
                                         log_system("Stuck detected. Escalating...", "SYS")
                                         esc_res = escalate_to_human(current_mission_id, f"Failed verification {verification_fails} times. Last error: {judgment['reason']}")
                                         res += f" \nAUTO-ESCALATION: {esc_res}"
+                                    else:
+                                        # If failed but retrying, signal back to planning/executing
+                                        yield json.dumps({"type": "status_change", "phase": "planning", "content": "Verification Failed. Retrying..."}) + "\n"
 
                         results_ordered.append(res)
                         yield json.dumps({"type": "tool_result", "name": name, "content": str(res)[:500]}) + "\n"
@@ -377,9 +400,14 @@ class GeminiService:
                     response = await self._send_chat_message_with_healing(chat, response_parts)
                 else:
                     break
+            
+            # End Status
+            yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
 
         except Exception as e:
+            log_system(f"HIVE ERROR: {e}", "ERR")
             yield json.dumps({"type": "error", "content": str(e)}) + "\n"
+            yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
 
     async def process_vision_command(self, image_bytes, user_prompt):
         model = genai.GenerativeModel(self.VISION_MODEL)

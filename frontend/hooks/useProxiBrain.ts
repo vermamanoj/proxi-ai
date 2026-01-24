@@ -1,6 +1,6 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { LogEntry, MessageSource, Complexity, AgentStatus, PendingAction, TraceStep } from '../types';
+import { LogEntry, MessageSource, Complexity, AgentStatus, PendingAction, TraceStep, MissionState } from '../types';
 
 export const useProxiBrain = () => {
   const [status, setStatus] = useState<AgentStatus>('idle');
@@ -9,6 +9,15 @@ export const useProxiBrain = () => {
   const [complexity, setComplexity] = useState<Complexity>('fast');
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+
+  // Mission State Tracking
+  const [missionState, setMissionState] = useState<MissionState>({
+    active: false,
+    phase: 'idle',
+    goal: '',
+    verification: { status: 'pending' },
+    retryCount: 0
+  });
 
   useEffect(() => {
     const loadVoices = () => {
@@ -71,6 +80,15 @@ export const useProxiBrain = () => {
     setPendingAction(null);
     setLastTrace([]); // Clear trace for new command
     
+    // Reset Mission State
+    setMissionState({
+        active: true,
+        phase: 'planning',
+        goal: message,
+        verification: { status: 'pending' },
+        retryCount: 0
+    });
+
     // Initial trace step
     updateTrace({ step_type: 'user_input', content: message, metadata: { complexity } });
 
@@ -86,25 +104,45 @@ export const useProxiBrain = () => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let done = false;
+      let buffer = '';
 
       while (!done) {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
-        const chunkValue = decoder.decode(value, { stream: !done });
-        
-        // Split by newline for NDJSON
-        const lines = chunkValue.split('\n').filter(line => line.trim() !== '');
+        buffer += decoder.decode(value, { stream: !done });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
         
         for (const line of lines) {
+            if (!line.trim()) continue;
             try {
                 const data = JSON.parse(line);
                 
+                // --- STATE UPDATES ---
+                if (data.type === 'status_change') {
+                    setMissionState(prev => ({
+                        ...prev,
+                        phase: data.phase,
+                        activeTool: data.tool || undefined,
+                        retryCount: data.retry ? prev.retryCount + 1 : prev.retryCount
+                    }));
+                }
+                else if (data.type === 'verification') {
+                    setMissionState(prev => ({
+                        ...prev,
+                        verification: {
+                            status: data.status,
+                            reason: data.reason
+                        }
+                    }));
+                }
+                
+                // --- STANDARD LOGGING ---
                 switch (data.type) {
                     case 'llm_thought':
                         updateTrace({ step_type: 'llm_thought', content: data.content });
                         break;
                     case 'tool_call_batch':
-                        // data.calls is array of {name, args}
                         for (const call of data.calls) {
                              updateTrace({ step_type: 'tool_call', content: call.name, metadata: { args: call.args } });
                         }
@@ -116,9 +154,11 @@ export const useProxiBrain = () => {
                         updateTrace({ step_type: 'final_response', content: data.content });
                         addLog(MessageSource.AGENT, data.content);
                         speak(data.content);
+                        setMissionState(prev => ({ ...prev, active: false }));
                         break;
                     case 'error':
                         addLog(MessageSource.SYSTEM, `Error: ${data.content}`);
+                        setMissionState(prev => ({ ...prev, phase: 'failed', active: false }));
                         break;
                 }
             } catch (e) {
@@ -127,12 +167,21 @@ export const useProxiBrain = () => {
         }
       }
 
+      // Process any remaining buffer content
+      if (buffer.trim()) {
+         try {
+             const data = JSON.parse(buffer);
+             if (data.type === 'error') addLog(MessageSource.SYSTEM, `Error: ${data.content}`);
+         } catch (e) {}
+      }
+
       setStatus('idle');
 
     } catch (err: any) {
       console.error(err);
       addLog(MessageSource.SYSTEM, `Error: ${err.message}`);
       setStatus('idle');
+      setMissionState(prev => ({ ...prev, phase: 'failed', active: false }));
     }
   };
 
@@ -160,8 +209,7 @@ export const useProxiBrain = () => {
     }
   };
 
-  // ... rest of actions (confirm/cancel/toggle)
-  const confirmAction = async () => {}; // Atomic mode deprecated
+  const confirmAction = async () => {}; 
   const cancelAction = () => { setPendingAction(null); setStatus('idle'); };
   const toggleComplexity = () => setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
 
@@ -171,6 +219,7 @@ export const useProxiBrain = () => {
     lastTrace,
     complexity,
     pendingAction,
+    missionState,
     sendCommand,
     sendVisionCommand,
     toggleComplexity,
