@@ -244,12 +244,17 @@ class GeminiService:
 
         final_tools = [types.Tool(function_declarations=self.tool_definitions)]
         
-        # Auto Tool Config
-        auto_tool_config = types.ToolConfig(
-            function_calling_config=types.FunctionCallingConfig(
-                mode=types.FunctionCallingConfigMode.AUTO
-            )
-        )
+        # RELAXED CONFIGURATION
+        # We moved System Instruction to config and removed auto_tool_config to prevent forcing empty responses
+        hive_instruction = """
+        You are Proxi, a specialized AI operator for Google Cloud and Windows.
+        Your goal is to help the user by executing tools to fix problems.
+        
+        Protocol:
+        1. If the user request requires a complex, multi-step task, call `assign_mission`.
+        2. If it is a simple query (e.g. "check time", "check health"), CALL THE SPECIFIC TOOL DIRECTLY.
+        3. Be concise.
+        """
 
         # Config Setup
         if complexity_request == "deep":
@@ -257,40 +262,35 @@ class GeminiService:
             gen_config = types.GenerateContentConfig(
                 temperature=0.7,
                 tools=final_tools,
-                tool_config=auto_tool_config,
+                system_instruction=hive_instruction,
                 thinking_config=types.ThinkingConfig(include_thoughts=True)
             )
         else:
             active_model = self.FAST_TEXT_MODEL
             gen_config = types.GenerateContentConfig(
-                temperature=0.5,
+                temperature=0.3, # Lower temperature for better tool adherence
                 tools=final_tools,
-                tool_config=auto_tool_config
+                system_instruction=hive_instruction,
+                safety_settings=[types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                    threshold=types.HarmBlockThreshold.BLOCK_NONE
+                ), types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                    threshold=types.HarmBlockThreshold.BLOCK_NONE
+                ), types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                    threshold=types.HarmBlockThreshold.BLOCK_NONE
+                ), types.SafetySetting(
+                    category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                    threshold=types.HarmBlockThreshold.BLOCK_NONE
+                )]
             )
 
-        hive_instruction = """
-        You are Proxi, a Verifiable Autonomous Agent.
-        
-        **CORE PROTOCOL:**
-        1. **ASSIGN**: You MUST start by using `assign_mission(goal, verification_criteria)`.
-        2. **EXECUTE**: Use tools to fix the issue.
-        3. **REPORT**: When done, call `report_execution(mission_id, summary)`.
-        
-        **RULES:**
-        - DO NOT DESCRIBE YOUR PLAN IN TEXT.
-        - DO NOT SAY "I will now check..."
-        - CALL THE FUNCTION IMMEDIATELY.
-        """
-
-        # MANUAL HISTORY: We start with the System Instruction implicitly via config, 
-        # and the first User Message.
-        # Note: 'system_instruction' in config acts as preamble.
-        # We will maintain a list of `contents` to send to the API.
-        
+        # MANUAL HISTORY: Start with just the user message
         contents = [
             types.Content(
                 role="user",
-                parts=[types.Part(text=f"{hive_instruction}\n\nGOAL: {message}")]
+                parts=[types.Part(text=f"GOAL: {message}")]
             )
         ]
         
@@ -326,6 +326,11 @@ class GeminiService:
                 async for chunk in stream_iter:
                     if not chunk.candidates: continue
                     candidate = chunk.candidates[0]
+                    
+                    # DEBUG LOGGING FOR EMPTY RESPONSES
+                    if candidate.finish_reason:
+                        log_system(f"Finish Reason: {candidate.finish_reason}", "DEBUG")
+                    
                     if not candidate.content: continue
                     if not candidate.content.parts: continue 
                     
@@ -347,9 +352,12 @@ class GeminiService:
                 log_system(f"Turn {current_turn} finished. Thoughts: {has_thoughts}, Calls: {len(function_calls)}", "DEBUG")
                 
                 # --- UPDATE HISTORY (MODEL TURN) ---
-                # We must append the EXACT parts the model generated to history
-                # so the next turn (User) is valid.
-                contents.append(types.Content(role="model", parts=model_response_parts))
+                if model_response_parts:
+                    contents.append(types.Content(role="model", parts=model_response_parts))
+                else:
+                    # If parts are empty (Safety block or Stop), we can't append empty parts or API errors.
+                    # We handle the retry logic below.
+                    pass
 
                 if text_buffer:
                     yield json.dumps({"type": "response", "content": text_buffer}) + "\n"
@@ -357,22 +365,22 @@ class GeminiService:
                 # --- NO TOOLS? CHECK FOR STALLS ---
                 if not function_calls:
                     if text_buffer:
-                        # Lazy Check
-                        if current_mission_id is None and ("Verification:" in text_buffer or "Goal:" in text_buffer or "I will check" in text_buffer):
-                             log_system("Detected Lazy Text Plan. Forcing Retry.", "WARN")
-                             # Append USER Complaint
-                             contents.append(types.Content(role="user", parts=[types.Part(text="SYSTEM ERROR: You wrote the plan as text. You must use the `assign_mission` tool. Try again.")]))
+                        # Lazy Check (Loosened - only warn if mission not started but plan looks complex)
+                        if current_mission_id is None and "assign_mission" in text_buffer:
+                             log_system("Detected Text Plan describing tool use. Nudging...", "WARN")
+                             contents.append(types.Content(role="user", parts=[types.Part(text="You are describing the tool call. Please EXECUTE it.")]))
                              continue
                         break # Normal text finish
                     
                     # Empty Response
                     stall_count += 1
                     if stall_count >= 3:
-                         yield json.dumps({"type": "error", "content": "Model returned repeated empty responses."}) + "\n"
+                         yield json.dumps({"type": "error", "content": "Model returned repeated empty responses. Check API Safety settings or Prompt."}) + "\n"
                          break
                     
                     log_system(f"Empty response detected. Retrying (Attempt {stall_count})...", "WARN")
-                    contents.append(types.Content(role="user", parts=[types.Part(text="System Warning: You returned an empty response. You must call a tool (e.g. assign_mission) or provide text.")]))
+                    # Try to provoke a response
+                    contents.append(types.Content(role="user", parts=[types.Part(text="System Update: Please proceed with the tool call for the request.")]))
                     continue
                 
                 stall_count = 0
