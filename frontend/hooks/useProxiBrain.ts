@@ -263,6 +263,8 @@ export const useProxiBrain = () => {
   const toggleComplexity = () => setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
   const logSystemError = (msg: string) => addLog(MessageSource.SYSTEM, msg);
 
+
+
   return {
     status,
     logs,

@@ -379,6 +379,7 @@ class GeminiService:
         except Exception as e:
             return {"verified": False, "reason": f"Verifier crash: {e}"}
 
+
     async def process_vision_command(self, image_bytes, user_prompt):
         # Async Vision
         response = await self.client.aio.models.generate_content(
