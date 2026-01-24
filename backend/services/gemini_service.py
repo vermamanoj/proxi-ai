@@ -436,7 +436,6 @@ class GeminiService:
             
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
 
-
         except Exception as e:
             log_system(f"HIVE ERROR: {e}", "ERR")
             yield json.dumps({"type": "error", "content": str(e)}) + "\n"
