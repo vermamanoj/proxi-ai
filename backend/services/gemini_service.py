@@ -238,6 +238,7 @@ class GeminiService:
                 function_calls = []
                 results_ordered = []
                 text_buffer = ""
+                has_thoughts = False
                 
                 # STREAMING REQUEST
                 # Fix: In SDK 0.x/1.x aio, send_message_stream is a coroutine returning an async iterator.
@@ -253,6 +254,7 @@ class GeminiService:
                         
                         # 1. Handle Thoughts
                         if part.thought:
+                             has_thoughts = True
                              log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
                              yield json.dumps({"type": "llm_thought", "content": part.text}) + "\n"
                         
@@ -270,17 +272,29 @@ class GeminiService:
                              function_calls.append(part.function_call)
 
                 # End of Stream for this Turn
-                log_system(f"Stream turn finished. Buffer: {len(text_buffer)} chars. Calls: {len(function_calls)}", "DEBUG")
+                log_system(f"Turn {current_turn} finished. Thoughts: {has_thoughts}, Calls: {len(function_calls)}", "DEBUG")
                 
                 # If we received text (and it wasn't just a thought), send it to UI
                 if text_buffer:
                     yield json.dumps({"type": "response", "content": text_buffer}) + "\n"
 
-                # If no function calls, we are done
+                # If no function calls, check for Stall or Completion
                 if not function_calls:
-                    # Fallback guard: If no calls and no text, say something to release UI
-                    if not text_buffer:
-                        yield json.dumps({"type": "response", "content": "Task planning complete."}) + "\n"
+                    if text_buffer:
+                        # We have a final text response, we are done.
+                        break
+                    
+                    # No text, No tools. 
+                    if has_thoughts:
+                        # Case: Model thought but forgot to act. NUDGE IT.
+                        log_system("Stall detected (Thoughts only). Nudging model...", "WARN")
+                        yield json.dumps({"type": "status_change", "phase": "planning", "content": "Aligning thoughts to actions..."}) + "\n"
+                        # Create a Nudge prompt for the next turn
+                        next_input = "You have completed the reasoning phase. Now strictly output the Function Calls to execute the plan you just created."
+                        continue 
+                    
+                    # No thoughts, no text, no tools. Dead end.
+                    yield json.dumps({"type": "response", "content": "Task planning complete (No actions generated)."}) + "\n"
                     break
 
                 # PROCESS TOOLS
