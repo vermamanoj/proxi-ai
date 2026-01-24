@@ -190,6 +190,13 @@ class GeminiService:
             types.FunctionDeclaration(name="query_knowledge_base", description="Searches docs.", parameters=types.Schema(type=types.Type.OBJECT, properties={"query": types.Schema(type=types.Type.STRING)})),
             types.FunctionDeclaration(name="escalate_to_human", description="Escalates failure.", parameters=types.Schema(type=types.Type.OBJECT, properties={"mission_id": types.Schema(type=types.Type.STRING), "reason": types.Schema(type=types.Type.STRING)})),
             types.FunctionDeclaration(name="wait_seconds", description="Waits for X seconds.", parameters=types.Schema(type=types.Type.OBJECT, properties={"seconds": types.Schema(type=types.Type.INTEGER)})),
+            
+            # --- DESKTOP PRIMITIVES ---
+            types.FunctionDeclaration(name="click_at", description="Clicks at X,Y coordinates.", parameters=types.Schema(type=types.Type.OBJECT, properties={"x": types.Schema(type=types.Type.INTEGER), "y": types.Schema(type=types.Type.INTEGER)})),
+            types.FunctionDeclaration(name="type_text", description="Types text.", parameters=types.Schema(type=types.Type.OBJECT, properties={"text": types.Schema(type=types.Type.STRING)})),
+            types.FunctionDeclaration(name="scroll_page", description="Scrolls page.", parameters=types.Schema(type=types.Type.OBJECT, properties={"direction": types.Schema(type=types.Type.STRING)})),
+             types.FunctionDeclaration(name="open_target", description="Opens file/url.", parameters=types.Schema(type=types.Type.OBJECT, properties={"resource": types.Schema(type=types.Type.STRING)})),
+             types.FunctionDeclaration(name="read_page_content", description="Reads text from active page.", parameters=types.Schema(type=types.Type.OBJECT, properties={})),
         ]
         
         log_system(f"Gemini Service Initialized (New SDK) with {len(self.tools_map)} tools.", "INIT")
