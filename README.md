@@ -6,6 +6,7 @@
 ## ⚡ Key Features
 
 *   **Executive Relay (Hierarchical Agents):** Combines the low-latency voice capabilities of **Gemini 2.5 Live** (The Secretary) with the deep reasoning power of **Gemini 3 Pro** (The Executive).
+*   **Reasoning Engine:** Powered by the new **Google GenAI SDK** with native "Thinking" support. Proxi deliberates on complex tasks, showing its internal monologue before taking action.
 *   **The Truth Layer:** Proxi implements a "Verifiable Agent" architecture. It defines mathematical success criteria (CPU < 50%, HTTP 200 OK) and independently audits the agent's work before reporting success.
 *   **Desktop Control (The Ghost):** Full control over mouse, keyboard, and screen using `pyautogui` and `pywinauto`. Safe-guarded behind a "Real Mode" flag.
 *   **Neural Trace:** Visualize the agent's internal thought process, tool planning, and execution steps in real-time.

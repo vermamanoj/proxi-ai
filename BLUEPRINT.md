@@ -10,10 +10,10 @@ To build an agentic, voice-first interface that allows developers to perform "He
 ## 2. THE TECH STACK
 *   **AI Model (The Split Brain):** 
     *   **Voice/Relay:** Gemini 2.5 Flash Native Audio (Frontend). Handles WebRTC I/O.
-    *   **Core Reasoning:** Gemini 3 Pro (Backend). Handles the "Hive Mind" orchestration.
+    *   **Core Reasoning:** Gemini 3 Pro (Backend). Handles the "Hive Mind" orchestration with **Thinking** enabled.
     *   **Verifier:** Gemini 3 Pro (Backend). Acts as a hostile QA auditor.
-    *   **Vision:** Gemini 3 Flash (Backend). Used for high-speed screenshot analysis.
-*   **Backend:** Python 3.12+ with **FastAPI**.
+    *   **Vision:** Gemini 3 Pro Vision (Backend). Used for high-speed screenshot analysis (`gemini-3-pro-image-preview`).
+*   **Backend:** Python 3.12+ with **FastAPI** using the `google-genai` SDK.
 *   **Streaming Protocol:** NDJSON (Newline Delimited JSON) for real-time thought streaming.
 *   **Simulation Strategy:** Factory Pattern (`MockDesktopService` vs `RealDesktopService`) for safe demos.
 *   **Orchestration:** **Triple Handshake Protocol** (Assign -> Execute -> Verify).
@@ -58,7 +58,7 @@ To solve "LLM Hallucination" in Ops, Proxi never blindly trusts the agent.
 *   **Simulation Mode (Demo):** If `RUNTIME_MODE=DEMO`, loads a `MockDesktopService` that simulates CPU spikes and process lists for Hackathon Judges.
 
 ### C. Visual Verification
-*   The agent can take a screenshot, send it to Gemini 3 Flash, and verify UI states (e.g., "Is the error banner gone?").
+*   The agent can take a screenshot, send it to Gemini 3 Pro Vision, and verify UI states (e.g., "Is the error banner gone?").
 
 ## 6. SPRINT STATUS
 *   ✅ **Verifiable Agent Architecture (Truth Layer)**

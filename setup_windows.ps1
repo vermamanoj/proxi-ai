@@ -1,3 +1,4 @@
+
 # Proxi Windows Environment Setup Script
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "   🚀 PROXI WINDOWS SETUP (ISOLATED)"
@@ -54,8 +55,8 @@ if (Test-Path "backend/requirements.txt") {
 } else {
     Write-Host "⚠️ Warning: backend/requirements.txt not found." -ForegroundColor Yellow
 }
-# Explicitly ensure desktop libs are present
-& $VenvPip install pyautogui easyocr opencv-python pillow python-dotenv fastapi uvicorn google-generativeai psutil PyGithub
+# Explicitly ensure desktop libs are present (Updated to google-genai)
+& $VenvPip install pyautogui easyocr opencv-python pillow python-dotenv fastapi uvicorn google-genai psutil PyGithub
 
 # 5. Desktop Permissions / GUI Check
 Write-Host "[3/6] Testing Desktop Interaction..." -ForegroundColor Yellow

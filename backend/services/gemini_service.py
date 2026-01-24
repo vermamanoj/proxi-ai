@@ -293,7 +293,7 @@ class GeminiService:
                             current_criteria = args.get('verification_criteria', {})
                     elif name == "report_execution":
                         # Verification Logic
-                            if current_mission_id:
+                        if current_mission_id:
                             log_system(f"Verifying {current_mission_id}...", "SYS")
                             yield json.dumps({"type": "status_change", "phase": "verifying"}) + "\n"
                             
