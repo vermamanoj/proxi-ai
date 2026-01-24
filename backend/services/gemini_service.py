@@ -115,7 +115,6 @@ class GeminiService:
         }
 
         # 2. DEFINITION LIST (Schemas for LLM)
-        # We explicitly define these to prevent the SDK from auto-executing Python callables.
         self.tool_definitions = [
             types.FunctionDeclaration(
                 name="assign_mission",
@@ -184,19 +183,16 @@ class GeminiService:
                     required=["action"]
                 )
             ),
-            # Add generic schema for other tools to ensure they are available but not auto-executed
             types.FunctionDeclaration(name="create_linear_ticket", description="Creates a ticket.", parameters=types.Schema(type=types.Type.OBJECT, properties={"title": types.Schema(type=types.Type.STRING), "priority": types.Schema(type=types.Type.STRING)})),
             types.FunctionDeclaration(name="send_slack_message", description="Sends a Slack msg.", parameters=types.Schema(type=types.Type.OBJECT, properties={"channel": types.Schema(type=types.Type.STRING), "message": types.Schema(type=types.Type.STRING)})),
             types.FunctionDeclaration(name="query_knowledge_base", description="Searches docs.", parameters=types.Schema(type=types.Type.OBJECT, properties={"query": types.Schema(type=types.Type.STRING)})),
             types.FunctionDeclaration(name="escalate_to_human", description="Escalates failure.", parameters=types.Schema(type=types.Type.OBJECT, properties={"mission_id": types.Schema(type=types.Type.STRING), "reason": types.Schema(type=types.Type.STRING)})),
             types.FunctionDeclaration(name="wait_seconds", description="Waits for X seconds.", parameters=types.Schema(type=types.Type.OBJECT, properties={"seconds": types.Schema(type=types.Type.INTEGER)})),
-            
-            # --- DESKTOP PRIMITIVES ---
             types.FunctionDeclaration(name="click_at", description="Clicks at X,Y coordinates.", parameters=types.Schema(type=types.Type.OBJECT, properties={"x": types.Schema(type=types.Type.INTEGER), "y": types.Schema(type=types.Type.INTEGER)})),
             types.FunctionDeclaration(name="type_text", description="Types text.", parameters=types.Schema(type=types.Type.OBJECT, properties={"text": types.Schema(type=types.Type.STRING)})),
             types.FunctionDeclaration(name="scroll_page", description="Scrolls page.", parameters=types.Schema(type=types.Type.OBJECT, properties={"direction": types.Schema(type=types.Type.STRING)})),
-             types.FunctionDeclaration(name="open_target", description="Opens file/url.", parameters=types.Schema(type=types.Type.OBJECT, properties={"resource": types.Schema(type=types.Type.STRING)})),
-             types.FunctionDeclaration(name="read_page_content", description="Reads text from active page.", parameters=types.Schema(type=types.Type.OBJECT, properties={})),
+            types.FunctionDeclaration(name="open_target", description="Opens file/url.", parameters=types.Schema(type=types.Type.OBJECT, properties={"resource": types.Schema(type=types.Type.STRING)})),
+            types.FunctionDeclaration(name="read_page_content", description="Reads text from active page.", parameters=types.Schema(type=types.Type.OBJECT, properties={})),
         ]
         
         log_system(f"Gemini Service Initialized (New SDK) with {len(self.tools_map)} tools.", "INIT")
@@ -246,7 +242,6 @@ class GeminiService:
             yield json.dumps({"type": "error", "content": "API Key Missing"})
             return
 
-        # Prepare Tool definitions (Not callables)
         final_tools = [types.Tool(function_declarations=self.tool_definitions)]
         
         if complexity_request == "deep":
@@ -305,7 +300,13 @@ class GeminiService:
                 
                 async for chunk in stream_iter:
                     if not chunk.candidates: continue
-                    for part in chunk.candidates[0].content.parts:
+                    
+                    # SAFETY CHECK FOR STREAM CHUNKS
+                    candidate = chunk.candidates[0]
+                    if not candidate.content: continue
+                    if not candidate.content.parts: continue 
+                    
+                    for part in candidate.content.parts:
                         if part.thought:
                              has_thoughts = True
                              log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
