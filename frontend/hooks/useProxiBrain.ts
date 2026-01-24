@@ -92,12 +92,20 @@ export const useProxiBrain = () => {
     // Initial trace step
     updateTrace({ step_type: 'user_input', content: message, metadata: { complexity } });
 
+    // --- TIMEOUT SETUP ---
+    // Gemini 3 Thinking can be slow, so we set a generous timeout (60s)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); 
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, complexity })
+        body: JSON.stringify({ message, complexity }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       // --- CRITICAL FIX: Handle Proxy/Network Errors ---
       if (!response.ok) {
@@ -184,7 +192,14 @@ export const useProxiBrain = () => {
 
     } catch (err: any) {
       console.error(err);
-      addLog(MessageSource.SYSTEM, `System Alert: ${err.message}`);
+      
+      // Handle Timeout specifically
+      if (err.name === 'AbortError') {
+         addLog(MessageSource.SYSTEM, `System Alert: Response Timed Out (60s). The agent might be "thinking" too hard or the backend is stalled.`);
+      } else {
+         addLog(MessageSource.SYSTEM, `System Alert: ${err.message}`);
+      }
+      
       setStatus('idle');
       setMissionState(prev => ({ ...prev, phase: 'failed', active: false }));
     }

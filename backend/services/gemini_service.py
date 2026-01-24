@@ -239,8 +239,11 @@ class GeminiService:
                 text_buffer = ""
                 
                 # STREAMING REQUEST
-                # We iterate the AsyncIterator returned by send_message_stream
-                async for chunk in chat.send_message_stream(next_input):
+                # Fix: In SDK 0.x/1.x aio, send_message_stream is a coroutine returning an async iterator.
+                # We must await the call first.
+                stream_iter = await chat.send_message_stream(next_input)
+                
+                async for chunk in stream_iter:
                     if not chunk.candidates: continue
                     part = chunk.candidates[0].content.parts[0]
                     
