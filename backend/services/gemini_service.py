@@ -262,9 +262,15 @@ class GeminiService:
                              
                         # 3. Handle Function Calls
                         if part.function_call:
+                             # Immediate UI Feedback: Notify that a tool is being prepared
+                             # Only yield if it's the first time we see this tool to avoid spamming on partials
+                             if not function_calls:
+                                 yield json.dumps({"type": "status_change", "phase": "executing", "tool": part.function_call.name}) + "\n"
+                             
                              function_calls.append(part.function_call)
 
                 # End of Stream for this Turn
+                log_system(f"Stream turn finished. Buffer: {len(text_buffer)} chars. Calls: {len(function_calls)}", "DEBUG")
                 
                 # If we received text (and it wasn't just a thought), send it to UI
                 if text_buffer:
@@ -272,6 +278,9 @@ class GeminiService:
 
                 # If no function calls, we are done
                 if not function_calls:
+                    # Fallback guard: If no calls and no text, say something to release UI
+                    if not text_buffer:
+                        yield json.dumps({"type": "response", "content": "Task planning complete."}) + "\n"
                     break
 
                 # PROCESS TOOLS

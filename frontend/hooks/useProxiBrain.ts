@@ -44,10 +44,9 @@ export const useProxiBrain = () => {
   };
 
   const cleanTextForSpeech = (text: string) => {
-      // Remove Markdown bold/italic/code markers
       return text.replace(/[*#_`]/g, '')
-                 .replace(/\[.*?\]/g, '') // Remove [links]
-                 .replace(/\(https?:\/\/.*?\)/g, ''); // Remove (urls)
+                 .replace(/\[.*?\]/g, '')
+                 .replace(/\(https?:\/\/.*?\)/g, '');
   };
 
   const speak = useCallback((text: string) => {
@@ -78,9 +77,8 @@ export const useProxiBrain = () => {
     addLog(MessageSource.USER, message);
     setStatus('processing');
     setPendingAction(null);
-    setLastTrace([]); // Clear trace for new command
+    setLastTrace([]); 
     
-    // Reset Mission State
     setMissionState({
         active: true,
         phase: 'planning',
@@ -89,12 +87,9 @@ export const useProxiBrain = () => {
         retryCount: 0
     });
 
-    // Initial trace step
     updateTrace({ step_type: 'user_input', content: message, metadata: { complexity } });
 
     // --- TIMEOUT SETUP ---
-    // We use an Activity Timeout. It resets every time we receive a chunk of data.
-    // This prevents hanging if the stream connects but sends no data.
     const controller = new AbortController();
     let activityTimer: number;
 
@@ -102,10 +97,10 @@ export const useProxiBrain = () => {
       if (activityTimer) window.clearTimeout(activityTimer);
       activityTimer = window.setTimeout(() => {
           controller.abort();
-          addLog(MessageSource.SYSTEM, "System Alert: Network Timeout. No data received for 45 seconds.");
+          addLog(MessageSource.SYSTEM, "System Alert: Network Timeout. No data received for 60 seconds.");
           setStatus('idle');
           setMissionState(prev => ({ ...prev, phase: 'failed', active: false }));
-      }, 45000); // 45s Activity Timeout
+      }, 60000); 
     };
 
     resetActivityTimer();
@@ -118,7 +113,6 @@ export const useProxiBrain = () => {
         signal: controller.signal
       });
       
-      // --- CRITICAL FIX: Handle Proxy/Network Errors ---
       if (!response.ok) {
           throw new Error(`Connection Failed (${response.status} ${response.statusText}). Check Backend.`);
       }
@@ -129,20 +123,21 @@ export const useProxiBrain = () => {
       const decoder = new TextDecoder();
       let done = false;
       let buffer = '';
-
-      while (!done) {
-        // Reset timer before waiting for next chunk
-        resetActivityTimer();
-        
-        const { value, done: doneReading } = await reader.read();
-        done = doneReading;
-        buffer += decoder.decode(value, { stream: !done });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-        
-        for (const line of lines) {
+      
+      // Force Flush Timer: If data sits in buffer for 1s, process it.
+      let flushTimer: number | null = null;
+      
+      const processBuffer = (force = false) => {
+         const lines = buffer.split('\n');
+         // If forcing, take everything. If not, keep the last fragment.
+         const pending = force ? '' : lines.pop() || '';
+         
+         for (const line of lines) {
             if (!line.trim()) continue;
             try {
+                // Debug log to see raw stream in console
+                console.debug("[RAW STREAM]", line.substring(0, 100));
+                
                 const data = JSON.parse(line);
                 
                 // --- STATE UPDATES ---
@@ -189,20 +184,38 @@ export const useProxiBrain = () => {
                         break;
                 }
             } catch (e) {
-                console.error("Failed to parse chunk", line);
+                console.warn("Failed to parse chunk, probably incomplete JSON:", line);
             }
+         }
+         buffer = pending;
+      };
+
+      while (!done) {
+        resetActivityTimer();
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        buffer += decoder.decode(value, { stream: !done });
+        
+        // Try to process immediately
+        processBuffer();
+        
+        // If buffer still has data (incomplete line), set a force flush timer
+        if (buffer.trim().length > 0) {
+            if (flushTimer) clearTimeout(flushTimer);
+            flushTimer = window.setTimeout(() => {
+                console.log("[FORCE FLUSH] Buffer stalled, forcing parse.");
+                processBuffer(true);
+            }, 1000);
         }
       }
 
       // Cleanup
       window.clearTimeout(activityTimer);
+      if (flushTimer) clearTimeout(flushTimer);
 
-      // Process any remaining buffer content
+      // Final flush
       if (buffer.trim()) {
-         try {
-             const data = JSON.parse(buffer);
-             if (data.type === 'error') addLog(MessageSource.SYSTEM, `Error: ${data.content}`);
-         } catch (e) {}
+         processBuffer(true);
       }
 
       setStatus('idle');
@@ -248,8 +261,6 @@ export const useProxiBrain = () => {
   const confirmAction = async () => {}; 
   const cancelAction = () => { setPendingAction(null); setStatus('idle'); };
   const toggleComplexity = () => setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
-
-  // Helper to expose logger to external components if needed (optional)
   const logSystemError = (msg: string) => addLog(MessageSource.SYSTEM, msg);
 
   return {
