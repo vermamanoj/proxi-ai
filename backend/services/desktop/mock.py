@@ -83,6 +83,10 @@ class MockDesktopService(DesktopInterface):
         if act == "NAVIGATE" and url:
             self.current_url = url
             return f"Simulated Navigation to {url}"
+        elif act == "NEW_TAB":
+            return "Simulated New Tab"
+        elif act == "CLOSE_TAB":
+            return "Simulated Close Tab"
         return f"Simulated Browser Action: {act}"
 
     def read_page_content(self):

@@ -53,4 +53,9 @@ class DesktopInterface(ABC):
 
     @abstractmethod
     def browser_command(self, action: str, url: str = None):
+        """
+        Executes a semantic browser action using hotkeys.
+        action: NEW_TAB, CLOSE_TAB, REFRESH, NAVIGATE, SEARCH
+        url: Optional URL or Query string
+        """
         pass

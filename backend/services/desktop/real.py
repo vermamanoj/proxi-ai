@@ -258,13 +258,12 @@ class RealDesktopService(DesktopInterface):
     def wait_seconds(self, seconds: int):
         time.sleep(seconds)
         return f"Waited {seconds}s"
-
+    
     # --- NEW SEMANTIC BROWSER CONTROLS ---
 
     def _focus_browser(self):
         """Attempts to bring a known browser window to the foreground."""
         if not (self.os_type == "Windows" and USE_ACCESSIBILITY):
-             # On Linux/Mac, rely on user having it open or fallback to simple hotkeys
              return False
 
         try:
@@ -272,13 +271,12 @@ class RealDesktopService(DesktopInterface):
             # Common browser names in title
             for name in ["Chrome", "Edge", "Firefox", "Brave"]:
                 try:
-                    # Find window by title regex
                     windows = desktop.windows(title_re=f".*{name}.*")
                     if windows:
                         w = windows[0]
                         if w.is_minimized(): w.restore()
                         w.set_focus()
-                        time.sleep(0.5) # Allow focus animation
+                        time.sleep(0.5) 
                         return True
                 except: continue
         except Exception as e:
@@ -295,7 +293,7 @@ class RealDesktopService(DesktopInterface):
 
         with self._input_lock:
             # 1. Attempt Focus
-            focused = self._focus_browser()
+            self._focus_browser()
             
             # 2. Execute Action
             try:
@@ -318,16 +316,14 @@ class RealDesktopService(DesktopInterface):
                 
                 elif act == "NAVIGATE":
                     if not url: return "Error: URL required for NAVIGATE"
-                    # Focus Bar
                     pyautogui.hotkey(mod, 'l')
                     time.sleep(0.2)
-                    # Type URL
                     pyautogui.write(url, interval=0.01)
                     pyautogui.press('enter')
                     return f"Navigated to {url}"
                 
                 elif act == "SEARCH":
-                    if not url: return "Error: Query text required for SEARCH (passed in url param)"
+                    if not url: return "Error: Query text required for SEARCH"
                     pyautogui.hotkey(mod, 'f')
                     time.sleep(0.2)
                     pyautogui.write(url, interval=0.02)

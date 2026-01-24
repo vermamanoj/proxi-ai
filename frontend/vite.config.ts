@@ -1,3 +1,4 @@
+
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -18,7 +19,7 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       allowedHosts: ['proxi.audista.com', 'localhost'],
       proxy: {
-        // Proxy API requests to the Python Backend running on port 8080
+        // CRITICAL: Proxy API requests to the Python Backend running on port 8080
         '/api': {
           target: 'http://127.0.0.1:8080',
           changeOrigin: true,
