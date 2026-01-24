@@ -244,11 +244,19 @@ class GeminiService:
 
         final_tools = [types.Tool(function_declarations=self.tool_definitions)]
         
+        # Force AUTO tool config to prevent lazy text responses
+        auto_tool_config = types.ToolConfig(
+            function_calling_config=types.FunctionCallingConfig(
+                mode=types.FunctionCallingConfigMode.AUTO
+            )
+        )
+
         if complexity_request == "deep":
             active_model = self.SMART_TEXT_MODEL
             config = types.GenerateContentConfig(
                 temperature=0.7,
                 tools=final_tools,
+                tool_config=auto_tool_config,
                 thinking_config=types.ThinkingConfig(include_thoughts=True)
             )
             log_system("Activated DEEP Mode (Thinking Enabled)", "CFG")
@@ -256,7 +264,8 @@ class GeminiService:
             active_model = self.FAST_TEXT_MODEL
             config = types.GenerateContentConfig(
                 temperature=0.5,
-                tools=final_tools
+                tools=final_tools,
+                tool_config=auto_tool_config
             )
             log_system("Activated FAST Mode (Reflex Only)", "CFG")
 
@@ -264,9 +273,11 @@ class GeminiService:
         You are Proxi, a Verifiable Autonomous Agent.
         
         **CORE PROTOCOL:**
-        1. **ASSIGN**: Start by using `assign_mission(goal, verification_criteria)`.
+        1. **ASSIGN**: You MUST start by using `assign_mission(goal, verification_criteria)`.
         2. **EXECUTE**: Use tools to fix the issue.
         3. **REPORT**: When done, call `report_execution(mission_id, summary)`.
+        
+        Do not just chat. Use the tools.
         """
         
         chat = self.client.aio.chats.create(
@@ -325,17 +336,28 @@ class GeminiService:
 
                 if not function_calls:
                     if text_buffer: break
+                    
+                    # EMPTY RESPONSE HANDLING
+                    # If we have no calls and no text, it's a model stall. We must force it to continue.
+                    stall_count += 1
+                    
                     if has_thoughts:
-                        stall_count += 1
                         yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Aligning thoughts to actions (Attempt {stall_count})..."}) + "\n"
                         if stall_count >= 3:
                             next_input = "CRITICAL: You are looping. Stop thinking. You MUST output a Function Call immediately."
                         else:
                             next_input = "Observation: You are thinking but not acting. Please generate the Function Call."
                         continue 
+                    else:
+                        # FAST Mode Empty Response (No thoughts, no tools, no text)
+                        log_system(f"Empty response detected. Retrying (Attempt {stall_count})...", "WARN")
+                        yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Retrying empty response (Attempt {stall_count})..."}) + "\n"
+                        if stall_count >= 3:
+                             yield json.dumps({"type": "error", "content": "Model returned repeated empty responses."}) + "\n"
+                             break
+                        next_input = "System Warning: You returned an empty response. You must call a tool (e.g. assign_mission) or provide text."
+                        continue
                     
-                    yield json.dumps({"type": "response", "content": "Task planning complete (No actions generated)."}) + "\n"
-                    break
                 
                 stall_count = 0
                 safe_calls = []
