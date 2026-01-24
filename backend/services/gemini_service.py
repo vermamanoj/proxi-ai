@@ -277,7 +277,10 @@ class GeminiService:
         2. **EXECUTE**: Use tools to fix the issue.
         3. **REPORT**: When done, call `report_execution(mission_id, summary)`.
         
-        Do not just chat. Use the tools.
+        **RULES:**
+        - DO NOT DESCRIBE YOUR PLAN IN TEXT.
+        - DO NOT SAY "I will now check..."
+        - CALL THE FUNCTION IMMEDIATELY.
         """
         
         chat = self.client.aio.chats.create(
@@ -335,10 +338,17 @@ class GeminiService:
                     yield json.dumps({"type": "response", "content": text_buffer}) + "\n"
 
                 if not function_calls:
-                    if text_buffer: break
+                    if text_buffer:
+                        # LAZY MODE DETECTION
+                        # If model returns text that looks like a structured plan (e.g. "Goal: ...") but no tool calls, it's hallucinating the tool usage.
+                        # We trap this and force a retry.
+                        if current_mission_id is None and ("Verification:" in text_buffer or "Goal:" in text_buffer or "I will check" in text_buffer):
+                             log_system("Detected Lazy Text Plan. Forcing Retry.", "WARN")
+                             next_input = "SYSTEM ERROR: You wrote the plan as text. You must use the `assign_mission` tool. Try again."
+                             continue
+                        break # Normal text response
                     
                     # EMPTY RESPONSE HANDLING
-                    # If we have no calls and no text, it's a model stall. We must force it to continue.
                     stall_count += 1
                     
                     if has_thoughts:
@@ -425,6 +435,7 @@ class GeminiService:
                 next_input = tool_output_parts
             
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
+
 
         except Exception as e:
             log_system(f"HIVE ERROR: {e}", "ERR")
