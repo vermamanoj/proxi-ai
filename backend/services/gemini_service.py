@@ -246,21 +246,23 @@ class GeminiService:
                 
                 async for chunk in stream_iter:
                     if not chunk.candidates: continue
-                    part = chunk.candidates[0].content.parts[0]
                     
-                    # 1. Handle Thoughts
-                    if part.thought:
-                         log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
-                         yield json.dumps({"type": "llm_thought", "content": part.text}) + "\n"
-                    
-                    # 2. Handle Text Response (The actual answer)
-                    elif part.text:
-                         text_buffer += part.text
-                         # Optional: Yield partial text if desired, but buffering helps cleanliness
-                         
-                    # 3. Handle Function Calls
-                    if part.function_call:
-                         function_calls.append(part.function_call)
+                    # Fix: Iterate over ALL parts in the chunk. 
+                    # Gemini 3 may send [Thought, FunctionCall] in the same chunk.
+                    for part in chunk.candidates[0].content.parts:
+                        
+                        # 1. Handle Thoughts
+                        if part.thought:
+                             log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
+                             yield json.dumps({"type": "llm_thought", "content": part.text}) + "\n"
+                        
+                        # 2. Handle Text Response (The actual answer)
+                        elif part.text:
+                             text_buffer += part.text
+                             
+                        # 3. Handle Function Calls
+                        if part.function_call:
+                             function_calls.append(part.function_call)
 
                 # End of Stream for this Turn
                 

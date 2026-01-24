@@ -93,9 +93,22 @@ export const useProxiBrain = () => {
     updateTrace({ step_type: 'user_input', content: message, metadata: { complexity } });
 
     // --- TIMEOUT SETUP ---
-    // Gemini 3 Thinking can be slow, so we set a generous timeout (60s)
+    // We use an Activity Timeout. It resets every time we receive a chunk of data.
+    // This prevents hanging if the stream connects but sends no data.
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); 
+    let activityTimer: number;
+
+    const resetActivityTimer = () => {
+      if (activityTimer) window.clearTimeout(activityTimer);
+      activityTimer = window.setTimeout(() => {
+          controller.abort();
+          addLog(MessageSource.SYSTEM, "System Alert: Network Timeout. No data received for 45 seconds.");
+          setStatus('idle');
+          setMissionState(prev => ({ ...prev, phase: 'failed', active: false }));
+      }, 45000); // 45s Activity Timeout
+    };
+
+    resetActivityTimer();
 
     try {
       const response = await fetch('/api/chat', {
@@ -105,8 +118,6 @@ export const useProxiBrain = () => {
         signal: controller.signal
       });
       
-      clearTimeout(timeoutId);
-
       // --- CRITICAL FIX: Handle Proxy/Network Errors ---
       if (!response.ok) {
           throw new Error(`Connection Failed (${response.status} ${response.statusText}). Check Backend.`);
@@ -120,6 +131,9 @@ export const useProxiBrain = () => {
       let buffer = '';
 
       while (!done) {
+        // Reset timer before waiting for next chunk
+        resetActivityTimer();
+        
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
         buffer += decoder.decode(value, { stream: !done });
@@ -180,6 +194,9 @@ export const useProxiBrain = () => {
         }
       }
 
+      // Cleanup
+      window.clearTimeout(activityTimer);
+
       // Process any remaining buffer content
       if (buffer.trim()) {
          try {
@@ -191,17 +208,16 @@ export const useProxiBrain = () => {
       setStatus('idle');
 
     } catch (err: any) {
+      window.clearTimeout(activityTimer);
       console.error(err);
       
-      // Handle Timeout specifically
       if (err.name === 'AbortError') {
-         addLog(MessageSource.SYSTEM, `System Alert: Response Timed Out (60s). The agent might be "thinking" too hard or the backend is stalled.`);
+         // Already logged by timer callback
       } else {
          addLog(MessageSource.SYSTEM, `System Alert: ${err.message}`);
+         setStatus('idle');
+         setMissionState(prev => ({ ...prev, phase: 'failed', active: false }));
       }
-      
-      setStatus('idle');
-      setMissionState(prev => ({ ...prev, phase: 'failed', active: false }));
     }
   };
 
