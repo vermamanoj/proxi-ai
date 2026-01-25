@@ -65,14 +65,6 @@ class GeminiService:
 
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
-        if not self.api_key:
-            try:
-                with open(env_path, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        if line.strip().startswith('GEMINI_API_KEY'):
-                            self.api_key = line.split('=', 1)[1].strip().strip('"').strip("'")
-            except: pass
-        
         if self.api_key:
             self.client = genai.Client(api_key=self.api_key)
         else:
@@ -85,7 +77,7 @@ class GeminiService:
 
         self.desktop_service = get_desktop_service()
 
-        # 1. EXECUTION MAP (Actual Python Functions)
+        # 1. EXECUTION MAP
         self.tools_map = {
             "get_server_time": get_server_time,
             "get_system_health": self.get_system_health_wrapper, 
@@ -114,18 +106,18 @@ class GeminiService:
             "browser_command": self.browser_command
         }
 
-        # 2. DEFINITION LIST (Schemas for LLM)
+        # 2. DEFINITION LIST
         self.tool_definitions = [
             types.FunctionDeclaration(
                 name="assign_mission",
-                description="Starts a new verifiable mission. REQUIRED at the start of complex tasks.",
+                description="Starts a verifiable mission. Use this when the user reports a problem like 'Health Check', 'Fix CPU', or 'Deploy'.",
                 parameters=types.Schema(
                     type=types.Type.OBJECT,
                     properties={
-                        "goal": types.Schema(type=types.Type.STRING, description="Objective"),
+                        "goal": types.Schema(type=types.Type.STRING, description="The objective"),
                         "verification_criteria": types.Schema(
                             type=types.Type.OBJECT, 
-                            description="Success metrics (e.g. {'metric': 'cpu', 'threshold': 50})"
+                            description="Metrics to verify success (e.g. {'metric': 'cpu', 'threshold': 50})"
                         )
                     },
                     required=["goal", "verification_criteria"]
@@ -143,7 +135,7 @@ class GeminiService:
             ),
             types.FunctionDeclaration(
                 name="run_terminal_command",
-                description="Executes a shell command (PowerShell/Bash). Use for system ops.",
+                description="Executes a shell command.",
                 parameters=types.Schema(
                     type=types.Type.OBJECT,
                     properties={"command": types.Schema(type=types.Type.STRING)},
@@ -152,16 +144,16 @@ class GeminiService:
             ),
             types.FunctionDeclaration(
                 name="look_at_screen",
-                description="Takes a screenshot and analyzes it using Gemini Vision.",
+                description="Takes a screenshot and analyzes it.",
                 parameters=types.Schema(
                     type=types.Type.OBJECT,
-                    properties={"purpose": types.Schema(type=types.Type.STRING, description="What to look for")},
+                    properties={"purpose": types.Schema(type=types.Type.STRING)},
                     required=["purpose"]
                 )
             ),
             types.FunctionDeclaration(
                 name="report_execution",
-                description="Call this when the task is done to trigger verification.",
+                description="Call this when the task is done.",
                 parameters=types.Schema(
                     type=types.Type.OBJECT,
                     properties={
@@ -173,7 +165,7 @@ class GeminiService:
             ),
             types.FunctionDeclaration(
                 name="browser_command",
-                description="Controls the web browser (NAVIGATE, NEW_TAB, REFRESH).",
+                description="Controls the web browser.",
                 parameters=types.Schema(
                     type=types.Type.OBJECT,
                     properties={
@@ -234,7 +226,7 @@ class GeminiService:
             return (index, name, res)
         except Exception as e: return (index, name, str(e))
 
-    # --- THE HIVE ORCHESTRATOR (Manual History Management with Strict Part Preservation) ---
+    # --- THE HIVE ORCHESTRATOR (CLEAN IMPLEMENTATION) ---
     async def route_and_execute_stream(self, message: str, complexity_request: str = "fast"):
         log_system(f"HIVE ORCHESTRATOR: {message} [Mode: {complexity_request}]", "ROUTER")
         
@@ -244,26 +236,22 @@ class GeminiService:
 
         final_tools = [types.Tool(function_declarations=self.tool_definitions)]
         
-        # AGGRESSIVE SYSTEM INSTRUCTION WITH ONE-SHOT EXAMPLE
+        # SIMPLIFIED SYSTEM INSTRUCTION - NO SHOUTING
         hive_instruction = """
-        You are Proxi, a specialized AI operator.
+        You are Proxi, a technical AI operator.
+        Your goal is to execute the user's request using the available tools.
         
-        CRITICAL PROTOCOLS:
-        1. ACTION OVER SPEECH: Do NOT describe what you will do. CALL THE TOOL IMMEDIATELY.
-        2. VERIFICATION MANDATE: If the user implies a problem (health check, fix, diagnose), you MUST start with `assign_mission`.
-        
-        EXAMPLE OF CORRECT BEHAVIOR:
-        User: "Check system health."
-        Thought: I need to verify the system metrics. I will assign a mission.
-        Function Call: assign_mission(goal="System Health Check", verification_criteria={"metric": "system_vitals"})
-        (NO TEXT RESPONSE IS GENERATED UNTIL THE TOOL IS CALLED)
+        Guidelines:
+        1. If the user asks for a check (Health, Status, Logs), call the relevant tool immediately.
+        2. If the user implies a multi-step task (e.g., "Fix this"), start by calling `assign_mission`.
+        3. Be concise in your text responses.
         """
 
         # Config Setup
         if complexity_request == "deep":
             active_model = self.SMART_TEXT_MODEL
             gen_config = types.GenerateContentConfig(
-                temperature=0.2, # Extremely low temperature to force adherence
+                temperature=0.4, 
                 tools=final_tools,
                 system_instruction=hive_instruction,
                 thinking_config=types.ThinkingConfig(include_thoughts=True)
@@ -271,22 +259,9 @@ class GeminiService:
         else:
             active_model = self.FAST_TEXT_MODEL
             gen_config = types.GenerateContentConfig(
-                temperature=0.3, 
+                temperature=0.2, 
                 tools=final_tools,
-                system_instruction=hive_instruction,
-                safety_settings=[types.SafetySetting(
-                    category=types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                    threshold=types.HarmBlockThreshold.BLOCK_NONE
-                ), types.SafetySetting(
-                    category=types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                    threshold=types.HarmBlockThreshold.BLOCK_NONE
-                ), types.SafetySetting(
-                    category=types.HarmCategory.HARM_CATEGORY_HARASSMENT,
-                    threshold=types.HarmBlockThreshold.BLOCK_NONE
-                ), types.SafetySetting(
-                    category=types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                    threshold=types.HarmBlockThreshold.BLOCK_NONE
-                )]
+                system_instruction=hive_instruction
             )
 
         # MANUAL HISTORY INITIALIZATION
@@ -297,27 +272,22 @@ class GeminiService:
             )
         ]
         
-        # Initial yield
         yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Initializing Mission ({complexity_request} mode)..."}) + "\n"
 
-        # State Tracking
         current_mission_id = None
         current_criteria = None
-        verification_fails = 0
-        stall_count = 0
-        max_turns = 30
+        max_turns = 20
         current_turn = 0
 
         try:
             while current_turn < max_turns:
                 current_turn += 1
                 
-                # --- CALL LLM (Manual History) ---
+                # --- CALL LLM ---
                 function_calls = []
                 text_buffer = ""
-                has_thoughts = False
                 
-                # Accumulate ALL parts from the stream to rebuild the Model's turn exactly
+                # Accumulate parts to rebuild history correctly
                 model_response_parts = []
                 current_text_chunk = ""
                 
@@ -334,9 +304,8 @@ class GeminiService:
                     
                     for part in candidate.content.parts:
                         
-                        # 1. UI STREAMING & LOGGING
+                        # LOG THOUGHTS BUT DO NOT BUFFER AS RESPONSE TEXT
                         if part.thought:
-                             has_thoughts = True
                              log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
                              yield json.dumps({"type": "llm_thought", "content": part.text}) + "\n"
                         
@@ -349,55 +318,38 @@ class GeminiService:
                                  yield json.dumps({"type": "status_change", "phase": "executing", "tool": part.function_call.name}) + "\n"
                              function_calls.append(part.function_call)
                              
-                             # Flush pending text to history before adding function call
                              if current_text_chunk:
                                  model_response_parts.append(types.Part(text=current_text_chunk))
                                  current_text_chunk = ""
                              
-                             # CRITICAL: Force Dummy Thought Signature
-                             # This bypasses strict validation errors (Error 400: Missing thought signature)
-                             # by providing the context engineering key documented for custom history.
+                             # Dummy signature to satisfy API requirements
                              fc_part = types.Part(
                                  function_call=part.function_call,
-                                 thought_signature="context_engineering_is_the_way_to_go"
+                                 thought_signature="ctx" 
                              )
                              model_response_parts.append(fc_part)
                 
-                log_system(f"Turn {current_turn} finished. Thoughts: {has_thoughts}, Calls: {len(function_calls)}", "DEBUG")
+                log_system(f"Turn {current_turn} finished. Calls: {len(function_calls)}", "DEBUG")
                 
                 # Flush remaining text
                 if current_text_chunk:
                     model_response_parts.append(types.Part(text=current_text_chunk))
                 
-                # --- UPDATE HISTORY (MODEL TURN) ---
+                # Update History
                 if model_response_parts:
                     contents.append(types.Content(role="model", parts=model_response_parts))
                 
+                # Send text to UI
                 if text_buffer:
                     yield json.dumps({"type": "response", "content": text_buffer}) + "\n"
 
-                # --- NO TOOLS? CHECK FOR STALLS ---
+                # Exit condition: Model spoke text but no tools. 
+                # If "Deep" mode, this usually means it's asking a clarification or done.
                 if not function_calls:
-                    if text_buffer:
-                        # AGGRESSIVE NUDGE: If the model talks about assigning a mission but didn't call it.
-                        if current_mission_id is None and ("assign" in text_buffer.lower() or "mission" in text_buffer.lower()):
-                             log_system("Detected Text Plan describing tool use. Nudging...", "WARN")
-                             # Force it to act in the next turn with a robotic command
-                             contents.append(types.Content(role="user", parts=[types.Part(text="SYSTEM_INTERRUPT: You are looping. STOP THINKING. OUTPUT_JSON_NOW: assign_mission")]))
-                             continue
-                        break # Normal text finish
-                    
-                    stall_count += 1
-                    if stall_count >= 3:
-                         yield json.dumps({"type": "error", "content": "Model returned repeated empty responses."}) + "\n"
-                         break
-                    
-                    log_system(f"Empty response detected. Retrying (Attempt {stall_count})...", "WARN")
-                    # GENERIC NUDGE
-                    contents.append(types.Content(role="user", parts=[types.Part(text="You are planning but not executing. Stop thinking and CALL THE TOOL.")]))
-                    continue
-                
-                stall_count = 0
+                    if not text_buffer and not model_response_parts:
+                        # Empty turn? Retry once then fail.
+                        yield json.dumps({"type": "error", "content": "Model returned empty response."}) + "\n"
+                    break
                 
                 # --- EXECUTE TOOLS ---
                 yield json.dumps({"type": "tool_call_batch", "calls": [{"name": fc.name, "args": to_dict(fc.args)} for fc in function_calls]}) + "\n"
@@ -408,23 +360,23 @@ class GeminiService:
                     name = fc.name
                     args = to_dict(fc.args)
                     
-                    # ID Handling
+                    # Call ID handling
                     call_id = getattr(fc, 'id', None)
                     if not call_id and isinstance(fc, dict): call_id = fc.get('id')
                     
                     yield json.dumps({"type": "status_change", "phase": "executing", "tool": name}) + "\n"
                     
+                    # EXECUTE
                     _, _, res = await self._execute_with_index(i, name, args)
                     
-                    # Logic hooks
+                    # Mission ID tracking
                     if name == "assign_mission":
                         if "Mission" in str(res):
                             try:
                                 current_mission_id = str(res).split("Mission ")[1].split(" ")[0]
                                 current_criteria = args.get('verification_criteria', {})
                             except: pass
-                    elif name == "report_execution":
-                        if current_mission_id:
+                    elif name == "report_execution" and current_mission_id:
                             yield json.dumps({"type": "status_change", "phase": "verifying"}) + "\n"
                             evidence = await asyncio.to_thread(verify_mission, current_mission_id)
                             judgment = await self._verify_outcome(args.get('summary', 'Done'), evidence, json.dumps(current_criteria))
@@ -435,11 +387,10 @@ class GeminiService:
                                 yield json.dumps({"type": "verification", "status": "success", "reason": judgment.get('reason')}) + "\n"
                             else:
                                 finalize_mission(current_mission_id, "FAILED")
-                                verification_fails += 1
                                 res = f"VERIFICATION FAILED: {judgment.get('reason')}"
                                 yield json.dumps({"type": "verification", "status": "failed", "reason": judgment.get('reason')}) + "\n"
 
-                    # Construct Response Part
+                    # Add Result to History
                     tool_response_parts.append(
                         types.Part(
                             function_response=types.FunctionResponse(
@@ -451,10 +402,7 @@ class GeminiService:
                     )
                     yield json.dumps({"type": "tool_result", "name": name, "content": str(res)[:500]}) + "\n"
 
-                # --- UPDATE HISTORY (USER TURN / FUNCTION RESULTS) ---
                 contents.append(types.Content(role="user", parts=tool_response_parts))
-                
-                # Loop continues
             
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
 
@@ -466,7 +414,7 @@ class GeminiService:
         verifier_instruction = "You are a QA Auditor. Output JSON: {verified: bool, reason: str}."
         prompt = f"Claim: {claim}\nEvidence: {evidence}\nCriteria: {criteria}"
         try:
-            # Independent verification call (Stateless)
+            # Stateless verification
             response = await self.client.aio.models.generate_content(
                 model=self.SMART_TEXT_MODEL,
                 contents=prompt,
