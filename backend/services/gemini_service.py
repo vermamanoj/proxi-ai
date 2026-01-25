@@ -4,17 +4,17 @@ import asyncio
 import json
 import warnings
 import time
-import sys
 import base64
 from pathlib import Path
 from dotenv import load_dotenv
 
-# 1. Suppress Pydantic Warnings
+# Suppress Pydantic Warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
-# NEW SDK IMPORT
-from google import genai
-from google.genai import types
+# OLD STABLE SDK
+import google.generativeai as genai
+from google.generativeai import protos
+from google.generativeai.types import FunctionDeclaration, Tool
 
 # Internal Imports
 from backend.services.desktop.factory import get_desktop_service
@@ -40,33 +40,32 @@ from backend.tools.standard_tools import (
     create_github_issue
 )
 
-# 2. Force Load .env
+# Load .env
 root_dir = Path(__file__).resolve().parent.parent.parent
 env_path = root_dir / ".env"
-
 log_system(f"Loading environment variables from: {env_path}", "INIT")
-
 if env_path.exists():
     load_dotenv(dotenv_path=env_path, override=True)
 
-# --- Helper for Dict Conversion ---
-def to_dict(obj):
-    if hasattr(obj, 'to_dict'): return obj.to_dict()
-    if isinstance(obj, dict): return {k: to_dict(v) for k, v in obj.items()}
-    if isinstance(obj, list): return [to_dict(v) for v in obj]
+# Helper for protobuf conversion
+def proto_to_dict(obj):
+    if hasattr(obj, 'items'):
+        return {k: proto_to_dict(v) for k, v in obj.items()}
+    if hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes)):
+        return [proto_to_dict(v) for v in obj]
     return obj
 
 class GeminiService:
     
-    AUDIO_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025" 
-    FAST_TEXT_MODEL = "gemini-3-flash-preview"                  
-    SMART_TEXT_MODEL = "gemini-3-pro-preview"                   
-    VISION_MODEL = "gemini-3-pro-image-preview"                 
+    FAST_TEXT_MODEL = "gemini-2.0-flash"
+    SMART_TEXT_MODEL = "gemini-2.5-pro-preview-06-05"
+    VISION_MODEL = "gemini-2.0-flash"
 
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
         if self.api_key:
-            self.client = genai.Client(api_key=self.api_key)
+            genai.configure(api_key=self.api_key)
+            log_system(f"GEMINI_API_KEY loaded. ({self.api_key[:8]}...{self.api_key[-4:]})", "INIT")
         else:
             log_system("CRITICAL: GEMINI_API_KEY not found.", "ERR")
         
@@ -77,10 +76,10 @@ class GeminiService:
 
         self.desktop_service = get_desktop_service()
 
-        # 1. EXECUTION MAP
+        # EXECUTION MAP - Keys must match function names exactly
         self.tools_map = {
             "get_server_time": get_server_time,
-            "get_system_health": self.get_system_health_wrapper, 
+            "get_system_health": self.get_system_health,
             "update_github_file": update_github_file,
             "create_github_issue": create_github_issue,
             "send_slack_message": send_slack_message,
@@ -105,117 +104,71 @@ class GeminiService:
             "scroll_page": self.scroll_page,
             "browser_command": self.browser_command
         }
-
-        # 2. DEFINITION LIST
-        self.tool_definitions = [
-            types.FunctionDeclaration(
-                name="assign_mission",
-                description="Starts a verifiable mission. Use this when the user reports a problem like 'Health Check', 'Fix CPU', or 'Deploy'.",
-                parameters=types.Schema(
-                    type=types.Type.OBJECT,
-                    properties={
-                        "goal": types.Schema(type=types.Type.STRING, description="The objective"),
-                        "verification_criteria": types.Schema(
-                            type=types.Type.OBJECT, 
-                            description="Metrics to verify success (e.g. {'metric': 'cpu', 'threshold': 50})"
-                        )
-                    },
-                    required=["goal", "verification_criteria"]
-                )
-            ),
-            types.FunctionDeclaration(
-                name="get_system_health",
-                description="Retrieves current CPU, Memory, and System Status.",
-                parameters=types.Schema(type=types.Type.OBJECT, properties={})
-            ),
-             types.FunctionDeclaration(
-                name="get_server_time",
-                description="Gets server clock time.",
-                parameters=types.Schema(type=types.Type.OBJECT, properties={})
-            ),
-            types.FunctionDeclaration(
-                name="run_terminal_command",
-                description="Executes a shell command.",
-                parameters=types.Schema(
-                    type=types.Type.OBJECT,
-                    properties={"command": types.Schema(type=types.Type.STRING)},
-                    required=["command"]
-                )
-            ),
-            types.FunctionDeclaration(
-                name="look_at_screen",
-                description="Takes a screenshot and analyzes it.",
-                parameters=types.Schema(
-                    type=types.Type.OBJECT,
-                    properties={"purpose": types.Schema(type=types.Type.STRING)},
-                    required=["purpose"]
-                )
-            ),
-            types.FunctionDeclaration(
-                name="report_execution",
-                description="Call this when the task is done.",
-                parameters=types.Schema(
-                    type=types.Type.OBJECT,
-                    properties={
-                        "mission_id": types.Schema(type=types.Type.STRING),
-                        "summary": types.Schema(type=types.Type.STRING)
-                    },
-                    required=["mission_id", "summary"]
-                )
-            ),
-            types.FunctionDeclaration(
-                name="browser_command",
-                description="Controls the web browser.",
-                parameters=types.Schema(
-                    type=types.Type.OBJECT,
-                    properties={
-                        "action": types.Schema(type=types.Type.STRING, enum=["NAVIGATE", "NEW_TAB", "CLOSE_TAB", "REFRESH", "SEARCH"]),
-                        "url": types.Schema(type=types.Type.STRING)
-                    },
-                    required=["action"]
-                )
-            ),
-            types.FunctionDeclaration(name="create_linear_ticket", description="Creates a ticket.", parameters=types.Schema(type=types.Type.OBJECT, properties={"title": types.Schema(type=types.Type.STRING), "priority": types.Schema(type=types.Type.STRING)})),
-            types.FunctionDeclaration(name="send_slack_message", description="Sends a Slack msg.", parameters=types.Schema(type=types.Type.OBJECT, properties={"channel": types.Schema(type=types.Type.STRING), "message": types.Schema(type=types.Type.STRING)})),
-            types.FunctionDeclaration(name="query_knowledge_base", description="Searches docs.", parameters=types.Schema(type=types.Type.OBJECT, properties={"query": types.Schema(type=types.Type.STRING)})),
-            types.FunctionDeclaration(name="escalate_to_human", description="Escalates failure.", parameters=types.Schema(type=types.Type.OBJECT, properties={"mission_id": types.Schema(type=types.Type.STRING), "reason": types.Schema(type=types.Type.STRING)})),
-            types.FunctionDeclaration(name="wait_seconds", description="Waits for X seconds.", parameters=types.Schema(type=types.Type.OBJECT, properties={"seconds": types.Schema(type=types.Type.INTEGER)})),
-            types.FunctionDeclaration(name="click_at", description="Clicks at X,Y coordinates.", parameters=types.Schema(type=types.Type.OBJECT, properties={"x": types.Schema(type=types.Type.INTEGER), "y": types.Schema(type=types.Type.INTEGER)})),
-            types.FunctionDeclaration(name="type_text", description="Types text.", parameters=types.Schema(type=types.Type.OBJECT, properties={"text": types.Schema(type=types.Type.STRING)})),
-            types.FunctionDeclaration(name="scroll_page", description="Scrolls page.", parameters=types.Schema(type=types.Type.OBJECT, properties={"direction": types.Schema(type=types.Type.STRING)})),
-            types.FunctionDeclaration(name="open_target", description="Opens file/url.", parameters=types.Schema(type=types.Type.OBJECT, properties={"resource": types.Schema(type=types.Type.STRING)})),
-            types.FunctionDeclaration(name="read_page_content", description="Reads text from active page.", parameters=types.Schema(type=types.Type.OBJECT, properties={})),
-        ]
         
-        log_system(f"Gemini Service Initialized (New SDK) with {len(self.tools_map)} tools.", "INIT")
+        log_system(f"Gemini Service Initialized with {len(self.tools_map)} tools.", "INIT")
 
-    # --- DESKTOP WRAPPERS ---
-    def get_system_health_wrapper(self): return self.desktop_service.get_system_health()
-    def click_at(self, x: int, y: int): return self.desktop_service.click_at(x, y)
-    def drag_mouse(self, start_x: int, start_y: int, end_x: int, end_y: int): return self.desktop_service.drag_mouse(start_x, start_y, end_x, end_y)
-    def type_text(self, text: str): return self.desktop_service.type_text(text)
-    def press_hotkey(self, keys: list[str]): return self.desktop_service.press_hotkey(keys)
-    def wait_seconds(self, seconds: int): return self.desktop_service.wait_seconds(seconds)
-    def run_terminal_command(self, command: str): return self.desktop_service.run_terminal_command(command)
-    def open_target(self, resource: str): return self.desktop_service.open_target(resource)
-    def read_page_content(self): return self.desktop_service.read_page_content()
-    def scroll_page(self, direction: str = 'down'): return self.desktop_service.scroll_page(direction)
-    def browser_command(self, action: str, url: str = None): return self.desktop_service.browser_command(action, url)
-    def scan_ui_tree(self): return self.desktop_service.scan_ui_tree()
+    # --- DESKTOP WRAPPERS (names must match tools_map keys for SDK inference) ---
+    def get_system_health(self): 
+        """Returns system CPU, memory, and status."""
+        return self.desktop_service.get_system_health()
+    
+    def click_at(self, x: int, y: int): 
+        """Clicks at the specified X,Y screen coordinates."""
+        return self.desktop_service.click_at(x, y)
+    
+    def drag_mouse(self, start_x: int, start_y: int, end_x: int, end_y: int): 
+        """Drags from start coordinates to end coordinates."""
+        return self.desktop_service.drag_mouse(start_x, start_y, end_x, end_y)
+    
+    def type_text(self, text: str): 
+        """Types the specified text using keyboard."""
+        return self.desktop_service.type_text(text)
+    
+    def press_hotkey(self, keys: list[str]): 
+        """Presses a keyboard hotkey combination."""
+        return self.desktop_service.press_hotkey(keys)
+    
+    def wait_seconds(self, seconds: int): 
+        """Waits for the specified number of seconds."""
+        return self.desktop_service.wait_seconds(seconds)
+    
+    def run_terminal_command(self, command: str): 
+        """Executes a shell/terminal command."""
+        return self.desktop_service.run_terminal_command(command)
+    
+    def open_target(self, resource: str): 
+        """Opens a URL or file."""
+        return self.desktop_service.open_target(resource)
+    
+    def read_page_content(self): 
+        """Reads text content from the active window/page."""
+        return self.desktop_service.read_page_content()
+    
+    def scroll_page(self, direction: str = 'down'): 
+        """Scrolls the active window up or down."""
+        return self.desktop_service.scroll_page(direction)
+    
+    def browser_command(self, action: str, url: str = None): 
+        """Controls browser via hotkeys (NEW_TAB, CLOSE_TAB, NAVIGATE, REFRESH, SEARCH)."""
+        return self.desktop_service.browser_command(action, url)
+    
+    def scan_ui_tree(self): 
+        """Scans the accessibility tree for UI elements."""
+        return self.desktop_service.scan_ui_tree()
 
     def look_at_screen(self, purpose: str):
         base64_img = self.desktop_service.get_screenshot_base64()
         if not base64_img: return "Screenshot failed"
         try:
-            response = self.client.models.generate_content(
-                model=self.FAST_TEXT_MODEL,
-                contents=[
-                    f"Purpose: {purpose}. Describe UI layout and key elements.",
-                    types.Part.from_bytes(data=base64.b64decode(base64_img), mime_type='image/jpeg')
-                ]
-            )
+            model = genai.GenerativeModel(self.VISION_MODEL)
+            response = model.generate_content([
+                f"Purpose: {purpose}. Describe the UI layout and key elements visible.",
+                {'mime_type': 'image/jpeg', 'data': base64.b64decode(base64_img)}
+            ])
+            log_system(f"Vision analysis complete for: {purpose}", "VISION")
             return f"VISION: {response.text}"
-        except Exception as e: return f"Vision Error: {e}"
+        except Exception as e: 
+            return f"Vision Error: {e}"
 
     async def _execute_with_index(self, index: int, name: str, args: dict):
         func = self.tools_map.get(name)
@@ -226,184 +179,140 @@ class GeminiService:
             return (index, name, res)
         except Exception as e: return (index, name, str(e))
 
-    # --- THE HIVE ORCHESTRATOR (CLEAN IMPLEMENTATION) ---
+    async def _send_with_retry(self, chat, content, retries=2):
+        """Send message with retry on MALFORMED_FUNCTION_CALL errors"""
+        for attempt in range(retries + 1):
+            try:
+                return await asyncio.to_thread(chat.send_message, content)
+            except Exception as e:
+                if "MALFORMED_FUNCTION_CALL" in str(e) and attempt < retries:
+                    log_system(f"MALFORMED_FUNCTION_CALL - Retrying ({attempt+1}/{retries})", "WARN")
+                    await asyncio.sleep(1)
+                    continue
+                raise e
+
+    # --- MAIN ORCHESTRATOR ---
     async def route_and_execute_stream(self, message: str, complexity_request: str = "fast"):
-        log_system(f"HIVE ORCHESTRATOR: {message} [Mode: {complexity_request}]", "ROUTER")
-        
-        if not self.api_key: 
+        log_system(f"NEW REQUEST: {message} (Mode: {complexity_request})", "ROUTER")
+
+        if not self.api_key:
             yield json.dumps({"type": "error", "content": "API Key Missing"})
             return
 
-        final_tools = [types.Tool(function_declarations=self.tool_definitions)]
-        
-        # SIMPLIFIED SYSTEM INSTRUCTION - NO SHOUTING
-        hive_instruction = """
-        You are Proxi, a technical AI operator.
-        Your goal is to execute the user's request using the available tools.
-        
-        Guidelines:
-        1. If the user asks for a check (Health, Status, Logs), call the relevant tool immediately.
-        2. If the user implies a multi-step task (e.g., "Fix this"), start by calling `assign_mission`.
-        3. Be concise in your text responses.
-        """
+        # Tool declarations
+        tools = list(self.tools_map.values())
 
-        # Config Setup
-        if complexity_request == "deep":
-            active_model = self.SMART_TEXT_MODEL
-            gen_config = types.GenerateContentConfig(
-                temperature=0.4, 
-                tools=final_tools,
-                system_instruction=hive_instruction,
-                thinking_config=types.ThinkingConfig(include_thoughts=True)
-            )
-        else:
-            active_model = self.FAST_TEXT_MODEL
-            gen_config = types.GenerateContentConfig(
-                temperature=0.2, 
-                tools=final_tools,
-                system_instruction=hive_instruction
-            )
+        # Model selection
+        model_name = self.SMART_TEXT_MODEL if complexity_request == "deep" else self.FAST_TEXT_MODEL
+        log_system(f"Using model: {model_name}", "ROUTER")
 
-        # MANUAL HISTORY INITIALIZATION
-        contents = [
-            types.Content(
-                role="user",
-                parts=[types.Part(text=f"GOAL: {message}")]
-            )
-        ]
-        
-        yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Initializing Mission ({complexity_request} mode)..."}) + "\n"
+        # System instruction for transparency
+        system_instruction = """You are Proxi, a Headless Operator with OS-level access.
+
+CRITICAL RULE - THINK BEFORE YOU ACT:
+Before EVERY tool call, you MUST first explain in text:
+1. WHAT you are about to do
+2. WHY you are doing it  
+3. WHAT you expect to find
+
+Example: "I will check the system health metrics to assess CPU and memory usage. This will help identify any resource bottlenecks."
+
+GUIDELINES:
+- For status checks: Explain what you're checking, then call the tool.
+- For multi-step tasks: Start with `assign_mission` to define success criteria.
+- For desktop actions: ALWAYS explain coordinates/targets before clicking.
+- After each tool result: Summarize what you observed before the next action.
+- Use PowerShell syntax on Windows (use `;` not `&&`).
+
+SAFETY: You control real hardware. Never execute without explaining first."""
+
+        yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Initializing ({complexity_request} mode)..."}) + "\n"
 
         current_mission_id = None
         current_criteria = None
-        max_turns = 20
-        current_turn = 0
 
         try:
-            while current_turn < max_turns:
-                current_turn += 1
-                
-                # --- CALL LLM ---
-                function_calls = []
-                text_buffer = ""
-                
-                # Accumulate parts to rebuild history correctly
-                model_response_parts = []
-                current_text_chunk = ""
-                
-                stream_iter = await self.client.aio.models.generate_content_stream(
-                    model=active_model,
-                    contents=contents,
-                    config=gen_config
-                )
-                
-                async for chunk in stream_iter:
-                    if not chunk.candidates: continue
-                    candidate = chunk.candidates[0]
-                    if not candidate.content or not candidate.content.parts: continue 
-                    
-                    for part in candidate.content.parts:
-                        
-                        # LOG THOUGHTS BUT DO NOT BUFFER AS RESPONSE TEXT
-                        if part.thought:
-                             log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
-                             yield json.dumps({"type": "llm_thought", "content": part.text}) + "\n"
-                        
-                        if part.text:
-                            text_buffer += part.text
-                            current_text_chunk += part.text
-                        
-                        if part.function_call:
-                             if not function_calls:
-                                 yield json.dumps({"type": "status_change", "phase": "executing", "tool": part.function_call.name}) + "\n"
-                             function_calls.append(part.function_call)
-                             
-                             if current_text_chunk:
-                                 model_response_parts.append(types.Part(text=current_text_chunk))
-                                 current_text_chunk = ""
-                             
-                             # Dummy signature to satisfy API requirements
-                             fc_part = types.Part(
-                                 function_call=part.function_call,
-                                 thought_signature="ctx" 
-                             )
-                             model_response_parts.append(fc_part)
-                
-                log_system(f"Turn {current_turn} finished. Calls: {len(function_calls)}", "DEBUG")
-                
-                # Flush remaining text
-                if current_text_chunk:
-                    model_response_parts.append(types.Part(text=current_text_chunk))
-                
-                # Update History
-                if model_response_parts:
-                    contents.append(types.Content(role="model", parts=model_response_parts))
-                
-                # Send text to UI
-                if text_buffer:
-                    yield json.dumps({"type": "response", "content": text_buffer}) + "\n"
+            # Create model with tools
+            model = genai.GenerativeModel(
+                model_name=model_name,
+                tools=tools,
+                system_instruction=system_instruction
+            )
+            chat = model.start_chat(enable_automatic_function_calling=False)
 
-                # Exit condition: Model spoke text but no tools. 
-                # If "Deep" mode, this usually means it's asking a clarification or done.
-                if not function_calls:
-                    if not text_buffer and not model_response_parts:
-                        # Empty turn? Retry once then fail.
-                        yield json.dumps({"type": "error", "content": "Model returned empty response."}) + "\n"
+            # Initial message
+            response = await self._send_with_retry(chat, f"GOAL: {message}")
+
+            max_turns = 15
+            for turn in range(max_turns):
+                # Extract parts safely
+                if not response.candidates or not response.candidates[0].content.parts:
                     break
-                
-                # --- EXECUTE TOOLS ---
-                yield json.dumps({"type": "tool_call_batch", "calls": [{"name": fc.name, "args": to_dict(fc.args)} for fc in function_calls]}) + "\n"
+                parts = response.candidates[0].content.parts
+                text_content = ""
+                function_calls = []
 
-                tool_response_parts = []
-                
-                for i, fc in enumerate(function_calls):
-                    name = fc.name
-                    args = to_dict(fc.args)
-                    
-                    # Call ID handling
-                    call_id = getattr(fc, 'id', None)
-                    if not call_id and isinstance(fc, dict): call_id = fc.get('id')
+                for part in parts:
+                    if part.text:
+                        text_content += part.text
+                    if part.function_call:
+                        function_calls.append(part.function_call)
+
+                # Stream thought/text to UI
+                if text_content:
+                    msg_type = "llm_thought" if function_calls else "response"
+                    log_system(f"LLM: {text_content[:100]}...", "THOUGHT" if function_calls else "RESPONSE")
+                    yield json.dumps({"type": msg_type, "content": text_content}) + "\n"
+
+                # No tools = done
+                if not function_calls:
+                    break
+
+                # Execute tools
+                safe_calls = [{"name": fc.name, "args": proto_to_dict(fc.args)} for fc in function_calls]
+                yield json.dumps({"type": "tool_call_batch", "calls": safe_calls}) + "\n"
+
+                response_parts = []
+                for i, call_info in enumerate(safe_calls):
+                    name = call_info['name']
+                    args = call_info['args']
                     
                     yield json.dumps({"type": "status_change", "phase": "executing", "tool": name}) + "\n"
-                    
-                    # EXECUTE
-                    _, _, res = await self._execute_with_index(i, name, args)
-                    
-                    # Mission ID tracking
-                    if name == "assign_mission":
-                        if "Mission" in str(res):
-                            try:
-                                current_mission_id = str(res).split("Mission ")[1].split(" ")[0]
-                                current_criteria = args.get('verification_criteria', {})
-                            except: pass
-                    elif name == "report_execution" and current_mission_id:
-                            yield json.dumps({"type": "status_change", "phase": "verifying"}) + "\n"
-                            evidence = await asyncio.to_thread(verify_mission, current_mission_id)
-                            judgment = await self._verify_outcome(args.get('summary', 'Done'), evidence, json.dumps(current_criteria))
-                            
-                            if judgment.get('verified'):
-                                finalize_mission(current_mission_id, "VERIFIED")
-                                res = f"VERIFICATION PASSED: {judgment.get('reason')}"
-                                yield json.dumps({"type": "verification", "status": "success", "reason": judgment.get('reason')}) + "\n"
-                            else:
-                                finalize_mission(current_mission_id, "FAILED")
-                                res = f"VERIFICATION FAILED: {judgment.get('reason')}"
-                                yield json.dumps({"type": "verification", "status": "failed", "reason": judgment.get('reason')}) + "\n"
+                    log_system(f"TOOL_CALL: {name}({args})", "EXEC")
 
-                    # Add Result to History
-                    tool_response_parts.append(
-                        types.Part(
-                            function_response=types.FunctionResponse(
-                                name=name,
-                                id=call_id, 
-                                response={"result": res}
-                            )
-                        )
-                    )
+                    # Execute
+                    _, _, res = await self._execute_with_index(i, name, args)
+
+                    # Mission tracking
+                    if name == "assign_mission" and "Mission" in str(res):
+                        try:
+                            current_mission_id = str(res).split("Mission ")[1].split(" ")[0]
+                            current_criteria = args.get('verification_criteria', {})
+                        except: pass
+                    elif name == "report_execution" and current_mission_id:
+                        yield json.dumps({"type": "status_change", "phase": "verifying"}) + "\n"
+                        evidence = await asyncio.to_thread(verify_mission, current_mission_id)
+                        judgment = await self._verify_outcome(args.get('summary', 'Done'), evidence, json.dumps(current_criteria))
+                        
+                        if judgment.get('verified'):
+                            finalize_mission(current_mission_id, "VERIFIED")
+                            res = f"VERIFICATION PASSED: {judgment.get('reason')}"
+                            yield json.dumps({"type": "verification", "status": "success", "reason": judgment.get('reason')}) + "\n"
+                        else:
+                            finalize_mission(current_mission_id, "FAILED")
+                            res = f"VERIFICATION FAILED: {judgment.get('reason')}"
+                            yield json.dumps({"type": "verification", "status": "failed", "reason": judgment.get('reason')}) + "\n"
+
+                    # Build response
+                    response_parts.append(protos.Part(function_response=protos.FunctionResponse(
+                        name=function_calls[i].name,
+                        response={"result": str(res)}
+                    )))
                     yield json.dumps({"type": "tool_result", "name": name, "content": str(res)[:500]}) + "\n"
 
-                contents.append(types.Content(role="user", parts=tool_response_parts))
-            
+                # Send results back
+                response = await self._send_with_retry(chat, response_parts)
+
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
 
         except Exception as e:
@@ -411,27 +320,21 @@ class GeminiService:
             yield json.dumps({"type": "error", "content": str(e)}) + "\n"
 
     async def _verify_outcome(self, claim, evidence, criteria):
-        verifier_instruction = "You are a QA Auditor. Output JSON: {verified: bool, reason: str}."
-        prompt = f"Claim: {claim}\nEvidence: {evidence}\nCriteria: {criteria}"
+        prompt = f"You are a QA Auditor. Verify if the claim is supported by evidence.\nClaim: {claim}\nEvidence: {evidence}\nCriteria: {criteria}\n\nRespond with JSON: {{\"verified\": true/false, \"reason\": \"...\"}}"
         try:
-            # Stateless verification
-            response = await self.client.aio.models.generate_content(
-                model=self.SMART_TEXT_MODEL,
-                contents=prompt,
-                config=types.GenerateContentConfig(system_instruction=verifier_instruction)
-            )
+            model = genai.GenerativeModel(self.FAST_TEXT_MODEL)
+            response = await asyncio.to_thread(model.generate_content, prompt)
             text = response.text
             start, end = text.find('{'), text.rfind('}') + 1
             return json.loads(text[start:end])
         except Exception as e:
-            return {"verified": False, "reason": f"Verifier crash: {e}"}
+            return {"verified": False, "reason": f"Verifier error: {e}"}
 
-    async def process_vision_command(self, image_bytes, user_prompt):
-        response = await self.client.aio.models.generate_content(
-            model=self.VISION_MODEL,
-            contents=[
-                user_prompt,
-                types.Part.from_bytes(data=image_bytes, mime_type='image/png')
-            ]
+    async def process_vision_command(self, image_bytes: bytes, user_prompt: str) -> str:
+        if not self.api_key: return "System Error: API Key missing."
+        model = genai.GenerativeModel(self.VISION_MODEL)
+        response = await asyncio.to_thread(
+            model.generate_content,
+            [user_prompt, {'mime_type': 'image/png', 'data': image_bytes}]
         )
         return response.text
