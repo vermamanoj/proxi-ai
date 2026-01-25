@@ -234,7 +234,7 @@ class GeminiService:
             return (index, name, res)
         except Exception as e: return (index, name, str(e))
 
-    # --- THE HIVE ORCHESTRATOR (Manual History Management) ---
+    # --- THE HIVE ORCHESTRATOR (Use CHAT session to handle History/Signatures) ---
     async def route_and_execute_stream(self, message: str, complexity_request: str = "fast"):
         log_system(f"HIVE ORCHESTRATOR: {message} [Mode: {complexity_request}]", "ROUTER")
         
@@ -266,7 +266,7 @@ class GeminiService:
         else:
             active_model = self.FAST_TEXT_MODEL
             gen_config = types.GenerateContentConfig(
-                temperature=0.3, # Lower temperature for better tool adherence
+                temperature=0.3, 
                 tools=final_tools,
                 system_instruction=hive_instruction,
                 safety_settings=[types.SafetySetting(
@@ -284,13 +284,15 @@ class GeminiService:
                 )]
             )
 
-        # MANUAL HISTORY: Start with just the user message
-        contents = [
-            types.Content(
-                role="user",
-                parts=[types.Part(text=f"GOAL: {message}")]
-            )
-        ]
+        # Create a Chat Session (Automatically manages history and thought signatures)
+        chat = self.client.aio.chats.create(
+            model=active_model,
+            config=gen_config,
+            history=[] 
+        )
+
+        # Start with the User's Message
+        next_message_parts = [types.Part(text=f"GOAL: {message}")]
         
         # Initial yield
         yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Initializing Mission ({complexity_request} mode)..."}) + "\n"
@@ -307,19 +309,14 @@ class GeminiService:
             while current_turn < max_turns:
                 current_turn += 1
                 
-                # --- CALL LLM ---
+                # --- CALL LLM via CHAT ---
                 function_calls = []
                 text_buffer = ""
                 has_thoughts = False
                 
-                # Buffer for the model's response parts to append to history later
-                model_response_parts = []
-                
-                stream_iter = await self.client.aio.models.generate_content_stream(
-                    model=active_model,
-                    contents=contents,
-                    config=gen_config
-                )
+                # Streaming from Chat
+                # chat.send_message_stream handles history internally.
+                stream_iter = await chat.send_message_stream(next_message_parts)
                 
                 async for chunk in stream_iter:
                     if not chunk.candidates: continue
@@ -329,56 +326,35 @@ class GeminiService:
                     if not candidate.content.parts: continue 
                     
                     for part in candidate.content.parts:
-                        # --- SANITIZE PART FOR HISTORY ---
                         
-                        # 1. Handle Thoughts (Stream to UI, but DO NOT add to history)
                         if part.thought:
-                            has_thoughts = True
-                            log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
-                            yield json.dumps({"type": "llm_thought", "content": part.text}) + "\n"
-                            # CRITICAL: Do NOT append thought parts to `model_response_parts`.
-                            # This fixes "Corrupted thought signature" errors on subsequent turns.
-                            continue
-
-                        # 2. Handle Text & Tools
-                        clean_part = types.Part()
+                             has_thoughts = True
+                             log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
+                             yield json.dumps({"type": "llm_thought", "content": part.text}) + "\n"
                         
                         if part.text:
-                            clean_part.text = part.text
                             text_buffer += part.text
                         
                         if part.function_call:
-                            # FunctionCall objects are safe to reuse in history
-                            clean_part.function_call = part.function_call
-                            if not function_calls:
-                                yield json.dumps({"type": "status_change", "phase": "executing", "tool": part.function_call.name}) + "\n"
-                            function_calls.append(part.function_call)
-                            
-                        # Only append if we extracted meaningful content (Text or Tool Call)
-                        if clean_part.text or clean_part.function_call:
-                            model_response_parts.append(clean_part)
+                             if not function_calls:
+                                 yield json.dumps({"type": "status_change", "phase": "executing", "tool": part.function_call.name}) + "\n"
+                             function_calls.append(part.function_call)
 
                 log_system(f"Turn {current_turn} finished. Thoughts: {has_thoughts}, Calls: {len(function_calls)}", "DEBUG")
                 
-                # --- UPDATE HISTORY (MODEL TURN) ---
-                if model_response_parts:
-                    contents.append(types.Content(role="model", parts=model_response_parts))
-                else:
-                    # If model only returned thoughts (and we stripped them), the parts list is empty.
-                    # This is fine for the API (it sees nothing happened), but we need to handle the loop logic.
-                    pass
-
                 if text_buffer:
                     yield json.dumps({"type": "response", "content": text_buffer}) + "\n"
 
-                # --- NO TOOLS? CHECK FOR STALLS ---
+                # --- NO TOOLS? END OF TURN ---
                 if not function_calls:
                     if text_buffer:
+                        # Logic to check if we should nudge or if it's done
                         if current_mission_id is None and "assign_mission" in text_buffer:
                              log_system("Detected Text Plan describing tool use. Nudging...", "WARN")
-                             contents.append(types.Content(role="user", parts=[types.Part(text="You are describing the tool call. Please EXECUTE it.")]))
+                             # Send user nudge for next turn
+                             next_message_parts = [types.Part(text="You are describing the tool call. Please EXECUTE it.")]
                              continue
-                        break # Normal text finish
+                        break # Done
                     
                     stall_count += 1
                     if stall_count >= 3:
@@ -386,7 +362,7 @@ class GeminiService:
                          break
                     
                     log_system(f"Empty response detected. Retrying (Attempt {stall_count})...", "WARN")
-                    contents.append(types.Content(role="user", parts=[types.Part(text="System Update: Please proceed with the tool call for the request.")]))
+                    next_message_parts = [types.Part(text="System Update: Please proceed with the tool call for the request.")]
                     continue
                 
                 stall_count = 0
@@ -431,7 +407,7 @@ class GeminiService:
                                 res = f"VERIFICATION FAILED: {judgment.get('reason')}"
                                 yield json.dumps({"type": "verification", "status": "failed", "reason": judgment.get('reason')}) + "\n"
 
-                    # Construct Response Part
+                    # Construct Response Part (Standard format for Chat)
                     tool_response_parts.append(
                         types.Part(
                             function_response=types.FunctionResponse(
@@ -443,10 +419,11 @@ class GeminiService:
                     )
                     yield json.dumps({"type": "tool_result", "name": name, "content": str(res)[:500]}) + "\n"
 
-                # --- UPDATE HISTORY (USER TURN / FUNCTION RESULTS) ---
-                contents.append(types.Content(role="user", parts=tool_response_parts))
+                # --- PREPARE NEXT TURN ---
+                # The chat object's send_message method expects the user input or tool responses for the *next* step.
+                next_message_parts = tool_response_parts
                 
-                # Loop continues
+                # Loop continues, sending 'next_message_parts' back to 'chat.send_message_stream'
             
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
 
