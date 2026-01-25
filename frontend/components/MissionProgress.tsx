@@ -91,7 +91,7 @@ export const MissionProgress: React.FC<MissionProgressProps> = ({
       <div className="p-3 border-b border-gray-800 flex items-center justify-between">
         <div className="flex-1 min-w-0">
           <div className="text-xs text-gray-500 uppercase tracking-wider">Mission</div>
-          <div className="text-sm text-gray-200 truncate">{missionGoal || 'Processing...'}</div>
+          <div className="text-sm text-gray-200 truncate">{missionGoal || (isProcessing ? 'Processing...' : 'Ready')}</div>
         </div>
         
         {/* View mode toggle */}
