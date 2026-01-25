@@ -249,8 +249,8 @@ class GeminiService:
         Your goal is to help the user by executing tools to fix problems.
         
         Protocol:
-        1. If the user request requires a complex, multi-step task, call `assign_mission`.
-        2. If it is a simple query (e.g. "check time", "check health"), CALL THE SPECIFIC TOOL DIRECTLY.
+        1. If the user request is about diagnosing a PROBLEM (e.g. "System is slow", "Check health", "Fix CPU"), YOU MUST USE `assign_mission`. This ensures the fix is verified.
+        2. If the user request is a simple informational query (e.g. "What time is it?", "Read the screen"), you may CALL THE SPECIFIC TOOL DIRECTLY.
         3. Be concise.
         """
 

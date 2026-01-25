@@ -73,11 +73,11 @@ export const useGeminiLive = () => {
             try {
                 // RELAY PATTERN:
                 // We send the text to the Backend API.
-                // CHANGED: complexity from 'deep' to 'fast' to ensure reliable tool execution for demos.
+                // CHANGED: complexity from 'fast' to 'deep' to ensure Gemini 3 Pro uses Thinking and assign_mission.
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: task, complexity: 'fast' }), 
+                    body: JSON.stringify({ message: task, complexity: 'deep' }), 
                     signal: controller.signal
                 });
 
@@ -243,7 +243,22 @@ export const useGeminiLive = () => {
             processorRef.current = processor;
           },
           onmessage: async (message: LiveServerMessage) => {
-             // Handle Tool Calls (The Relay Logic)
+             // 1. Handle Interruption (Barge-In)
+             if (message.serverContent?.interrupted) {
+                 addLog(MessageSource.SYSTEM, "🛑 Audio Interrupted by User");
+                 // Clear all playing audio
+                 sourcesRef.current.forEach(source => {
+                     try { source.stop(); } catch(e) {}
+                 });
+                 sourcesRef.current.clear();
+                 // Reset time cursor to current
+                 if (audioContextRef.current) {
+                     nextStartTimeRef.current = audioContextRef.current.currentTime;
+                 }
+                 return; // Skip processing other content in this interrupted message
+             }
+
+             // 2. Handle Tool Calls (The Relay Logic)
              if (message.toolCall) {
                 const responses = await handleToolCall(message.toolCall.functionCalls);
                 sessionPromise.then(session => {
@@ -251,7 +266,7 @@ export const useGeminiLive = () => {
                 });
              }
 
-             // Handle Audio Output
+             // 3. Handle Audio Output
              const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
              if (audioData && audioContextRef.current) {
                  const ctx = audioContextRef.current;
