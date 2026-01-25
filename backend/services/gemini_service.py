@@ -97,6 +97,9 @@ class GeminiService:
         
         # Session-based conversation history for multi-turn interactions
         self.sessions = {}  # {session_id: [{"role": "user/model", "parts": [...]}]}
+        
+        # Temporary storage for uploaded images (for save_uploaded_image tool)
+        self.current_uploaded_image = None  # {"bytes": bytes, "mime_type": str}
 
         # EXECUTION MAP - Keys must match function names exactly
         self.tools_map = {
@@ -146,6 +149,8 @@ class GeminiService:
             "ppt_resize_shape": ppt_resize_shape,
             "ppt_format_text": ppt_format_text,
             "ppt_get_theme_colors": ppt_get_theme_colors,
+            # Image handling
+            "save_uploaded_image": self.save_uploaded_image,
         }
         
         log_system(f"Gemini Service Initialized with {len(self.tools_map)} tools.", "INIT")
@@ -243,6 +248,32 @@ class GeminiService:
         # Return special marker with base64 data - handled in streaming loop
         return f"__SCREENSHOT__:data:image/jpeg;base64,{base64_img}:__CAPTION__:{caption}"
 
+    def save_uploaded_image(self, file_path: str):
+        """Save the currently uploaded image to the specified file path. Use this when user uploads an image and asks to save it."""
+        if not self.current_uploaded_image:
+            return "ERROR: No uploaded image available. The user must upload an image first."
+        
+        try:
+            import os
+            # Expand user paths like ~/Desktop
+            expanded_path = os.path.expanduser(file_path)
+            # Expand environment variables like $env:USERPROFILE
+            expanded_path = os.path.expandvars(expanded_path)
+            
+            # Ensure directory exists
+            dir_path = os.path.dirname(expanded_path)
+            if dir_path and not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+            
+            # Write the image bytes
+            with open(expanded_path, 'wb') as f:
+                f.write(self.current_uploaded_image['bytes'])
+            
+            log_system(f"Uploaded image saved to: {expanded_path}", "IMAGE")
+            return f"SUCCESS: Image saved to {expanded_path}"
+        except Exception as e:
+            return f"ERROR: Failed to save image: {str(e)}"
+
     async def _execute_with_index(self, index: int, name: str, args: dict):
         func = self.tools_map.get(name)
         if not func: return (index, name, f"Error: Tool {name} not found")
@@ -311,6 +342,7 @@ YOU HAVE ACCESS TO THESE CAPABILITIES - USE THEM:
 - run_terminal_command: Execute PowerShell commands (dir, ls, Get-Process, etc.)
 - look_at_screen: Take screenshot and analyze what's visible (for YOUR analysis only)
 - share_screenshot: Take screenshot and SHOW it to the user in the chat UI
+- save_uploaded_image: Save an image the user uploaded to a file path (e.g. Desktop)
 - open_target: Open files, folders, URLs, or applications
 - click_at, type_text, press_hotkey: Control mouse and keyboard
 - ppt_* tools: Edit PowerPoint presentations
@@ -320,6 +352,7 @@ TO LIST FILES ON DESKTOP, use: run_terminal_command with "dir $env:USERPROFILE\\
 TO OPEN AN IMAGE, use: open_target with the image path
 TO SEE THE SCREEN (for your analysis), use: look_at_screen
 TO SHOW THE USER A SCREENSHOT, use: share_screenshot - this displays it in the chat!
+TO SAVE AN UPLOADED IMAGE, use: save_uploaded_image with full path like "C:\\Users\\azureuser\\Desktop\\image.jpg"
 
 CRITICAL RULE - THINK BEFORE YOU ACT:
 Before EVERY tool call, explain: WHAT you're doing, WHY, and WHAT you expect.
@@ -456,6 +489,11 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                     # Create multimodal content for Gemini
                     import base64
                     image_bytes = base64.b64decode(image_b64)
+                    
+                    # Store image for save_uploaded_image tool
+                    self.current_uploaded_image = {'bytes': image_bytes, 'mime_type': mime_type}
+                    log_system(f"Uploaded image stored ({len(image_bytes)} bytes) for save_uploaded_image tool", "IMAGE")
+                    
                     message_content = [
                         text_prompt,
                         {'mime_type': mime_type, 'data': image_bytes}
