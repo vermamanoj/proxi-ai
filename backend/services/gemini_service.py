@@ -499,10 +499,14 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                             yield json.dumps({"type": "verification", "status": "failed", "reason": judgment.get('reason')}) + "\n"
 
                     # Handle screenshot sharing specially
-                    if str(res).startswith("__SCREENSHOT__:"):
-                        parts = str(res).split(":__CAPTION__:")
+                    res_str = str(res)
+                    log_system(f"Tool result preview: {res_str[:100]}...", "DEBUG")
+                    if res_str.startswith("__SCREENSHOT__:"):
+                        log_system("Screenshot marker detected, sending to UI", "SCREENSHOT")
+                        parts = res_str.split(":__CAPTION__:")
                         image_data = parts[0].replace("__SCREENSHOT__:", "")
                         caption = parts[1] if len(parts) > 1 else "Screenshot"
+                        log_system(f"Screenshot data length: {len(image_data)}, caption: {caption}", "SCREENSHOT")
                         yield json.dumps({"type": "status_change", "phase": "screenshot", "metadata": {"screenshot": image_data}, "content": caption}) + "\n"
                         res = f"Screenshot shared with user: {caption}"
                     
