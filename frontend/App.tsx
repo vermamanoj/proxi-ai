@@ -124,7 +124,14 @@ const App: React.FC = () => {
         <div className="flex items-center gap-2">
           {/* Audio Toggle with speaking indicator */}
           <button
-            onClick={() => setAudioEnabled(!audioEnabled)}
+            onClick={() => {
+              const newState = !audioEnabled;
+              setAudioEnabled(newState);
+              // Immediately cancel any ongoing speech when muting
+              if (!newState) {
+                window.speechSynthesis.cancel();
+              }
+            }}
             className={`p-2 rounded-lg transition-all relative ${
               audioEnabled 
                 ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-500/10' 

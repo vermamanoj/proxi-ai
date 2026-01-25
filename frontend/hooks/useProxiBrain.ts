@@ -52,6 +52,20 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
                  .replace(/\(https?:\/\/.*?\)/g, '');
   };
 
+  const stopSpeaking = useCallback(() => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  }, []);
+
+  // Stop speech when audio is disabled
+  useEffect(() => {
+    if (!audioEnabled) {
+      stopSpeaking();
+    }
+  }, [audioEnabled, stopSpeaking]);
+
   const speak = useCallback((text: string) => {
     // Skip TTS if audio is disabled
     if (!audioEnabled || !window.speechSynthesis) return;

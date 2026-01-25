@@ -77,6 +77,7 @@ class GeminiService:
     FAST_TEXT_MODEL = "gemini-3-flash-preview"  # Reflex mode
     SMART_TEXT_MODEL = "gemini-3-pro-preview"   # Deep reasoning mode
     VISION_MODEL = "gemini-3-flash-preview"     # Vision analysis
+    IMAGE_GEN_MODEL = "gemini-3-pro-image-preview"    # Image generation
 
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
