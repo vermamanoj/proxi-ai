@@ -75,7 +75,7 @@ def proto_to_dict(obj):
 class GeminiService:
     
     FAST_TEXT_MODEL = "gemini-2.0-flash"
-    SMART_TEXT_MODEL = "gemini-2.5-pro-preview-06-05"
+    SMART_TEXT_MODEL = "gemini-1.5-pro"  # Deep reasoning model
     VISION_MODEL = "gemini-2.0-flash"
 
     def __init__(self):
