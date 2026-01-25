@@ -194,6 +194,7 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
                     
                     // Handle screenshots - add to trace for display
                     if (data.metadata?.screenshot) {
+                        console.log('[SCREENSHOT] Received screenshot data, length:', data.metadata.screenshot.length);
                         updateTrace({ 
                             step_type: 'status_change', 
                             content: data.content || 'Screenshot', 
