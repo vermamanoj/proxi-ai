@@ -239,26 +239,48 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
             processorRef.current = processor;
           },
           onmessage: async (message: LiveServerMessage) => {
-             // Debug: log all messages to see structure
-             console.debug('[LIVE MSG]', JSON.stringify(message).substring(0, 200));
+             const msg = message as any;
              
-             if (message.serverContent?.interrupted) {
+             // Debug: log message type
+             const hasAudio = !!msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+             const hasText = !!msg.serverContent?.modelTurn?.parts?.find((p: any) => p.text);
+             const hasTranscript = !!msg.serverContent?.inputTranscript || !!msg.serverContent?.turnComplete;
+             if (!hasAudio) {
+               console.debug('[LIVE]', { 
+                 interrupted: msg.serverContent?.interrupted,
+                 inputTranscript: msg.serverContent?.inputTranscript,
+                 turnComplete: msg.serverContent?.turnComplete,
+                 hasText,
+                 toolCall: !!msg.toolCall
+               });
+             }
+             
+             if (msg.serverContent?.interrupted) {
                  addLog(MessageSource.SYSTEM, "🛑 Interrupted");
                  sourcesRef.current.forEach(s => s.stop());
                  sourcesRef.current.clear();
                  return;
              }
              
-             // Capture user's transcribed speech (inputTranscript)
-             const userTranscript = (message as any).serverContent?.inputTranscript;
-             if (userTranscript) {
-                 addLog(MessageSource.USER, userTranscript);
+             // Capture user's transcribed speech - try multiple field locations
+             const userTranscript = msg.serverContent?.inputTranscript 
+                 || msg.serverContent?.groundingMetadata?.retrievalQueries?.[0]
+                 || msg.inputTranscript;
+             if (userTranscript && typeof userTranscript === 'string' && userTranscript.trim()) {
+                 console.debug('[LIVE] User said:', userTranscript);
+                 addLog(MessageSource.USER, userTranscript.trim());
              }
              
-             // Capture model's text response
-             const modelText = message.serverContent?.modelTurn?.parts?.find((p: any) => p.text)?.text;
+             // Capture model's text response (filter out thinking patterns for clean display)
+             const modelText = msg.serverContent?.modelTurn?.parts?.find((p: any) => p.text)?.text;
              if (modelText) {
-                 addLog(MessageSource.AGENT, modelText);
+                 // Don't log internal thinking patterns starting with ** in chat mode
+                 const isThinkingPattern = modelText.trim().startsWith('**') && modelText.includes('**');
+                 if (!backendEnabledRef.current && isThinkingPattern) {
+                     console.debug('[LIVE] Filtered thinking:', modelText.substring(0, 50));
+                 } else {
+                     addLog(MessageSource.AGENT, modelText);
+                 }
              }
              
              if (message.toolCall?.functionCalls) {
