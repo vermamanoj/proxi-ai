@@ -179,9 +179,11 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
             if (!line.trim()) continue;
             try {
                 // Debug log to see raw stream in console
-                console.debug("[RAW STREAM]", line.substring(0, 100));
+                const isScreenshot = line.includes('screenshot');
+                console.log("[RAW STREAM]", isScreenshot ? `SCREENSHOT LINE (${line.length} chars)` : line.substring(0, 100));
                 
                 const data = JSON.parse(line);
+                console.log("[PARSED]", data.type, data.phase || '', data.metadata?.screenshot ? 'HAS_SCREENSHOT' : '');
                 
                 // --- STATE UPDATES ---
                 if (data.type === 'status_change') {
@@ -255,7 +257,13 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
         resetActivityTimer();
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
-        buffer += decoder.decode(value, { stream: !done });
+        const chunk = decoder.decode(value, { stream: !done });
+        buffer += chunk;
+        
+        // Debug buffer state
+        if (buffer.includes('screenshot')) {
+          console.log('[BUFFER] Contains screenshot, buffer length:', buffer.length, 'has newline:', buffer.includes('\n'));
+        }
         
         // Try to process immediately
         processBuffer();
