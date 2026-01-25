@@ -244,6 +244,7 @@ class GeminiService:
 
         final_tools = [types.Tool(function_declarations=self.tool_definitions)]
         
+        # AGGRESSIVE SYSTEM INSTRUCTION
         hive_instruction = """
         You are Proxi, a specialized AI operator.
         
@@ -251,13 +252,14 @@ class GeminiService:
         1. ACTION OVER SPEECH: Do NOT plan in text. Do NOT describe what you will do. CALL THE TOOL IMMEDIATELY.
         2. VERIFICATION MANDATE: If the user implies a problem (health check, fix, diagnose), you MUST start with `assign_mission`.
         3. NO HESITATION: If you see a tool that fits, call it. Do not wait.
+        4. NO REPEATING: Do not repeat the plan back to the user. Just execute.
         """
 
         # Config Setup
         if complexity_request == "deep":
             active_model = self.SMART_TEXT_MODEL
             gen_config = types.GenerateContentConfig(
-                temperature=0.7, # Lower temperature for better tool adherence
+                temperature=0.6, # Slightly higher than 0.3 but lower than 0.9 to balance creativity/action
                 tools=final_tools,
                 system_instruction=hive_instruction,
                 thinking_config=types.ThinkingConfig(include_thoughts=True)
@@ -373,9 +375,11 @@ class GeminiService:
                 # --- NO TOOLS? CHECK FOR STALLS ---
                 if not function_calls:
                     if text_buffer:
-                        if current_mission_id is None and "assign_mission" in text_buffer:
+                        # AGGRESSIVE NUDGE: If the model talks about assigning a mission but didn't call it.
+                        if current_mission_id is None and ("assign" in text_buffer.lower() or "mission" in text_buffer.lower()):
                              log_system("Detected Text Plan describing tool use. Nudging...", "WARN")
-                             contents.append(types.Content(role="user", parts=[types.Part(text="STOP PLANNING. CALL THE TOOL NOW.")]))
+                             # Force it to act in the next turn
+                             contents.append(types.Content(role="user", parts=[types.Part(text="IMMEDIATE ACTION REQUIRED: You must call the `assign_mission` function now. Do not respond with text.")]))
                              continue
                         break # Normal text finish
                     
@@ -385,8 +389,8 @@ class GeminiService:
                          break
                     
                     log_system(f"Empty response detected. Retrying (Attempt {stall_count})...", "WARN")
-                    # AGGRESSIVE NUDGE
-                    contents.append(types.Content(role="user", parts=[types.Part(text="CRITICAL: You are talking but not executing. You MUST emit a Function Call immediately to proceed.")]))
+                    # GENERIC NUDGE
+                    contents.append(types.Content(role="user", parts=[types.Part(text="You are planning but not executing. Stop thinking and CALL THE TOOL.")]))
                     continue
                 
                 stall_count = 0
