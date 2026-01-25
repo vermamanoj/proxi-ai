@@ -2,16 +2,33 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { LogEntry, MessageSource, ActiveToolState } from '../types';
-import { SYSTEM_INSTRUCTION, TOOLS } from '../constants';
+import { SYSTEM_INSTRUCTION_RELAY, SYSTEM_INSTRUCTION_CHAT, TOOLS } from '../constants';
 import { blobToBase64, createPcmBlob, decodeAudioData, encodePcm } from '../utils/audio';
 
-export const useGeminiLive = () => {
+export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled: boolean = true) => {
   const [connected, setConnected] = useState(false);
+  const backendEnabledRef = useRef(backendEnabled);
+  const audioOutputEnabledRef = useRef(audioOutputEnabled);
+  
+  // Keep refs in sync with props
+  useEffect(() => {
+    backendEnabledRef.current = backendEnabled;
+  }, [backendEnabled]);
+  
+  useEffect(() => {
+    audioOutputEnabledRef.current = audioOutputEnabled;
+    // Update gain node if it exists
+    if (gainNodeRef.current) {
+      gainNodeRef.current.gain.value = audioOutputEnabled ? 1 : 0;
+    }
+  }, [audioOutputEnabled]);
+  
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [volume, setVolume] = useState(0);
   const [activeTool, setActiveTool] = useState<ActiveToolState | null>(null);
   const [micMuted, setMicMuted] = useState(false);
   const micMutedRef = useRef(false); // Ref for use in audio callback
+  const gainNodeRef = useRef<GainNode | null>(null); // For audio output muting
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const inputContextRef = useRef<AudioContext | null>(null);
@@ -173,15 +190,24 @@ export const useGeminiLive = () => {
       inputContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       
+      // Create gain node for audio output control
+      gainNodeRef.current = audioContextRef.current.createGain();
+      gainNodeRef.current.gain.value = audioOutputEnabledRef.current ? 1 : 0;
+      gainNodeRef.current.connect(audioContextRef.current.destination);
+      
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
+      // Use different config based on backend mode
+      const systemInstruction = backendEnabledRef.current ? SYSTEM_INSTRUCTION_RELAY : SYSTEM_INSTRUCTION_CHAT;
+      const tools = backendEnabledRef.current ? [{ functionDeclarations: TOOLS }] : undefined;
+      
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         config: {
           responseModalities: [Modality.AUDIO],
-          systemInstruction: SYSTEM_INSTRUCTION,
-          tools: [{ functionDeclarations: TOOLS }],
+          systemInstruction,
+          tools,
         },
         callbacks: {
           onopen: () => {
@@ -240,13 +266,13 @@ export const useGeminiLive = () => {
                 sessionPromise.then(s => s.sendToolResponse({ functionResponses: responses }));
              }
              const audioData = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
-             if (audioData && audioContextRef.current) {
+             if (audioData && audioContextRef.current && gainNodeRef.current) {
                  const ctx = audioContextRef.current;
                  nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
                  const audioBuffer = await decodeAudioData(decodeAtob(audioData), ctx, 24000, 1);
                  const source = ctx.createBufferSource();
                  source.buffer = audioBuffer;
-                 source.connect(ctx.destination);
+                 source.connect(gainNodeRef.current); // Connect through gain node for mute control
                  source.addEventListener('ended', () => sourcesRef.current.delete(source));
                  source.start(nextStartTimeRef.current);
                  nextStartTimeRef.current += audioBuffer.duration;

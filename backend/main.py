@@ -33,7 +33,8 @@ async def root():
 
 @app.get("/api/health")
 async def health_check():
-    return {"message": "Proxi System Online", "status": "operational"}
+    mode = os.getenv("RUNTIME_MODE", "DEMO")
+    return {"message": "Proxi System Online", "status": "operational", "mode": mode}
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):

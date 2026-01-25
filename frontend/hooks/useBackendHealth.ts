@@ -31,8 +31,14 @@ export const useBackendHealth = (intervalMs: number = 5000) => {
     setLastChecked(new Date());
   }, []);
 
-  // Initial check and periodic keepalive
+  // Initial check and periodic keepalive (skip if intervalMs is 0)
   useEffect(() => {
+    if (intervalMs <= 0) {
+      setStatus('disconnected');
+      setMode('disabled');
+      return;
+    }
+    
     checkHealth(); // Initial check
     
     intervalRef.current = window.setInterval(checkHealth, intervalMs);

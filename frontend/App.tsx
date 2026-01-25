@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Settings, Mic, MicOff, Send, Camera, Flame, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX } from 'lucide-react';
+import { Settings, Mic, MicOff, Send, Camera, Flame, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, Server, ServerOff } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { useBackendHealth } from './hooks/useBackendHealth';
@@ -11,6 +11,8 @@ import { ApprovalRequest, TraceStep, MessageSource } from './types';
 const App: React.FC = () => {
   // Audio output toggle state
   const [audioEnabled, setAudioEnabled] = useState(true);
+  // Backend (Core) toggle - when ON, connects to backend for system actions
+  const [coreEnabled, setCoreEnabled] = useState(true);
 
   // Hook 1: Text & Vision (REST API)
   const { 
@@ -40,10 +42,10 @@ const App: React.FC = () => {
     activeTool: liveActiveTool,
     micMuted,
     toggleMicMute
-  } = useGeminiLive();
+  } = useGeminiLive(coreEnabled, audioEnabled);
 
-  // Hook 3: Backend Health Monitoring
-  const { status: backendStatus, mode: backendMode } = useBackendHealth(5000);
+  // Hook 3: Backend Health Monitoring (only when core is enabled)
+  const { status: backendStatus, mode: backendMode } = useBackendHealth(coreEnabled ? 5000 : 0);
 
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
@@ -145,21 +147,39 @@ const App: React.FC = () => {
           <h1 className="text-lg font-bold tracking-wider">
             PROXI<span className="text-proxi-accent">.OS</span>
           </h1>
-          {/* Backend Status Indicator */}
-          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs ${
-            backendStatus === 'connected' 
-              ? 'bg-green-500/10 text-green-400 border border-green-500/30'
-              : backendStatus === 'checking'
-              ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30'
-              : 'bg-red-500/10 text-red-400 border border-red-500/30'
-          }`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${
-              backendStatus === 'connected' ? 'bg-green-400' 
-              : backendStatus === 'checking' ? 'bg-yellow-400 animate-pulse'
-              : 'bg-red-400'
-            }`} />
-            <span>{backendStatus === 'connected' ? `Core: ${backendMode}` : backendStatus === 'checking' ? 'Connecting...' : 'Core Offline'}</span>
-          </div>
+          {/* Core Toggle Button */}
+          <button
+            onClick={() => {
+              const newState = !coreEnabled;
+              setCoreEnabled(newState);
+              // Disconnect and reconnect voice to apply new mode
+              if (liveConnected) {
+                liveDisconnect();
+                setTimeout(() => liveConnect(), 500);
+              }
+            }}
+            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-all cursor-pointer ${
+              !coreEnabled
+                ? 'bg-gray-700/50 text-gray-400 border border-gray-600/50 hover:bg-gray-700'
+                : backendStatus === 'connected' 
+                ? 'bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500/20'
+                : backendStatus === 'checking'
+                ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30'
+                : 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20'
+            }`}
+            title={coreEnabled ? 'Click to disable Core (chat-only mode)' : 'Click to enable Core (system actions)'}
+          >
+            {coreEnabled ? <Server className="w-3 h-3" /> : <ServerOff className="w-3 h-3" />}
+            <span>
+              {!coreEnabled 
+                ? 'Core: OFF' 
+                : backendStatus === 'connected' 
+                ? `Core: ${backendMode}` 
+                : backendStatus === 'checking' 
+                ? 'Core: ...' 
+                : 'Core: ⚠️'}
+            </span>
+          </button>
         </div>
         
         <div className="flex items-center gap-2">
