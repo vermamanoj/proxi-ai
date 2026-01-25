@@ -184,12 +184,28 @@ export const useGeminiLive = () => {
             processorRef.current = processor;
           },
           onmessage: async (message: LiveServerMessage) => {
+             // Debug: log all messages to see structure
+             console.debug('[LIVE MSG]', JSON.stringify(message).substring(0, 200));
+             
              if (message.serverContent?.interrupted) {
                  addLog(MessageSource.SYSTEM, "🛑 Interrupted");
                  sourcesRef.current.forEach(s => s.stop());
                  sourcesRef.current.clear();
                  return;
              }
+             
+             // Capture user's transcribed speech (inputTranscript)
+             const userTranscript = (message as any).serverContent?.inputTranscript;
+             if (userTranscript) {
+                 addLog(MessageSource.USER, userTranscript);
+             }
+             
+             // Capture model's text response
+             const modelText = message.serverContent?.modelTurn?.parts?.find((p: any) => p.text)?.text;
+             if (modelText) {
+                 addLog(MessageSource.AGENT, modelText);
+             }
+             
              if (message.toolCall?.functionCalls) {
                 const responses = await handleToolCall(message.toolCall.functionCalls);
                 sessionPromise.then(s => s.sendToolResponse({ functionResponses: responses }));

@@ -46,13 +46,19 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<'summary' | 'timeline' | 'full'>('timeline');
   const [animTick, setAnimTick] = useState(0);
 
-  // Animation ticker for voice visualization
+  // Animation ticker for voice visualization - only animate when actually speaking
+  const isSpeaking = liveVolume > 0.02;
   useEffect(() => {
-    if (liveConnected && !micMuted) {
+    if (liveConnected && !micMuted && isSpeaking) {
       const interval = setInterval(() => setAnimTick(t => t + 1), 100);
       return () => clearInterval(interval);
     }
-  }, [liveConnected, micMuted]);
+  }, [liveConnected, micMuted, isSpeaking]);
+
+  // Auto-connect voice on page load
+  useEffect(() => {
+    liveConnect();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Convert liveLogs to trace format for display when using voice
   const liveTrace: TraceStep[] = useMemo(() => {
@@ -338,7 +344,7 @@ const App: React.FC = () => {
               }`}
               title={liveConnected ? 'Disconnect Voice' : 'Connect Voice'}
             >
-              {/* Show animated bars when listening, mic icon when not */}
+              {/* Show bars when connected - animated when speaking, static when silent */}
               {liveConnected && !micMuted ? (
                 <div className="flex items-end justify-center gap-0.5 w-5 h-5">
                   {[0, 1, 2, 3].map((i) => (
@@ -346,11 +352,15 @@ const App: React.FC = () => {
                       key={i}
                       className="w-1 bg-green-400 rounded-full transition-all duration-100"
                       style={{
-                        height: `${Math.max(4, Math.min(20, 6 + liveVolume * 300 + Math.sin(animTick * 0.5 + i * 1.5) * 6))}px`
+                        height: isSpeaking 
+                          ? `${Math.max(6, Math.min(20, 8 + liveVolume * 300 + Math.sin(animTick * 0.5 + i * 1.5) * 6))}px`
+                          : `${[8, 12, 10, 6][i]}px` // Static wave pattern when silent
                       }}
                     />
                   ))}
                 </div>
+              ) : liveConnected && micMuted ? (
+                <MicOff className="w-5 h-5" />
               ) : (
                 <Mic className="w-5 h-5" />
               )}
