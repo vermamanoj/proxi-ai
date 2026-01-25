@@ -276,15 +276,20 @@ class GeminiService:
     async def route_and_execute_stream(self, message: str, complexity_request: str = "fast", session_id: str = None):
         log_system(f"NEW REQUEST: {message} (Mode: {complexity_request}, Session: {session_id})", "ROUTER")
         
-        # Generate session ID if not provided
+        # Generate unique session ID if not provided - use microseconds for uniqueness
+        import uuid
         if not session_id:
-            session_id = f"session_{int(time.time())}"
+            session_id = f"session_{uuid.uuid4().hex[:8]}"
         
-        # Get or create session history
+        # Get or create session history - limit to last 6 messages (3 exchanges) to prevent stale command re-execution
         if session_id not in self.sessions:
             self.sessions[session_id] = []
             log_system(f"New session created: {session_id}", "SESSION")
         else:
+            # Trim old history to prevent model from re-executing old commands
+            if len(self.sessions[session_id]) > 6:
+                self.sessions[session_id] = self.sessions[session_id][-6:]
+                log_system(f"Trimmed session history to last 6 messages", "SESSION")
             log_system(f"Continuing session: {session_id} with {len(self.sessions[session_id])} messages", "SESSION")
 
         if not self.api_key:
