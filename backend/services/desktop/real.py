@@ -73,10 +73,20 @@ class RealDesktopService(DesktopInterface):
         is_windows = self.os_type == "Windows"
         
         clean_cmd = command.strip()
+        
+        # Detect GUI apps that should be launched non-blocking
+        GUI_APPS = ['mspaint', 'notepad', 'calc', 'explorer', 'code', 'chrome', 'firefox', 'edge', 'word', 'excel', 'powerpoint']
+        is_gui_launch = any(clean_cmd.lower().startswith(app) or clean_cmd.lower() == app for app in GUI_APPS)
+        
         if is_windows:
             clean_cmd = clean_cmd.replace(" || ", " ; if ($?) { ").replace(" && ", " ; if ($?) { ") 
             if clean_cmd.lower().startswith("powershell"):
                 clean_cmd = clean_cmd.replace("powershell -command", "").replace("powershell", "").strip().strip('"').strip("'")
+            
+            # Launch GUI apps non-blocking with Start-Process
+            if is_gui_launch:
+                clean_cmd = f"Start-Process {clean_cmd}"
+                print(f"[DEBUG] GUI app detected, using: {clean_cmd}", flush=True)
         
         try:
             if is_windows:
