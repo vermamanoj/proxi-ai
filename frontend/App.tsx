@@ -51,8 +51,9 @@ const App: React.FC = () => {
     metadata: pendingAction.data
   } : null;
 
-  // Status
-  const isProcessing = brainStatus === 'processing' || brainStatus === 'speaking' || !!liveActiveTool;
+  // Status - don't block input during speech, only during actual processing
+  const isProcessing = brainStatus === 'processing' || !!liveActiveTool;
+  const isSpeaking = brainStatus === 'speaking';
   const statusColor = isProcessing ? 'bg-yellow-500' : liveConnected ? 'bg-green-500' : 'bg-gray-500';
 
   useEffect(() => {
@@ -64,6 +65,9 @@ const App: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim() && !isProcessing) {
+      // Cancel any ongoing speech so user can proceed immediately
+      window.speechSynthesis.cancel();
+      
       if (liveConnected) {
         liveSendCommand(input);
       } else {

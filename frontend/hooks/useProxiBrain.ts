@@ -9,6 +9,7 @@ export const useProxiBrain = () => {
   const [complexity, setComplexity] = useState<Complexity>('fast');
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [awaitingApproval, setAwaitingApproval] = useState(false); // Track if we're waiting for user approval
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
   // Mission State Tracking
@@ -79,12 +80,14 @@ export const useProxiBrain = () => {
     setStatus('processing');
     setPendingAction(null);
     
-    // Generate session ID if this is a new conversation (no existing trace)
+    // Generate session ID if this is a new conversation
+    // Only continue existing session if we're awaiting approval response
     let currentSessionId = sessionId;
-    if (!currentSessionId || lastTrace.length === 0) {
+    if (!currentSessionId || !awaitingApproval) {
       currentSessionId = `session_${Date.now()}`;
       setSessionId(currentSessionId);
       setLastTrace([]); // Clear trace for new session
+      setAwaitingApproval(false);
     }
     
     setMissionState({
@@ -185,6 +188,14 @@ export const useProxiBrain = () => {
                         addLog(MessageSource.AGENT, data.content);
                         speak(data.content);
                         setMissionState(prev => ({ ...prev, active: false }));
+                        
+                        // Check if agent is asking for approval - if so, keep session alive
+                        const responseText = (data.content || '').toLowerCase();
+                        const isApprovalRequest = responseText.includes('should i proceed') || 
+                                                  responseText.includes('reply \'yes\'') ||
+                                                  responseText.includes('approve or') ||
+                                                  responseText.includes('confirm or cancel');
+                        setAwaitingApproval(isApprovalRequest);
                         break;
                     case 'error':
                         addLog(MessageSource.SYSTEM, `Error: ${data.content}`);
