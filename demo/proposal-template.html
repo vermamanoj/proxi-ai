@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Proposal - Acme Corporation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Calibri', 'Segoe UI', sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #333;
+            background: #f0f0f0;
+            padding: 20px;
+        }
+        .document {
+            max-width: 8.5in;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            padding: 1in;
+            min-height: 11in;
+        }
+        /* Word-like toolbar */
+        .toolbar {
+            max-width: 8.5in;
+            margin: 0 auto 10px;
+            background: #f3f3f3;
+            border: 1px solid #d0d0d0;
+            padding: 8px;
+            display: flex;
+            gap: 16px;
+            font-size: 10px;
+        }
+        .toolbar-group {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            padding-right: 16px;
+            border-right: 1px solid #d0d0d0;
+        }
+        .toolbar button {
+            padding: 4px 8px;
+            background: transparent;
+            border: 1px solid transparent;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .toolbar button:hover {
+            background: #e0e0e0;
+            border: 1px solid #c0c0c0;
+        }
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #003366;
+        }
+        .logo {
+            font-size: 28pt;
+            font-weight: bold;
+            color: #003366;
+            letter-spacing: 2px;
+        }
+        .tagline {
+            color: #666;
+            font-style: italic;
+            margin-top: 5px;
+        }
+        /* Document title */
+        .doc-title {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .doc-title h1 {
+            font-size: 24pt;
+            color: #003366;
+            margin-bottom: 10px;
+        }
+        .doc-title .subtitle {
+            font-size: 14pt;
+            color: #666;
+        }
+        /* Info box */
+        .info-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        .info-row {
+            display: flex;
+            margin-bottom: 8px;
+        }
+        .info-label {
+            font-weight: bold;
+            width: 150px;
+            color: #003366;
+        }
+        .info-value {
+            flex: 1;
+        }
+        /* Pricing section */
+        .pricing-section {
+            margin: 40px 0;
+        }
+        .pricing-section h2 {
+            color: #003366;
+            border-bottom: 2px solid #003366;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .pricing-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .pricing-table th {
+            background: #003366;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        .pricing-table td {
+            padding: 12px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .pricing-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        .pricing-table .total-row {
+            background: #e8f4f8;
+            font-weight: bold;
+            font-size: 14pt;
+        }
+        .pricing-table .total-row td {
+            border-top: 2px solid #003366;
+        }
+        /* Editable price field */
+        .price-field {
+            font-size: 16pt;
+            font-weight: bold;
+            color: #003366;
+            background: #ffffcc;
+            border: 2px dashed #ffcc00;
+            padding: 4px 12px;
+            display: inline-block;
+        }
+        /* Notes section */
+        .notes-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #fff8dc;
+            border-left: 4px solid #ffc107;
+        }
+        .notes-section h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+        .notes-content {
+            color: #856404;
+            min-height: 60px;
+        }
+        .notes-placeholder {
+            color: #999;
+            font-style: italic;
+        }
+        /* Terms */
+        .terms {
+            margin-top: 40px;
+            font-size: 9pt;
+            color: #666;
+        }
+        .terms h3 {
+            color: #003366;
+            margin-bottom: 10px;
+        }
+        .terms ul {
+            margin-left: 20px;
+        }
+        /* Signature */
+        .signature-section {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .signature-box {
+            width: 45%;
+        }
+        .signature-line {
+            border-top: 1px solid #333;
+            margin-top: 50px;
+            padding-top: 5px;
+        }
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            font-size: 9pt;
+            color: #999;
+            border-top: 1px solid #dee2e6;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div class="toolbar-group">
+            <button>📄</button>
+            <button>💾</button>
+            <button>↩️</button>
+            <button>↪️</button>
+        </div>
+        <div class="toolbar-group">
+            <button><b>B</b></button>
+            <button><i>I</i></button>
+            <button><u>U</u></button>
+        </div>
+        <div class="toolbar-group">
+            <select style="font-size: 10px; padding: 2px;">
+                <option>Calibri</option>
+            </select>
+            <select style="font-size: 10px; padding: 2px; width: 50px;">
+                <option>11</option>
+            </select>
+        </div>
+        <div style="flex: 1;"></div>
+        <span style="color: #666; align-self: center;">Proposal_AcmeCorp_2026.docx - Word</span>
+    </div>
+
+    <div class="document">
+        <div class="header">
+            <div class="logo">TECHSOLUTIONS INC</div>
+            <div class="tagline">Enterprise Software Solutions</div>
+        </div>
+        
+        <div class="doc-title">
+            <h1>SALES PROPOSAL</h1>
+            <div class="subtitle">Enterprise Software License Agreement</div>
+        </div>
+        
+        <div class="info-box">
+            <div class="info-row">
+                <span class="info-label">Prepared For:</span>
+                <span class="info-value">Acme Corporation</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Contact:</span>
+                <span class="info-value">Jennifer Walsh, VP Procurement</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Prepared By:</span>
+                <span class="info-value">Sarah Johnson, Senior Account Executive</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Date:</span>
+                <span class="info-value">January 26, 2026</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Valid Until:</span>
+                <span class="info-value">February 26, 2026</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Proposal #:</span>
+                <span class="info-value">PROP-2026-0892</span>
+            </div>
+        </div>
+        
+        <div class="pricing-section">
+            <h2>Pricing Summary</h2>
+            
+            <table class="pricing-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Unit Price</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Enterprise Software License</td>
+                        <td>500 seats</td>
+                        <td>$2,450/seat</td>
+                        <td>$1,225,000</td>
+                    </tr>
+                    <tr>
+                        <td>Premium Support Package</td>
+                        <td>1 year</td>
+                        <td>$450,000</td>
+                        <td>$450,000</td>
+                    </tr>
+                    <tr>
+                        <td>Implementation Services</td>
+                        <td>Included</td>
+                        <td>$350,000</td>
+                        <td>$350,000</td>
+                    </tr>
+                    <tr>
+                        <td>Training (On-site)</td>
+                        <td>5 days</td>
+                        <td>$15,000/day</td>
+                        <td>$75,000</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" style="text-align: right;"><strong>Subtotal:</strong></td>
+                        <td><strong>$2,100,000</strong></td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" style="text-align: right;">Volume Discount (500+ seats):</td>
+                        <td>-$200,000</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td colspan="3" style="text-align: right;">TOTAL INVESTMENT:</td>
+                        <td><span class="price-field" id="total-price">$2,300,000</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="notes-section">
+            <h3>📝 Special Notes & Discounts</h3>
+            <div class="notes-content">
+                <p class="notes-placeholder">[Additional discount notes will appear here]</p>
+            </div>
+        </div>
+        
+        <div class="terms">
+            <h3>Terms & Conditions</h3>
+            <ul>
+                <li>Payment terms: Net 30 from invoice date</li>
+                <li>License term: 12 months from activation</li>
+                <li>Support hours: 24/7 with 4-hour response SLA</li>
+                <li>This proposal is valid for 30 days from the date above</li>
+                <li>Prices are in USD and exclude applicable taxes</li>
+            </ul>
+        </div>
+        
+        <div class="signature-section">
+            <div class="signature-box">
+                <strong>For TechSolutions Inc:</strong>
+                <div class="signature-line">
+                    Sarah Johnson<br>
+                    Senior Account Executive
+                </div>
+            </div>
+            <div class="signature-box">
+                <strong>For Acme Corporation:</strong>
+                <div class="signature-line">
+                    Authorized Signature<br>
+                    Title
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            TechSolutions Inc. | 123 Innovation Way, San Francisco, CA 94105<br>
+            Phone: (555) 123-4567 | Email: sales@techsolutions.com | www.techsolutions.com
+        </div>
+    </div>
+</body>
+</html>

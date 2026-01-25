@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CustomerFirst CRM - Client Management</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Tahoma', 'Segoe UI', sans-serif;
+            font-size: 11px;
+            background: #d4d0c8;
+            color: #000;
+        }
+        /* Classic Windows 2000 style title bar */
+        .title-bar {
+            background: linear-gradient(to right, #0a246a, #a6caf0);
+            color: white;
+            padding: 4px 8px;
+            font-weight: bold;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .title-bar-buttons {
+            display: flex;
+            gap: 2px;
+        }
+        .title-bar-buttons button {
+            width: 21px;
+            height: 21px;
+            font-size: 10px;
+            cursor: pointer;
+            background: #c0c0c0;
+            border: 2px outset #fff;
+        }
+        /* Menu bar */
+        .menu-bar {
+            background: #d4d0c8;
+            border-bottom: 1px solid #808080;
+            padding: 2px 4px;
+        }
+        .menu-bar span {
+            padding: 2px 8px;
+            cursor: pointer;
+        }
+        .menu-bar span:hover {
+            background: #0a246a;
+            color: white;
+        }
+        /* Toolbar with old-school buttons */
+        .toolbar {
+            background: #d4d0c8;
+            border-bottom: 2px groove #fff;
+            padding: 4px;
+            display: flex;
+            gap: 2px;
+        }
+        .toolbar button {
+            padding: 4px 8px;
+            font-size: 11px;
+            cursor: pointer;
+            background: #d4d0c8;
+            border: 2px outset #fff;
+        }
+        .toolbar button:active {
+            border: 2px inset #808080;
+        }
+        /* Search bar */
+        .search-bar {
+            background: #ffffcc;
+            border: 2px inset #808080;
+            padding: 8px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .search-bar input {
+            padding: 4px;
+            border: 2px inset #808080;
+            font-size: 11px;
+            width: 200px;
+        }
+        .search-bar button {
+            padding: 4px 16px;
+            background: #d4d0c8;
+            border: 2px outset #fff;
+            cursor: pointer;
+        }
+        /* Main content */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 140px);
+        }
+        /* Results panel */
+        .results-panel {
+            width: 300px;
+            background: #fff;
+            border-right: 2px groove #fff;
+            overflow-y: auto;
+        }
+        .results-header {
+            background: #000080;
+            color: white;
+            padding: 4px 8px;
+            font-weight: bold;
+        }
+        .result-item {
+            padding: 8px;
+            border-bottom: 1px solid #c0c0c0;
+            cursor: pointer;
+        }
+        .result-item:hover {
+            background: #e0e0e0;
+        }
+        .result-item.selected {
+            background: #000080;
+            color: white;
+        }
+        .result-item .company {
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .result-item .details {
+            font-size: 10px;
+            color: #666;
+        }
+        .result-item.selected .details {
+            color: #ccc;
+        }
+        /* Detail panel */
+        .detail-panel {
+            flex: 1;
+            padding: 16px;
+            background: #fff;
+            overflow-y: auto;
+        }
+        .detail-header {
+            background: #000080;
+            color: white;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #808080;
+            margin-bottom: 16px;
+        }
+        .tab {
+            padding: 6px 16px;
+            background: #d4d0c8;
+            border: 1px solid #808080;
+            border-bottom: none;
+            cursor: pointer;
+            margin-right: 2px;
+        }
+        .tab.active {
+            background: #fff;
+            border-bottom: 1px solid #fff;
+            margin-bottom: -1px;
+        }
+        /* Form fields */
+        .field-group {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .field-group label {
+            font-weight: bold;
+            text-align: right;
+            padding-right: 8px;
+        }
+        .field-group .value {
+            padding: 2px 4px;
+            background: #f0f0f0;
+            border: 1px solid #c0c0c0;
+        }
+        /* Stats box */
+        .stats-box {
+            background: #f0f8ff;
+            border: 2px groove #fff;
+            padding: 12px;
+            margin-top: 16px;
+        }
+        .stats-box h3 {
+            color: #000080;
+            border-bottom: 1px solid #000080;
+            padding-bottom: 4px;
+            margin-bottom: 8px;
+        }
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px dotted #c0c0c0;
+        }
+        .stats-row .label {
+            font-weight: bold;
+        }
+        .stats-row .value {
+            color: #000080;
+            font-weight: bold;
+        }
+        .stats-row.highlight {
+            background: #ffffcc;
+            padding: 8px;
+            margin: 8px -12px;
+            font-size: 13px;
+        }
+        .stats-row.highlight .value {
+            color: #008000;
+            font-size: 14px;
+        }
+        /* Loyalty badge */
+        .loyalty-badge {
+            display: inline-block;
+            background: linear-gradient(180deg, #ffd700, #b8860b);
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-left: 8px;
+            border: 1px solid #8b6914;
+        }
+        /* Status bar */
+        .status-bar {
+            background: #d4d0c8;
+            border-top: 2px groove #fff;
+            padding: 4px 8px;
+            font-size: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .status-section {
+            border: 1px inset #808080;
+            padding: 2px 8px;
+            background: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="title-bar">
+        <span>📇 CustomerFirst CRM v2.8.4 - Client Management Module</span>
+        <div class="title-bar-buttons">
+            <button>_</button>
+            <button>□</button>
+            <button>X</button>
+        </div>
+    </div>
+    
+    <div class="menu-bar">
+        <span>File</span>
+        <span>Edit</span>
+        <span>View</span>
+        <span>Clients</span>
+        <span>Opportunities</span>
+        <span>Reports</span>
+        <span>Tools</span>
+        <span>Help</span>
+    </div>
+    
+    <div class="toolbar">
+        <button>📄 New</button>
+        <button>📂 Open</button>
+        <button>💾 Save</button>
+        <button>🖨️ Print</button>
+        <button>|</button>
+        <button>✉️ Email</button>
+        <button>📞 Call Log</button>
+        <button>📅 Schedule</button>
+        <button>|</button>
+        <button>📊 Reports</button>
+    </div>
+    
+    <div class="search-bar">
+        <label><strong>🔍 Quick Search:</strong></label>
+        <input type="text" value="Acme Corp" placeholder="Enter client name...">
+        <button>Search</button>
+        <button>Advanced...</button>
+    </div>
+    
+    <div class="main-container">
+        <div class="results-panel">
+            <div class="results-header">Search Results (1 found)</div>
+            <div class="result-item selected">
+                <div class="company">🏢 Acme Corporation</div>
+                <div class="details">ID: CLI-4532 | Enterprise | Active</div>
+            </div>
+            <div class="result-item">
+                <div class="company">🏢 Acme Industries Ltd</div>
+                <div class="details">ID: CLI-8921 | SMB | Inactive</div>
+            </div>
+            <div class="result-item">
+                <div class="company">🏢 Acme Solutions Inc</div>
+                <div class="details">ID: CLI-2104 | Startup | Active</div>
+            </div>
+        </div>
+        
+        <div class="detail-panel">
+            <div class="detail-header">
+                Client Record: Acme Corporation
+                <span class="loyalty-badge">⭐ PLATINUM</span>
+            </div>
+            
+            <div class="tabs">
+                <div class="tab active">General</div>
+                <div class="tab">Contacts</div>
+                <div class="tab">Opportunities</div>
+                <div class="tab">History</div>
+                <div class="tab">Documents</div>
+            </div>
+            
+            <div class="field-group">
+                <label>Client ID:</label>
+                <div class="value">CLI-4532</div>
+            </div>
+            <div class="field-group">
+                <label>Company Name:</label>
+                <div class="value">Acme Corporation</div>
+            </div>
+            <div class="field-group">
+                <label>Industry:</label>
+                <div class="value">Technology / Software</div>
+            </div>
+            <div class="field-group">
+                <label>Account Tier:</label>
+                <div class="value">Enterprise</div>
+            </div>
+            <div class="field-group">
+                <label>Primary Contact:</label>
+                <div class="value">Jennifer Walsh, VP Procurement</div>
+            </div>
+            <div class="field-group">
+                <label>Account Manager:</label>
+                <div class="value">Sarah Johnson</div>
+            </div>
+            <div class="field-group">
+                <label>Client Since:</label>
+                <div class="value">March 15, 2021</div>
+            </div>
+            <div class="field-group">
+                <label>Loyalty Status:</label>
+                <div class="value">⭐ Platinum (3+ years, $3M+ lifetime)</div>
+            </div>
+            
+            <div class="stats-box">
+                <h3>📊 Purchase History Summary</h3>
+                <div class="stats-row">
+                    <span class="label">First Purchase:</span>
+                    <span class="value">March 2021</span>
+                </div>
+                <div class="stats-row">
+                    <span class="label">Total Orders:</span>
+                    <span class="value">12</span>
+                </div>
+                <div class="stats-row">
+                    <span class="label">2021 Revenue:</span>
+                    <span class="value">$890,000</span>
+                </div>
+                <div class="stats-row">
+                    <span class="label">2022 Revenue:</span>
+                    <span class="value">$1,450,000</span>
+                </div>
+                <div class="stats-row">
+                    <span class="label">2023 Revenue:</span>
+                    <span class="value">$1,620,000</span>
+                </div>
+                <div class="stats-row">
+                    <span class="label">2024 YTD:</span>
+                    <span class="value">$740,000</span>
+                </div>
+                <div class="stats-row highlight">
+                    <span class="label">💰 LIFETIME VALUE:</span>
+                    <span class="value">$4,700,000</span>
+                </div>
+                <div class="stats-row">
+                    <span class="label">Loyalty Discount:</span>
+                    <span class="value">5% (Platinum Tier)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status-bar">
+        <span class="status-section">User: SJOHNSON</span>
+        <span class="status-section">Database: CRM-PROD-02</span>
+        <span class="status-section">Records: 24,521</span>
+        <span class="status-section">Last Updated: 2026-01-26 02:28:00</span>
+    </div>
+</body>
+</html>
