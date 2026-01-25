@@ -191,7 +191,8 @@ class RealDesktopService(DesktopInterface):
             if width > 1920:
                 scale = 1920 / width
                 img_np = cv2.resize(img_np, (0, 0), fx=scale, fy=scale)
-            is_success, buffer = cv2.imencode(".jpg", cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR))
+            # Reduce quality to keep base64 size manageable for streaming
+            is_success, buffer = cv2.imencode(".jpg", cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 50])
             if not is_success: return None
             return base64.b64encode(buffer).decode("utf-8")
         except Exception as e:
