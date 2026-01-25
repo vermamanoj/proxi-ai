@@ -336,7 +336,6 @@ export const useGeminiLive = () => {
     sourcesRef.current.clear();
     setConnected(false);
     
-    
     // Also abort any pending backend request
     if (abortControllerRef.current) {
         abortControllerRef.current.abort();

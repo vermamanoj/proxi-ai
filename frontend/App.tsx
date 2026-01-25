@@ -318,7 +318,6 @@ const App: React.FC = () => {
                     className="hidden" 
                     accept="image/*"
                 />
-                
 
                 <button 
                     type="button"

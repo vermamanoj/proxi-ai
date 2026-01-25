@@ -244,22 +244,26 @@ class GeminiService:
 
         final_tools = [types.Tool(function_declarations=self.tool_definitions)]
         
-        # AGGRESSIVE SYSTEM INSTRUCTION
+        # AGGRESSIVE SYSTEM INSTRUCTION WITH ONE-SHOT EXAMPLE
         hive_instruction = """
         You are Proxi, a specialized AI operator.
         
         CRITICAL PROTOCOLS:
-        1. ACTION OVER SPEECH: Do NOT plan in text. Do NOT describe what you will do. CALL THE TOOL IMMEDIATELY.
+        1. ACTION OVER SPEECH: Do NOT describe what you will do. CALL THE TOOL IMMEDIATELY.
         2. VERIFICATION MANDATE: If the user implies a problem (health check, fix, diagnose), you MUST start with `assign_mission`.
-        3. NO HESITATION: If you see a tool that fits, call it. Do not wait.
-        4. NO REPEATING: Do not repeat the plan back to the user. Just execute.
+        
+        EXAMPLE OF CORRECT BEHAVIOR:
+        User: "Check system health."
+        Thought: I need to verify the system metrics. I will assign a mission.
+        Function Call: assign_mission(goal="System Health Check", verification_criteria={"metric": "system_vitals"})
+        (NO TEXT RESPONSE IS GENERATED UNTIL THE TOOL IS CALLED)
         """
 
         # Config Setup
         if complexity_request == "deep":
             active_model = self.SMART_TEXT_MODEL
             gen_config = types.GenerateContentConfig(
-                temperature=0.6, # Slightly higher than 0.3 but lower than 0.9 to balance creativity/action
+                temperature=0.2, # Extremely low temperature to force adherence
                 tools=final_tools,
                 system_instruction=hive_instruction,
                 thinking_config=types.ThinkingConfig(include_thoughts=True)
@@ -378,8 +382,8 @@ class GeminiService:
                         # AGGRESSIVE NUDGE: If the model talks about assigning a mission but didn't call it.
                         if current_mission_id is None and ("assign" in text_buffer.lower() or "mission" in text_buffer.lower()):
                              log_system("Detected Text Plan describing tool use. Nudging...", "WARN")
-                             # Force it to act in the next turn
-                             contents.append(types.Content(role="user", parts=[types.Part(text="IMMEDIATE ACTION REQUIRED: You must call the `assign_mission` function now. Do not respond with text.")]))
+                             # Force it to act in the next turn with a robotic command
+                             contents.append(types.Content(role="user", parts=[types.Part(text="SYSTEM_INTERRUPT: You are looping. STOP THINKING. OUTPUT_JSON_NOW: assign_mission")]))
                              continue
                         break # Normal text finish
                     
@@ -453,7 +457,6 @@ class GeminiService:
                 # Loop continues
             
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
-            
 
         except Exception as e:
             log_system(f"HIVE ERROR: {e}", "ERR")
