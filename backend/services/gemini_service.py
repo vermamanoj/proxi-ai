@@ -453,6 +453,7 @@ class GeminiService:
                 # Loop continues
             
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
+            
 
         except Exception as e:
             log_system(f"HIVE ERROR: {e}", "ERR")
