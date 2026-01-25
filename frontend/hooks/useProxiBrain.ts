@@ -258,11 +258,12 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
         const { value, done: doneReading } = await reader.read();
         done = doneReading;
         const chunk = decoder.decode(value, { stream: !done });
+        console.log('[CHUNK] Received chunk, size:', chunk.length);
         buffer += chunk;
         
-        // Debug buffer state
-        if (buffer.includes('screenshot')) {
-          console.log('[BUFFER] Contains screenshot, buffer length:', buffer.length, 'has newline:', buffer.includes('\n'));
+        // Debug buffer state for screenshot
+        if (buffer.includes('"phase":"screenshot"') || buffer.includes('"phase": "screenshot"')) {
+          console.log('[BUFFER] SCREENSHOT DETECTED! buffer length:', buffer.length);
         }
         
         // Try to process immediately
