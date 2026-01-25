@@ -85,8 +85,17 @@
 | IDLE | Green | Ready for input |
 | PLANNING | Blue | Processing your request |
 | EXECUTING | Yellow | Running tools |
+| SPEAKING | Blue pulse | Reading response aloud |
 | VERIFYING | Purple | Checking results |
 | ERROR | Red | Something went wrong |
+
+### Conversation History
+
+Proxi preserves your conversation history within a session:
+- Previous messages remain visible as you work
+- Visual separators appear between different tasks
+- Approval conversations maintain context until resolved
+- You can scroll back to review previous actions
 
 ---
 
@@ -193,7 +202,7 @@ Demo mode (`RUNTIME_MODE=DEMO`) is safe for testing and demonstrations. It simul
 | `click_at` | Moves real mouse | Returns "Click simulated" |
 | `look_at_screen` | Real screenshot | Mock description |
 
-### Demo Flow Example
+### Demo Flow Example (with Approval)
 
 ```
 You: "There's a CPU spike. Fix it."
@@ -202,16 +211,40 @@ Agent: "I will check system health to assess the situation..."
 Tool:  get_system_health → {'cpu_percent': 99.8, 'status': 'critical'}
 
 Agent: "CPU is critical. Identifying the culprit process..."
-Tool:  run_terminal_command("top") → ffmpeg_transcode at 99.8%
+Tool:  run_terminal_command("ps aux") → ffmpeg (PID 1337) at 99.8%
 
-Agent: "Found ffmpeg_transcode. Terminating..."
+Agent: "I found the issue:
+  Process: ffmpeg (PID 1337)
+  Usage: 99.8% CPU, 45% Memory
+  Task: Video transcoding - converting wedding_video.mp4
+  Impact if killed: Low - batch job can be restarted
+  
+  Should I proceed? Reply 'yes' to approve or 'no' to cancel."
+
+You: "yes"
+
+Agent: "Terminating process 1337..."
 Tool:  run_terminal_command("kill 1337") → Process terminated
 
 Agent: "Verifying fix..."
 Tool:  get_system_health → {'cpu_percent': 15.4, 'status': 'online'}
 
-Agent: "✅ Issue resolved. CPU is now at 15.4%"
+Agent: "Done! Process 1337 has been killed. CPU is now at 15.4% (normal).
+        I've also notified the ops team on Slack."
 ```
+
+### Approval Flow
+
+For destructive actions (killing processes, deleting files, system changes), Proxi will:
+
+1. **Diagnose** - Identify the issue and gather details
+2. **Present Options** - Show detailed info about the proposed action
+3. **Request Approval** - Ask for explicit user confirmation
+4. **Execute** - Only proceed after receiving "yes"
+5. **Verify** - Check that the action succeeded
+6. **Confirm** - Report final status to user
+
+**Approval Keywords:** `yes`, `no`, `proceed`, `cancel`, `approve`, `deny`
 
 ---
 

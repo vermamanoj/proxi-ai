@@ -121,6 +121,9 @@ Agent: "Found ffmpeg_transcode consuming CPU. I will terminate it..."
 | **Standard Tools** | GitHub, Slack, Linear | `tools/standard_tools.py` |
 | **Neural Trace** | Real-time streaming | Frontend `useProxiBrain.ts` |
 | **Voice I/O** | Gemini Live WebRTC | Frontend `useGeminiLive.ts` |
+| **Session Management** | Multi-turn conversation | Frontend + Backend |
+| **Approval Flow** | In-chat destructive action approval | `gemini_service.py` |
+| **Chat View** | Mobile-first chat bubbles | `ChatView.tsx` |
 
 ---
 
@@ -205,7 +208,39 @@ RUNTIME_MODE=REAL
 
 ---
 
-## 9. STATUS
+## 9. CONVERSATION MANAGEMENT
+
+### Session-Based Continuity
+Proxi maintains conversation context for multi-turn interactions:
+
+```
+Session Created → User asks question → Agent responds
+                                      ↓
+                        [If approval needed]
+                                      ↓
+                  Agent asks "Should I proceed?"
+                                      ↓
+                  User says "yes" → Same session continues
+                                      ↓
+                        [If new unrelated question]
+                                      ↓
+                  New session created, separator shown
+```
+
+### Trace History
+- Conversation history preserved across messages
+- Visual separator (`───── New Conversation ─────`) between tasks
+- Approval responses continue existing session
+- Unrelated questions start fresh context
+
+### Text Input During Speech
+- Users can type while TTS is playing
+- Submitting cancels ongoing speech
+- No blocking during voice output
+
+---
+
+## 10. STATUS
 
 - ✅ Verifiable Agent Architecture
 - ✅ Demo Mode (Mock Incidents)
@@ -215,3 +250,7 @@ RUNTIME_MODE=REAL
 - ✅ Transparency Protocol
 - ✅ Mobile Telepresence
 - ✅ Voice I/O Integration
+- ✅ In-Chat Approval Flow
+- ✅ Session-Based Conversation Continuity
+- ✅ Mobile-First Chat UI
+- ✅ Persistent Trace History

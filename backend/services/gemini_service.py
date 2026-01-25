@@ -278,7 +278,12 @@ GUIDELINES:
 - Use `ps aux | head -20` or `top -b -n1 | head -20` to list processes.
 - After fixing, ALWAYS verify by checking system health again.
 - Use PowerShell on Windows (`;` not `&&`), bash on Linux.
-- Only use send_slack_message for NOTIFICATIONS after resolution, not for approvals."""
+- Only use send_slack_message for NOTIFICATIONS after resolution, not for approvals.
+
+CRITICAL - ALWAYS CONFIRM TO USER:
+After completing any task, you MUST tell the user the final outcome in plain text BEFORE or AFTER any Slack/ticket notifications.
+Example: "Done! Process 1337 has been killed. CPU is now at 15.4% (normal). I've also notified the ops team on Slack."
+NEVER end a conversation with just a tool call - always provide a human-readable summary."""
 
         yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Initializing ({complexity_request} mode)..."}) + "\n"
 

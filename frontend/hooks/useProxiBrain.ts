@@ -83,12 +83,21 @@ export const useProxiBrain = () => {
     // Generate session ID if this is a new conversation
     // Only continue existing session if we're awaiting approval response
     let currentSessionId = sessionId;
-    if (!currentSessionId || !awaitingApproval) {
+    const isApprovalResponse = awaitingApproval && 
+      ['yes', 'no', 'proceed', 'cancel', 'approve', 'deny'].some(
+        word => message.toLowerCase().trim() === word || 
+                message.toLowerCase().includes(word)
+      );
+    
+    if (!currentSessionId || !isApprovalResponse) {
       currentSessionId = `session_${Date.now()}`;
       setSessionId(currentSessionId);
-      setLastTrace([]); // Clear trace for new session
-      setAwaitingApproval(false);
+      // Add separator instead of clearing trace (keep history visible)
+      if (lastTrace.length > 0) {
+        updateTrace({ step_type: 'status_change', content: '───── New Conversation ─────', metadata: { separator: true } });
+      }
     }
+    setAwaitingApproval(false); // Reset at start of each request
     
     setMissionState({
         active: true,

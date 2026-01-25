@@ -121,6 +121,18 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
         const isResponse = step.step_type === 'final_response';
         const isVerification = step.step_type === 'verification';
         const isScreenshot = step.step_type === 'status_change' && step.metadata?.screenshot;
+        const isSeparator = step.step_type === 'status_change' && step.metadata?.separator;
+
+        // Handle separator between conversations
+        if (isSeparator) {
+          return (
+            <div key={groupIdx} className="flex items-center justify-center py-4">
+              <div className="flex-1 h-px bg-gray-800" />
+              <span className="px-4 text-xs text-gray-600 uppercase tracking-wider">New Conversation</span>
+              <div className="flex-1 h-px bg-gray-800" />
+            </div>
+          );
+        }
 
         // Handle screenshot messages
         if (isScreenshot) {
