@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Settings, Mic, MicOff, Send, Camera, Flame, X, CheckCircle2, Loader2, Zap, BrainCircuit } from 'lucide-react';
+import { Settings, Mic, MicOff, Send, Camera, Flame, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { ChatView } from './components/ChatView';
@@ -8,6 +8,9 @@ import { ApprovalCard } from './components/ApprovalCard';
 import { ApprovalRequest } from './types';
 
 const App: React.FC = () => {
+  // Audio output toggle state
+  const [audioEnabled, setAudioEnabled] = useState(true);
+
   // Hook 1: Text & Vision (REST API)
   const { 
     status: brainStatus, 
@@ -16,13 +19,14 @@ const App: React.FC = () => {
     complexity,
     pendingAction,
     missionState,
+    isSpeaking,
     sendCommand, 
     sendVisionCommand,
     toggleComplexity,
     confirmAction,
     cancelAction,
     logSystemError
-  } = useProxiBrain();
+  } = useProxiBrain(audioEnabled);
 
   // Hook 2: Real-time Voice (Live API / WebRTC)
   const { 
@@ -53,8 +57,7 @@ const App: React.FC = () => {
 
   // Status - don't block input during speech, only during actual processing
   const isProcessing = brainStatus === 'processing' || !!liveActiveTool;
-  const isSpeaking = brainStatus === 'speaking';
-  const statusColor = isProcessing ? 'bg-yellow-500' : liveConnected ? 'bg-green-500' : 'bg-gray-500';
+  const statusColor = isProcessing ? 'bg-yellow-500' : isSpeaking ? 'bg-blue-500' : liveConnected ? 'bg-green-500' : 'bg-gray-500';
 
   useEffect(() => {
     if (brainStatus === 'idle' && !isRecording) {
@@ -119,6 +122,23 @@ const App: React.FC = () => {
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Audio Toggle with speaking indicator */}
+          <button
+            onClick={() => setAudioEnabled(!audioEnabled)}
+            className={`p-2 rounded-lg transition-all relative ${
+              audioEnabled 
+                ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-500/10' 
+                : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+            }`}
+            title={audioEnabled ? 'Mute Audio' : 'Enable Audio'}
+          >
+            {audioEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+            {/* Speaking indicator - animated ring */}
+            {isSpeaking && (
+              <span className="absolute inset-0 rounded-lg border-2 border-blue-400 animate-ping opacity-75" />
+            )}
+          </button>
+
           {/* Demo trigger - only show in demo mode */}
           <button
             onClick={triggerChaos}

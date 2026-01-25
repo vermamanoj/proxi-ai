@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { LogEntry, MessageSource, Complexity, AgentStatus, PendingAction, TraceStep, MissionState } from '../types';
 
-export const useProxiBrain = () => {
+export const useProxiBrain = (audioEnabled: boolean = true) => {
   const [status, setStatus] = useState<AgentStatus>('idle');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [lastTrace, setLastTrace] = useState<TraceStep[]>([]);
@@ -10,6 +10,7 @@ export const useProxiBrain = () => {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [awaitingApproval, setAwaitingApproval] = useState(false); // Track if we're waiting for user approval
+  const [isSpeaking, setIsSpeaking] = useState(false); // Track if TTS is active
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
   // Mission State Tracking
@@ -52,7 +53,8 @@ export const useProxiBrain = () => {
   };
 
   const speak = useCallback((text: string) => {
-    if (!window.speechSynthesis) return;
+    // Skip TTS if audio is disabled
+    if (!audioEnabled || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     
     const cleanText = cleanTextForSpeech(text);
@@ -64,14 +66,21 @@ export const useProxiBrain = () => {
     if (techVoice) utterance.voice = techVoice;
     utterance.rate = 1.05; 
     utterance.pitch = 0.95; 
-    utterance.onstart = () => setStatus('speaking');
+    utterance.onstart = () => {
+      setStatus('speaking');
+      setIsSpeaking(true);
+    };
     utterance.onend = () => {
+      setIsSpeaking(false);
       if (pendingAction) setStatus('awaiting_confirmation');
       else setStatus('idle');
     };
-    utterance.onerror = () => setStatus('idle');
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setStatus('idle');
+    };
     window.speechSynthesis.speak(utterance);
-  }, [pendingAction]);
+  }, [pendingAction, audioEnabled]);
 
   const sendCommand = async (message: string) => {
     if (!message.trim()) return;
@@ -111,10 +120,10 @@ export const useProxiBrain = () => {
 
     // --- TIMEOUT SETUP ---
     const controller = new AbortController();
-    let activityTimer: number;
+    let activityTimer: number | undefined;
 
     const resetActivityTimer = () => {
-      if (activityTimer) window.clearTimeout(activityTimer);
+      if (activityTimer !== undefined) window.clearTimeout(activityTimer);
       activityTimer = window.setTimeout(() => {
           controller.abort();
           addLog(MessageSource.SYSTEM, "System Alert: Network Timeout. No data received for 60 seconds.");
@@ -238,7 +247,7 @@ export const useProxiBrain = () => {
       }
 
       // Cleanup
-      window.clearTimeout(activityTimer);
+      if (activityTimer !== undefined) window.clearTimeout(activityTimer);
       if (flushTimer) clearTimeout(flushTimer);
 
       // Final flush
@@ -249,7 +258,7 @@ export const useProxiBrain = () => {
       setStatus('idle');
 
     } catch (err: any) {
-      window.clearTimeout(activityTimer);
+      if (activityTimer !== undefined) window.clearTimeout(activityTimer);
       console.error(err);
       
       if (err.name === 'AbortError') {
@@ -302,6 +311,7 @@ export const useProxiBrain = () => {
     pendingAction,
     missionState,
     sessionId,
+    isSpeaking,
     sendCommand,
     sendVisionCommand,
     toggleComplexity,
