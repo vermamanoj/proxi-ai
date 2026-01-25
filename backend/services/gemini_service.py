@@ -245,20 +245,19 @@ class GeminiService:
         final_tools = [types.Tool(function_declarations=self.tool_definitions)]
         
         hive_instruction = """
-        You are Proxi, a specialized AI operator for Google Cloud and Windows.
-        Your goal is to help the user by executing tools to fix problems.
+        You are Proxi, a specialized AI operator.
         
-        Protocol:
-        1. If the user request is about diagnosing a PROBLEM (e.g. "System is slow", "Check health", "Fix CPU"), YOU MUST USE `assign_mission`. This ensures the fix is verified.
-        2. If the user request is a simple informational query (e.g. "What time is it?", "Read the screen"), you may CALL THE SPECIFIC TOOL DIRECTLY.
-        3. Be concise.
+        CRITICAL PROTOCOLS:
+        1. ACTION OVER SPEECH: Do NOT plan in text. Do NOT describe what you will do. CALL THE TOOL IMMEDIATELY.
+        2. VERIFICATION MANDATE: If the user implies a problem (health check, fix, diagnose), you MUST start with `assign_mission`.
+        3. NO HESITATION: If you see a tool that fits, call it. Do not wait.
         """
 
         # Config Setup
         if complexity_request == "deep":
             active_model = self.SMART_TEXT_MODEL
             gen_config = types.GenerateContentConfig(
-                temperature=1.0, # Recommended for Reasoning models
+                temperature=0.7, # Lower temperature for better tool adherence
                 tools=final_tools,
                 system_instruction=hive_instruction,
                 thinking_config=types.ThinkingConfig(include_thoughts=True)
@@ -376,7 +375,7 @@ class GeminiService:
                     if text_buffer:
                         if current_mission_id is None and "assign_mission" in text_buffer:
                              log_system("Detected Text Plan describing tool use. Nudging...", "WARN")
-                             contents.append(types.Content(role="user", parts=[types.Part(text="You are describing the tool call. Please EXECUTE it.")]))
+                             contents.append(types.Content(role="user", parts=[types.Part(text="STOP PLANNING. CALL THE TOOL NOW.")]))
                              continue
                         break # Normal text finish
                     
@@ -386,7 +385,8 @@ class GeminiService:
                          break
                     
                     log_system(f"Empty response detected. Retrying (Attempt {stall_count})...", "WARN")
-                    contents.append(types.Content(role="user", parts=[types.Part(text="System Update: Please proceed with the tool call for the request.")]))
+                    # AGGRESSIVE NUDGE
+                    contents.append(types.Content(role="user", parts=[types.Part(text="CRITICAL: You are talking but not executing. You MUST emit a Function Call immediately to proceed.")]))
                     continue
                 
                 stall_count = 0
