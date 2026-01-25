@@ -51,6 +51,7 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [viewMode, setViewMode] = useState<'summary' | 'timeline' | 'full'>('timeline');
   const [animTick, setAnimTick] = useState(0);
+  const [stagedImage, setStagedImage] = useState<{ file: File; preview: string } | null>(null);
 
   // Animation ticker for voice visualization - only animate when actually speaking
   const isLiveSpeaking = liveVolume > 0.02;
@@ -106,10 +107,19 @@ const App: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && !isProcessing) {
-      // Cancel any ongoing speech so user can proceed immediately
-      window.speechSynthesis.cancel();
-      
+    if (isProcessing) return;
+    
+    // If we have a staged image, submit with vision-action
+    if (stagedImage) {
+      const prompt = input.trim() || "Analyze this image and describe what you see.";
+      sendVisionCommand(stagedImage.file, prompt);
+      clearStagedImage();
+      setInput('');
+      return;
+    }
+    
+    // Normal text submission
+    if (input.trim()) {
       if (liveConnected) {
         liveSendCommand(input);
       } else {
@@ -122,11 +132,16 @@ const App: React.FC = () => {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const prompt = input.trim() || "Analyze this image and describe what you see.";
-      sendVisionCommand(file, prompt);
-      setInput('');
+      // Stage the image for preview, don't submit yet
+      const preview = URL.createObjectURL(file);
+      setStagedImage({ file, preview });
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const clearStagedImage = () => {
+    if (stagedImage?.preview) URL.revokeObjectURL(stagedImage.preview);
+    setStagedImage(null);
   };
 
   const triggerChaos = async () => {
@@ -364,10 +379,30 @@ const App: React.FC = () => {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-3 text-gray-500 hover:text-gray-300 hover:bg-gray-800 rounded-xl transition-colors"
+            className={`p-3 rounded-xl transition-colors ${
+              stagedImage ? 'text-proxi-accent bg-proxi-accent/10' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+            }`}
           >
             <Camera className="w-5 h-5" />
           </button>
+
+          {/* Staged Image Preview */}
+          {stagedImage && (
+            <div className="relative">
+              <img 
+                src={stagedImage.preview} 
+                alt="Staged" 
+                className="w-10 h-10 rounded-lg object-cover border border-proxi-accent"
+              />
+              <button
+                type="button"
+                onClick={clearStagedImage}
+                className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center"
+              >
+                <X className="w-3 h-3 text-white" />
+              </button>
+            </div>
+          )}
 
           {/* Text Input */}
           <div className="flex-1 relative">
@@ -376,7 +411,7 @@ const App: React.FC = () => {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder={isProcessing ? "Processing..." : "Ask Proxi anything..."}
+              placeholder={isProcessing ? "Processing..." : stagedImage ? "What should I do with this image?" : "Ask Proxi anything..."}
               disabled={isProcessing}
               className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-proxi-accent/50 disabled:opacity-50"
             />
@@ -444,7 +479,7 @@ const App: React.FC = () => {
           {/* Send Button */}
           <button
             type="submit"
-            disabled={!input.trim() || isProcessing}
+            disabled={(!input.trim() && !stagedImage) || isProcessing}
             className="p-3 bg-proxi-accent text-black rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:bg-proxi-accent/80"
           >
             <Send className="w-5 h-5" />
