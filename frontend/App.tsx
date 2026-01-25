@@ -141,6 +141,9 @@ const App: React.FC = () => {
   return (
     <div className="h-screen bg-proxi-black text-gray-200 flex flex-col font-mono overflow-hidden">
       
+      {/* Mobile Safe Area Spacer - accounts for notch/status bar */}
+      <div className="h-6 sm:h-0 bg-gray-900 shrink-0" />
+      
       {/* Minimal Header */}
       <header className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 border-b border-gray-800 bg-gray-900 shrink-0 z-20 min-h-[48px]">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">

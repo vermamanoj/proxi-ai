@@ -23,8 +23,26 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     }
   }, [audioOutputEnabled]);
   
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  // Initialize logs from localStorage
+  const [logs, setLogs] = useState<LogEntry[]>(() => {
+    try {
+      const saved = localStorage.getItem('proxi_session_logs');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Restore Date objects
+        return parsed.map((log: any) => ({ ...log, timestamp: new Date(log.timestamp) }));
+      }
+    } catch (e) { console.warn('Failed to restore session logs:', e); }
+    return [];
+  });
   const [volume, setVolume] = useState(0);
+  
+  // Persist logs to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('proxi_session_logs', JSON.stringify(logs));
+    } catch (e) { console.warn('Failed to save session logs:', e); }
+  }, [logs]);
   const [activeTool, setActiveTool] = useState<ActiveToolState | null>(null);
   const [micMuted, setMicMuted] = useState(false);
   const micMutedRef = useRef(false); // Ref for use in audio callback
