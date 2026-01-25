@@ -253,14 +253,22 @@ class GeminiService:
         except Exception as e: return (index, name, str(e))
 
     async def _send_with_retry(self, chat, content, retries=2):
-        """Send message with retry on MALFORMED_FUNCTION_CALL errors"""
+        """Send message with retry on transient errors (500, MALFORMED_FUNCTION_CALL)"""
         for attempt in range(retries + 1):
             try:
                 return await asyncio.to_thread(chat.send_message, content)
             except Exception as e:
-                if "MALFORMED_FUNCTION_CALL" in str(e) and attempt < retries:
-                    log_system(f"MALFORMED_FUNCTION_CALL - Retrying ({attempt+1}/{retries})", "WARN")
-                    await asyncio.sleep(1)
+                error_str = str(e)
+                is_retryable = (
+                    "MALFORMED_FUNCTION_CALL" in error_str or
+                    "500" in error_str or
+                    "Internal error" in error_str or
+                    "UNAVAILABLE" in error_str
+                )
+                if is_retryable and attempt < retries:
+                    wait_time = (attempt + 1) * 2  # Exponential backoff: 2s, 4s
+                    log_system(f"Retryable error: {error_str[:100]} - Retry {attempt+1}/{retries} in {wait_time}s", "WARN")
+                    await asyncio.sleep(wait_time)
                     continue
                 raise e
 
