@@ -49,6 +49,12 @@ from backend.tools.ppt_tools import (
     ppt_delete_slide,
     ppt_save_presentation,
     ppt_goto_slide,
+    ppt_add_picture,
+    ppt_add_shape,
+    ppt_move_shape,
+    ppt_resize_shape,
+    ppt_format_text,
+    ppt_get_theme_colors,
 )
 
 # Load .env
@@ -126,6 +132,12 @@ class GeminiService:
             "ppt_delete_slide": ppt_delete_slide,
             "ppt_save_presentation": ppt_save_presentation,
             "ppt_goto_slide": ppt_goto_slide,
+            "ppt_add_picture": ppt_add_picture,
+            "ppt_add_shape": ppt_add_shape,
+            "ppt_move_shape": ppt_move_shape,
+            "ppt_resize_shape": ppt_resize_shape,
+            "ppt_format_text": ppt_format_text,
+            "ppt_get_theme_colors": ppt_get_theme_colors,
         }
         
         log_system(f"Gemini Service Initialized with {len(self.tools_map)} tools.", "INIT")
@@ -303,7 +315,35 @@ GUIDELINES:
 CRITICAL - ALWAYS CONFIRM TO USER:
 After completing any task, you MUST tell the user the final outcome in plain text BEFORE or AFTER any Slack/ticket notifications.
 Example: "Done! Process 1337 has been killed. CPU is now at 15.4% (normal). I've also notified the ops team on Slack."
-NEVER end a conversation with just a tool call - always provide a human-readable summary."""
+NEVER end a conversation with just a tool call - always provide a human-readable summary.
+
+POWERPOINT WORKFLOW:
+When creating or editing presentations, follow this goal-based workflow:
+
+1. ANALYZE PHASE:
+   - ppt_open_presentation() to open the file
+   - ppt_get_theme_colors() to understand colors and fonts
+   - ppt_get_slide_info(0) to see all slides
+   - If user references specific slides, use look_at_screen() to visually analyze layout/style
+
+2. PLAN PHASE (think before acting):
+   - Structure your content (titles, key points, flow)
+   - Decide which reference slide to duplicate as template
+   - Plan visual elements (shapes, images) if needed
+
+3. BUILD PHASE:
+   - ppt_duplicate_slide() to clone a well-designed reference slide
+   - ppt_edit_text() to replace content while preserving formatting
+   - ppt_add_shape() for visual elements (arrows, callouts)
+   - ppt_add_picture() to insert images
+   - ppt_move_shape() and ppt_resize_shape() for layout adjustments
+
+4. VERIFY PHASE:
+   - ppt_goto_slide() and look_at_screen() to verify result
+   - Ensure consistency with original theme
+   - ppt_save_presentation() when complete
+
+IMPORTANT: Duplicate existing slides rather than creating blank ones - this preserves theme formatting perfectly."""
 
         yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Initializing ({complexity_request} mode)..."}) + "\n"
 

@@ -401,6 +401,346 @@ def ppt_goto_slide(slide_number: int) -> str:
         return f"Error: {e}"
 
 
+def ppt_add_picture(slide_number: int, image_path: str, left: int = 100, top: int = 100, width: int = 400) -> str:
+    """
+    Adds a picture to a slide at the specified position.
+    
+    Args:
+        slide_number: 1-indexed slide number.
+        image_path: Full path to the image file (jpg, png, etc.).
+        left: X position in points (1 inch = 72 points).
+        top: Y position in points.
+        width: Width in points (height auto-scales).
+    
+    Returns:
+        Status message indicating success or failure.
+    """
+    log_system(f"Adding picture to slide {slide_number}: {image_path}", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    if not os.path.exists(image_path):
+        return f"Error: Image file not found: {image_path}"
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        
+        if slide_number > presentation.Slides.Count:
+            return f"Error: Slide {slide_number} does not exist"
+        
+        slide = presentation.Slides(slide_number)
+        
+        # AddPicture(FileName, LinkToFile, SaveWithDocument, Left, Top, Width, Height)
+        # Height=-1 means auto-scale maintaining aspect ratio
+        shape = slide.Shapes.AddPicture(
+            image_path,
+            LinkToFile=False,
+            SaveWithDocument=True,
+            Left=left,
+            Top=top,
+            Width=width,
+            Height=-1
+        )
+        
+        return f"Added picture '{os.path.basename(image_path)}' to slide {slide_number} (shape: {shape.Name})"
+    
+    except Exception as e:
+        log_system(f"Error adding picture: {e}", "ERR")
+        return f"Error: {e}"
+
+
+def ppt_add_shape(slide_number: int, shape_type: str, left: int, top: int, width: int, height: int, text: str = "") -> str:
+    """
+    Adds a shape to a slide with optional text.
+    
+    Args:
+        slide_number: 1-indexed slide number.
+        shape_type: Type of shape - "rectangle", "oval", "rounded_rect", "arrow_right", "callout".
+        left: X position in points.
+        top: Y position in points.
+        width: Width in points.
+        height: Height in points.
+        text: Optional text to add inside the shape.
+    
+    Returns:
+        Status message with shape name.
+    """
+    log_system(f"Adding {shape_type} shape to slide {slide_number}", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    # MsoAutoShapeType constants
+    SHAPE_TYPES = {
+        "rectangle": 1,        # msoShapeRectangle
+        "oval": 9,             # msoShapeOval
+        "rounded_rect": 5,     # msoShapeRoundedRectangle
+        "arrow_right": 33,     # msoShapeRightArrow
+        "arrow_left": 34,      # msoShapeLeftArrow
+        "arrow_up": 35,        # msoShapeUpArrow
+        "arrow_down": 36,      # msoShapeDownArrow
+        "callout": 105,        # msoShapeRoundedRectangularCallout
+        "star": 12,            # msoShape5pointStar
+        "diamond": 4,          # msoShapeDiamond
+    }
+    
+    shape_id = SHAPE_TYPES.get(shape_type.lower(), 1)
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        
+        if slide_number > presentation.Slides.Count:
+            return f"Error: Slide {slide_number} does not exist"
+        
+        slide = presentation.Slides(slide_number)
+        shape = slide.Shapes.AddShape(shape_id, left, top, width, height)
+        
+        if text:
+            shape.TextFrame.TextRange.Text = text
+        
+        return f"Added {shape_type} to slide {slide_number} (shape: {shape.Name})"
+    
+    except Exception as e:
+        log_system(f"Error adding shape: {e}", "ERR")
+        return f"Error: {e}"
+
+
+def ppt_move_shape(slide_number: int, shape_name: str, left: int, top: int) -> str:
+    """
+    Moves a shape to a new position on the slide.
+    
+    Args:
+        slide_number: 1-indexed slide number.
+        shape_name: Name of the shape to move.
+        left: New X position in points.
+        top: New Y position in points.
+    
+    Returns:
+        Status message.
+    """
+    log_system(f"Moving shape '{shape_name}' on slide {slide_number}", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        slide = presentation.Slides(slide_number)
+        
+        # Find shape
+        target_shape = None
+        for shape in slide.Shapes:
+            if shape_name.lower() in shape.Name.lower():
+                target_shape = shape
+                break
+        
+        if not target_shape:
+            available = [s.Name for s in slide.Shapes]
+            return f"Error: Shape '{shape_name}' not found. Available: {available}"
+        
+        old_pos = (target_shape.Left, target_shape.Top)
+        target_shape.Left = left
+        target_shape.Top = top
+        
+        return f"Moved '{shape_name}' from ({old_pos[0]:.0f}, {old_pos[1]:.0f}) to ({left}, {top})"
+    
+    except Exception as e:
+        log_system(f"Error moving shape: {e}", "ERR")
+        return f"Error: {e}"
+
+
+def ppt_resize_shape(slide_number: int, shape_name: str, width: int, height: int) -> str:
+    """
+    Resizes a shape on the slide.
+    
+    Args:
+        slide_number: 1-indexed slide number.
+        shape_name: Name of the shape to resize.
+        width: New width in points.
+        height: New height in points.
+    
+    Returns:
+        Status message.
+    """
+    log_system(f"Resizing shape '{shape_name}' on slide {slide_number}", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        slide = presentation.Slides(slide_number)
+        
+        target_shape = None
+        for shape in slide.Shapes:
+            if shape_name.lower() in shape.Name.lower():
+                target_shape = shape
+                break
+        
+        if not target_shape:
+            return f"Error: Shape '{shape_name}' not found"
+        
+        old_size = (target_shape.Width, target_shape.Height)
+        target_shape.Width = width
+        target_shape.Height = height
+        
+        return f"Resized '{shape_name}' from ({old_size[0]:.0f}x{old_size[1]:.0f}) to ({width}x{height})"
+    
+    except Exception as e:
+        log_system(f"Error resizing shape: {e}", "ERR")
+        return f"Error: {e}"
+
+
+def ppt_format_text(slide_number: int, shape_name: str, bold: bool = None, italic: bool = None, 
+                    font_size: int = None, font_color: str = None) -> str:
+    """
+    Formats text in a shape (bold, italic, size, color).
+    
+    Args:
+        slide_number: 1-indexed slide number.
+        shape_name: Name of the shape containing text.
+        bold: Set text bold (True/False).
+        italic: Set text italic (True/False).
+        font_size: Font size in points.
+        font_color: Color as hex string (e.g., "FF0000" for red).
+    
+    Returns:
+        Status message.
+    """
+    log_system(f"Formatting text in '{shape_name}' on slide {slide_number}", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        slide = presentation.Slides(slide_number)
+        
+        target_shape = None
+        for shape in slide.Shapes:
+            if shape_name.lower() in shape.Name.lower():
+                target_shape = shape
+                break
+        
+        if not target_shape:
+            return f"Error: Shape '{shape_name}' not found"
+        
+        if not target_shape.HasTextFrame:
+            return f"Error: Shape '{shape_name}' has no text"
+        
+        text_range = target_shape.TextFrame.TextRange
+        font = text_range.Font
+        changes = []
+        
+        if bold is not None:
+            font.Bold = bold
+            changes.append(f"bold={bold}")
+        
+        if italic is not None:
+            font.Italic = italic
+            changes.append(f"italic={italic}")
+        
+        if font_size is not None:
+            font.Size = font_size
+            changes.append(f"size={font_size}")
+        
+        if font_color is not None:
+            # Convert hex to RGB integer
+            rgb = int(font_color, 16)
+            font.Color.RGB = rgb
+            changes.append(f"color=#{font_color}")
+        
+        return f"Formatted '{shape_name}': {', '.join(changes)}"
+    
+    except Exception as e:
+        log_system(f"Error formatting text: {e}", "ERR")
+        return f"Error: {e}"
+
+
+def ppt_get_theme_colors(slide_number: int = 1) -> str:
+    """
+    Extracts theme colors from the presentation for consistency.
+    
+    Args:
+        slide_number: Slide to analyze (default 1).
+    
+    Returns:
+        Theme color information.
+    """
+    log_system(f"Getting theme colors from slide {slide_number}", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        
+        # Get theme colors
+        theme_info = []
+        try:
+            theme = presentation.SlideMaster.Theme
+            scheme = theme.ThemeColorScheme
+            
+            color_names = [
+                "Background1", "Text1", "Background2", "Text2",
+                "Accent1", "Accent2", "Accent3", "Accent4", "Accent5", "Accent6"
+            ]
+            
+            for i, name in enumerate(color_names, 1):
+                try:
+                    color = scheme.Colors(i)
+                    rgb = color.RGB
+                    # Convert to hex
+                    hex_color = f"{rgb & 0xFF:02X}{(rgb >> 8) & 0xFF:02X}{(rgb >> 16) & 0xFF:02X}"
+                    theme_info.append(f"  {name}: #{hex_color}")
+                except:
+                    pass
+        except:
+            theme_info.append("  Could not read theme scheme")
+        
+        # Get font info from master
+        font_info = []
+        try:
+            master = presentation.SlideMaster
+            title_font = master.TextStyles(1).Levels(1).Font.Name  # Title
+            body_font = master.TextStyles(2).Levels(1).Font.Name   # Body
+            font_info.append(f"  Title Font: {title_font}")
+            font_info.append(f"  Body Font: {body_font}")
+        except:
+            font_info.append("  Could not read fonts")
+        
+        return "Theme Colors:\n" + "\n".join(theme_info) + "\n\nFonts:\n" + "\n".join(font_info)
+    
+    except Exception as e:
+        log_system(f"Error getting theme: {e}", "ERR")
+        return f"Error: {e}"
+
+
 # Export all PPT tools
 PPT_TOOLS = {
     "ppt_open_presentation": ppt_open_presentation,
@@ -411,4 +751,10 @@ PPT_TOOLS = {
     "ppt_delete_slide": ppt_delete_slide,
     "ppt_save_presentation": ppt_save_presentation,
     "ppt_goto_slide": ppt_goto_slide,
+    "ppt_add_picture": ppt_add_picture,
+    "ppt_add_shape": ppt_add_shape,
+    "ppt_move_shape": ppt_move_shape,
+    "ppt_resize_shape": ppt_resize_shape,
+    "ppt_format_text": ppt_format_text,
+    "ppt_get_theme_colors": ppt_get_theme_colors,
 }
