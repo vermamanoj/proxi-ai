@@ -21,9 +21,9 @@ Proxi is a **Headless OS-Level AI Agent** that lets you work while on the move. 
 ### AI Models
 | Role | Model | Purpose |
 |------|-------|---------|
-| **Fast Reasoning** | `gemini-2.0-flash` | Quick responses, tool execution |
-| **Deep Reasoning** | `gemini-2.5-pro-preview-06-05` | Complex multi-step tasks |
-| **Vision Analysis** | `gemini-2.0-flash` | Screenshot analysis, UI verification |
+| **Fast Reasoning** | `gemini-3-flash-preview` | Quick responses, tool execution |
+| **Deep Reasoning** | `gemini-3-pro-preview` | Complex multi-step tasks |
+| **Vision Analysis** | `gemini-3-flash-preview` | Screenshot analysis, UI verification |
 | **Voice (Frontend)** | Gemini 2.5 Flash Native Audio | WebRTC voice I/O |
 
 ### Backend Stack
@@ -117,7 +117,7 @@ Agent: "Found ffmpeg_transcode consuming CPU. I will terminate it..."
 | **Factory Pattern** | RUNTIME_MODE switch | `desktop/factory.py` |
 | **Mission Tracking** | SQLite database | `database.py` |
 | **Verification** | Independent auditor | `orchestrator.py` |
-| **Tool Execution** | 25 registered tools | `gemini_service.py` |
+| **Tool Execution** | 30+ registered tools | `gemini_service.py` |
 | **Standard Tools** | GitHub, Slack, Linear | `tools/standard_tools.py` |
 | **Neural Trace** | Real-time streaming | Frontend `useProxiBrain.ts` |
 | **Voice I/O** | Gemini Live WebRTC | Frontend `useGeminiLive.ts` |
@@ -140,11 +140,16 @@ Agent: "Found ffmpeg_transcode consuming CPU. I will terminate it..."
 - `type_text(text)` - Keyboard input
 - `press_hotkey(keys)` - Keyboard shortcuts
 - `scroll_page(direction)` - Scroll up/down
-- `look_at_screen(purpose)` - Screenshot + Vision analysis
+- `look_at_screen(purpose)` - Screenshot + Vision analysis (for agent only)
+- `share_screenshot(caption)` - Screenshot displayed in chat UI
+- `save_uploaded_image(path)` - Save user-uploaded image to disk
 - `scan_ui_tree()` - Windows accessibility tree
 - `open_target(resource)` - Open URL/file
 - `read_page_content()` - Extract text from window
 - `browser_command(action)` - Browser hotkeys
+- `focus_window(title)` - Bring window to front
+- `list_windows()` - List all open windows
+- `get_window_rect(title)` - Get window position/size
 
 ### Integration Tools
 - `send_slack_message(channel, message)`
@@ -254,3 +259,8 @@ Session Created → User asks question → Agent responds
 - ✅ Session-Based Conversation Continuity
 - ✅ Mobile-First Chat UI
 - ✅ Persistent Trace History
+- ✅ Image Upload + Action Execution
+- ✅ Screenshot Sharing in Chat
+- ✅ LocalStorage Session Persistence
+- ✅ Window Management Tools
+- ✅ PowerPoint Automation (15 tools)

@@ -111,12 +111,22 @@ Proxi never blindly trusts its own output. Every task goes through:
 - Keyboard typing and hotkeys
 - Screenshot + Vision analysis
 - Windows UI automation
+- Window management (focus, list, position)
+
+### 📷 Image Upload + Action
+- Upload images from mobile camera
+- Agent can analyze AND take action on images
+- Save uploaded images to desktop
+- Staged upload UX (preview before submit)
 
 ### 📱 Mobile Telepresence
 - Access via any browser
 - Voice commands (Gemini Live)
 - Real-time status streaming
 - Works over Cloudflare Tunnel
+- Session persistence (survives page refresh)
+- Core toggle (enable/disable backend)
+- Mic mute with visual feedback
 
 ### 🔍 Transparency Protocol
 The agent explains reasoning before every action:
@@ -165,6 +175,7 @@ Agent: "Terminating ffmpeg to resolve spike..."
 |----------|--------|-------------|
 | `/api/chat` | POST | Send message, get streaming response |
 | `/api/vision` | POST | Analyze uploaded image |
+| `/api/vision-action` | POST | Image + action execution (streaming) |
 | `/api/missions` | GET | List all missions |
 | `/api/missions/{id}` | GET | Get mission details |
 | `/api/demo/trigger_chaos` | POST | Simulate CPU incident |
