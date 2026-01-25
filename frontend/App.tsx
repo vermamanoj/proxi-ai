@@ -141,10 +141,10 @@ const App: React.FC = () => {
     <div className="h-screen bg-proxi-black text-gray-200 flex flex-col font-mono overflow-hidden">
       
       {/* Minimal Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-proxi-dark/90 backdrop-blur-sm">
-        <div className="flex items-center gap-3">
+      <header className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 border-b border-gray-800 bg-proxi-dark/90 backdrop-blur-sm">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className={`w-2.5 h-2.5 rounded-full ${statusColor} ${isProcessing ? 'animate-pulse' : ''}`} />
-          <h1 className="text-lg font-bold tracking-wider">
+          <h1 className="text-base sm:text-lg font-bold tracking-wider">
             PROXI<span className="text-proxi-accent">.OS</span>
           </h1>
           {/* Core Toggle Button */}
@@ -170,7 +170,7 @@ const App: React.FC = () => {
             title={coreEnabled ? 'Click to disable Core (chat-only mode)' : 'Click to enable Core (system actions)'}
           >
             {coreEnabled ? <Server className="w-3 h-3" /> : <ServerOff className="w-3 h-3" />}
-            <span>
+            <span className="hidden sm:inline">
               {!coreEnabled 
                 ? 'Core: OFF' 
                 : backendStatus === 'connected' 
@@ -179,10 +179,13 @@ const App: React.FC = () => {
                 ? 'Core: ...' 
                 : 'Core: ⚠️'}
             </span>
+            <span className="sm:hidden">
+              {!coreEnabled ? 'OFF' : backendStatus === 'connected' ? backendMode : '...'}
+            </span>
           </button>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Audio Toggle with speaking indicator */}
           <button
             onClick={() => {

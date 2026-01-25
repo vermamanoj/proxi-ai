@@ -130,7 +130,7 @@ export const MissionProgress: React.FC<MissionProgressProps> = ({
 
       {/* Summary View: Just current step and final result */}
       {viewMode === 'summary' && (
-        <div className="p-3">
+        <div className="p-3 max-h-40 overflow-y-auto">
           {currentStep && !finalResponse && (
             <div className="flex items-center gap-2 text-sm">
               <Loader2 className="w-4 h-4 animate-spin text-proxi-accent" />
@@ -147,7 +147,7 @@ export const MissionProgress: React.FC<MissionProgressProps> = ({
 
       {/* Timeline View: Compact step nodes */}
       {viewMode === 'timeline' && (
-        <div className="p-3 space-y-2">
+        <div className="p-3 space-y-2 max-h-60 overflow-y-auto">
           {steps.map((step, idx) => (
             <div key={step.id}>
               <button
