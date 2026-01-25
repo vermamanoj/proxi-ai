@@ -315,7 +315,18 @@ const App: React.FC = () => {
         {viewMode === 'full' ? (
           <ChatView trace={displayTrace} isProcessing={isProcessing} />
         ) : (
-          <div className="h-full flex items-center justify-center text-gray-600 p-8">
+          <div className="h-full flex flex-col items-center justify-center text-gray-600 p-4 gap-4 overflow-y-auto">
+            {/* Show any screenshots in Timeline/Summary view */}
+            {displayTrace.filter(step => step.step_type === 'status_change' && step.metadata?.screenshot).map((step, idx) => (
+              <div key={idx} className="max-w-md">
+                <img 
+                  src={step.metadata.screenshot} 
+                  alt={step.content || 'Screenshot'} 
+                  className="rounded-lg border border-gray-700 max-h-64 object-contain"
+                />
+                {step.content && <p className="text-xs text-gray-500 mt-1 text-center">{step.content}</p>}
+              </div>
+            ))}
             <p className="text-sm text-center">
               {isProcessing ? 'Processing your request...' : 'Switch to Full view to see complete trace'}
             </p>
