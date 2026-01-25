@@ -119,13 +119,18 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
                 const decoder = new TextDecoder();
                 let done = false;
                 let finalSummary = "";
+                let buffer = "";  // Buffer for incomplete JSON lines
 
                 if (reader) {
                     while (!done) {
                         const { value, done: doneReading } = await reader.read();
                         done = doneReading;
-                        const chunkValue = decoder.decode(value, { stream: !done });
-                        const lines = chunkValue.split('\n');
+                        buffer += decoder.decode(value, { stream: !done });
+                        
+                        // Process complete lines (ending with newline)
+                        const lines = buffer.split('\n');
+                        // Keep the last incomplete fragment in buffer
+                        buffer = lines.pop() || '';
 
                         for (const line of lines) {
                             if (!line.trim()) continue;
@@ -142,8 +147,23 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
                                     finalSummary = data.content;
                                     addLog(MessageSource.AGENT, `Core Result: ${data.content}`);
                                 }
-                            } catch (e) {}
+                            } catch (e) {
+                                console.warn('[LIVE] Failed to parse line:', line.substring(0, 100));
+                            }
                         }
+                    }
+                    
+                    // Process any remaining data in buffer
+                    if (buffer.trim()) {
+                        try {
+                            const data = JSON.parse(buffer);
+                            if (data.type === 'status_change' && data.metadata?.screenshot) {
+                                addLog(MessageSource.AGENT, data.content || 'Screenshot', { screenshot: data.metadata.screenshot });
+                            } else if (data.type === 'response') {
+                                finalSummary = data.content;
+                                addLog(MessageSource.AGENT, `Core Result: ${data.content}`);
+                            }
+                        } catch (e) {}
                     }
                 }
 
