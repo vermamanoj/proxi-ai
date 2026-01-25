@@ -55,11 +55,18 @@ export const MissionProgress: React.FC<MissionProgressProps> = ({
           ? nextItem.content.substring(0, 100) 
           : '';
 
+        // Only mark as 'running' if this is one of the last few items AND we're processing
+        // Old items without results should show as 'completed' (assumed done from previous session)
+        const isRecentItem = i >= trace.length - 4;
+        const status = hasResult ? 'completed' 
+          : (isProcessing && isRecentItem) ? 'running' 
+          : 'completed'; // Default old items to completed
+
         result.push({
           id: `step-${stepId++}`,
           name: formatToolName(toolName),
           toolName,
-          status: hasResult ? 'completed' : (isProcessing ? 'running' : 'pending'),
+          status,
           result: resultContent,
           startIndex: i,
           endIndex: hasResult ? i + 1 : i
