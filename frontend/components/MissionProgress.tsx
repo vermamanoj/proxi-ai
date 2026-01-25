@@ -86,7 +86,7 @@ export const MissionProgress: React.FC<MissionProgressProps> = ({
   if (trace.length === 0) return null;
 
   return (
-    <div className="bg-gray-900/50 border border-gray-800 rounded-xl mx-4 mt-4 overflow-hidden">
+    <div className="bg-gray-900/50 border border-gray-800 rounded-xl mx-4 mt-4 overflow-hidden shrink-0">
       {/* Header with goal and view toggle */}
       <div className="p-3 border-b border-gray-800 flex items-center justify-between">
         <div className="flex-1 min-w-0">
@@ -147,7 +147,7 @@ export const MissionProgress: React.FC<MissionProgressProps> = ({
 
       {/* Timeline View: Compact step nodes */}
       {viewMode === 'timeline' && (
-        <div className="p-3 space-y-2 max-h-60 overflow-y-auto">
+        <div className="p-3 space-y-2 max-h-32 sm:max-h-60 overflow-y-auto">
           {steps.map((step, idx) => (
             <div key={step.id}>
               <button
