@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Settings, Mic, MicOff, Send, Camera, Flame, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
+import { useBackendHealth } from './hooks/useBackendHealth';
 import { ChatView } from './components/ChatView';
 import { MissionProgress } from './components/MissionProgress';
 import { ApprovalCard } from './components/ApprovalCard';
@@ -40,6 +41,9 @@ const App: React.FC = () => {
     micMuted,
     toggleMicMute
   } = useGeminiLive();
+
+  // Hook 3: Backend Health Monitoring
+  const { status: backendStatus, mode: backendMode } = useBackendHealth(5000);
 
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
@@ -141,6 +145,21 @@ const App: React.FC = () => {
           <h1 className="text-lg font-bold tracking-wider">
             PROXI<span className="text-proxi-accent">.OS</span>
           </h1>
+          {/* Backend Status Indicator */}
+          <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs ${
+            backendStatus === 'connected' 
+              ? 'bg-green-500/10 text-green-400 border border-green-500/30'
+              : backendStatus === 'checking'
+              ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30'
+              : 'bg-red-500/10 text-red-400 border border-red-500/30'
+          }`}>
+            <div className={`w-1.5 h-1.5 rounded-full ${
+              backendStatus === 'connected' ? 'bg-green-400' 
+              : backendStatus === 'checking' ? 'bg-yellow-400 animate-pulse'
+              : 'bg-red-400'
+            }`} />
+            <span>{backendStatus === 'connected' ? `Core: ${backendMode}` : backendStatus === 'checking' ? 'Connecting...' : 'Core Offline'}</span>
+          </div>
         </div>
         
         <div className="flex items-center gap-2">

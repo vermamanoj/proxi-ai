@@ -84,6 +84,20 @@ export const useGeminiLive = () => {
                     signal: controller.signal
                 });
 
+                // Handle non-OK responses
+                if (!response.ok) {
+                    const errorMsg = response.status === 0 
+                        ? "Backend is offline. Please start the backend server."
+                        : `Backend error: ${response.status} ${response.statusText}`;
+                    addLog(MessageSource.SYSTEM, `⚠️ ${errorMsg}`);
+                    responses.push({
+                        id: call.id,
+                        name: call.name,
+                        response: { result: errorMsg }
+                    });
+                    continue;
+                }
+
                 const reader = response.body?.getReader();
                 const decoder = new TextDecoder();
                 let done = false;
@@ -120,11 +134,18 @@ export const useGeminiLive = () => {
                 });
 
             } catch (err: any) {
-                addLog(MessageSource.SYSTEM, `Core Error: ${err.message}`);
+                const isNetworkError = err.name === 'TypeError' || err.message?.includes('fetch');
+                const isAborted = err.name === 'AbortError';
+                const errorMsg = isAborted 
+                    ? "Task cancelled by user."
+                    : isNetworkError 
+                    ? "⚠️ Cannot reach backend. Is the server running?"
+                    : `Core Error: ${err.message}`;
+                addLog(MessageSource.SYSTEM, errorMsg);
                 responses.push({
                     id: call.id,
                     name: call.name,
-                    response: { result: `Error: ${err.message}` }
+                    response: { result: errorMsg }
                 });
             } finally {
                 setActiveTool(null);
