@@ -18,7 +18,7 @@ export const useGeminiLive = () => {
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const nextStartTimeRef = useRef<number>(0);
-  const sessionRef = useRef<any>(null); 
+  const sessionRef = useRef<Promise<any> | null>(null); 
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   
   // Ref for aborting active backend requests
@@ -33,6 +33,19 @@ export const useGeminiLive = () => {
       metadata
     }]);
   }, []);
+
+  // --- NEW: Inject Text Command into Live Session ---
+  const sendCommand = useCallback((text: string) => {
+    if (sessionRef.current) {
+        addLog(MessageSource.USER, text, { method: "UI_INJECTION" });
+        sessionRef.current.then(session => {
+            // Send text as a user turn within the existing session
+            session.send({ parts: [{ text }] }, true); // true = end of turn
+        });
+    } else {
+        addLog(MessageSource.SYSTEM, "Cannot send command: Uplink not active.");
+    }
+  }, [addLog]);
 
   const handleToolCall = async (functionCalls: any[]) => {
     const responses = [];
@@ -336,6 +349,7 @@ export const useGeminiLive = () => {
     connected,
     connect,
     disconnect,
+    sendCommand, // Exporting the new command function
     volume,
     logs,
     activeTool

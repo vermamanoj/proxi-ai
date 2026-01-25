@@ -31,6 +31,7 @@ const App: React.FC = () => {
     connected: liveConnected, 
     connect: liveConnect, 
     disconnect: liveDisconnect, 
+    sendCommand: liveSendCommand, // New function to inject text into voice stream
     volume: liveVolume, 
     logs: liveLogs, 
     activeTool: liveActiveTool 
@@ -66,7 +67,11 @@ const App: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim()) {
-      sendCommand(input);
+      if (liveConnected) {
+          liveSendCommand(input);
+      } else {
+          sendCommand(input);
+      }
       setInput('');
     }
   };
@@ -89,7 +94,15 @@ const App: React.FC = () => {
       try {
           const res = await fetch('/api/demo/trigger_chaos', { method: 'POST' });
           if (!res.ok) throw new Error(`Chaos Failed: ${res.status}`);
-          sendCommand("Proxi, perform a system health check immediately.");
+          
+          if (liveConnected) {
+              // Route through Live Uplink so user can reply via Voice
+              liveSendCommand("System Alert: High severity incident detected. Perform a system health check immediately.");
+          } else {
+              // Fallback to text mode, but warn user
+              sendCommand("Proxi, perform a system health check immediately.");
+              logSystemError("Uplink Inactive. To interact via voice during incidents, please INITIATE UPLINK first.");
+          }
       } catch (e: any) {
           console.error(e);
           logSystemError(`Failed to trigger incident: ${e.message}. Is backend running?`);
