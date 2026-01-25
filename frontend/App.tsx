@@ -70,6 +70,7 @@ const App: React.FC = () => {
   const liveTrace: TraceStep[] = useMemo(() => {
     return liveLogs.map(log => ({
       step_type: (log.source === MessageSource.USER ? 'user_input' 
+               : log.metadata?.screenshot ? 'status_change'  // Screenshots need status_change for proper rendering
                : log.source === MessageSource.AGENT ? 'final_response'
                : log.source === MessageSource.TOOL ? 'tool_call'
                : 'status_change') as TraceStep['step_type'],
