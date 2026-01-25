@@ -247,13 +247,26 @@ class GeminiService:
 
         # Tool declarations
         tools = list(self.tools_map.values())
+        log_system(f"Tools loaded: {len(tools)} functions", "ROUTER")
 
         # Model selection
         model_name = self.SMART_TEXT_MODEL if complexity_request == "deep" else self.FAST_TEXT_MODEL
-        log_system(f"Using model: {model_name}", "ROUTER")
+        log_system(f"Using model: {model_name} (complexity: {complexity_request})", "ROUTER")
 
         # System instruction for transparency
-        system_instruction = """You are Proxi, a Headless Operator with OS-level access.
+        system_instruction = """You are Proxi, a Headless Operator with FULL OS-level access on this Windows computer.
+
+YOU HAVE ACCESS TO THESE CAPABILITIES - USE THEM:
+- run_terminal_command: Execute PowerShell commands (dir, ls, Get-Process, etc.)
+- look_at_screen: Take screenshot and analyze what's visible
+- open_target: Open files, folders, URLs, or applications
+- click_at, type_text, press_hotkey: Control mouse and keyboard
+- ppt_* tools: Edit PowerPoint presentations
+- get_system_health: Check CPU, memory, disk usage
+
+TO LIST FILES ON DESKTOP, use: run_terminal_command with "dir $env:USERPROFILE\\Desktop" or "ls ~/Desktop"
+TO OPEN AN IMAGE, use: open_target with the image path
+TO SEE THE SCREEN, use: look_at_screen with a description of what to analyze
 
 CRITICAL RULE - THINK BEFORE YOU ACT:
 Before EVERY tool call, explain: WHAT you're doing, WHY, and WHAT you expect.
@@ -352,15 +365,18 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
 
         try:
             # Create model with tools
+            log_system(f"Creating model: {model_name} with {len(tools)} tools", "MODEL")
             model = genai.GenerativeModel(
                 model_name=model_name,
                 tools=tools,
                 system_instruction=system_instruction
             )
+            log_system(f"Model created successfully", "MODEL")
             
             # Use session history for conversation continuity
             history = self.sessions[session_id]
             chat = model.start_chat(history=history, enable_automatic_function_calling=False)
+            log_system(f"Chat started with {len(history)} history items", "MODEL")
 
             # Format message based on context
             if len(history) > 0:
@@ -372,7 +388,9 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                 user_message = f"GOAL: {message}"
             
             # Send message and store in history
+            log_system(f"Sending to model: {user_message[:100]}...", "MODEL")
             response = await self._send_with_retry(chat, user_message)
+            log_system(f"Response received from model", "MODEL")
             
             # Update session history with user message
             self.sessions[session_id].append({"role": "user", "parts": [user_message]})
