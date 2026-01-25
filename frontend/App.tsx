@@ -71,6 +71,7 @@ const App: React.FC = () => {
     return liveLogs.map(log => ({
       step_type: (log.source === MessageSource.USER ? 'user_input' 
                : log.metadata?.screenshot ? 'status_change'  // Screenshots need status_change for proper rendering
+               : log.metadata?.completed ? 'tool_result'  // Completed tools get tool_result type
                : log.source === MessageSource.AGENT ? 'final_response'
                : log.source === MessageSource.TOOL ? 'tool_call'
                : 'status_change') as TraceStep['step_type'],
@@ -142,7 +143,7 @@ const App: React.FC = () => {
     <div className="h-screen bg-proxi-black text-gray-200 flex flex-col font-mono overflow-hidden">
       
       {/* Mobile Safe Area Spacer - accounts for notch/status bar */}
-      <div className="h-6 sm:h-0 bg-gray-900 shrink-0" />
+      <div className="h-10 sm:h-0 bg-gray-900 shrink-0" />
       
       {/* Minimal Header */}
       <header className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 border-b border-gray-800 bg-gray-900 shrink-0 z-20 min-h-[48px]">

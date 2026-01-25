@@ -158,6 +158,9 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
                                     addLog(MessageSource.AGENT, `(Thinking) ${data.content}`);
                                 } else if (data.type === 'tool_call_batch') {
                                     data.calls.forEach((c: any) => addLog(MessageSource.TOOL, `Core Executing: ${c.name}`, c.args));
+                                } else if (data.type === 'tool_result') {
+                                    // Mark tool as completed with result
+                                    addLog(MessageSource.TOOL, `✓ ${data.name}`, { result: data.content, completed: true });
                                 } else if (data.type === 'status_change' && data.metadata?.screenshot) {
                                     // Handle screenshot - add to logs with metadata for display
                                     addLog(MessageSource.AGENT, data.content || 'Screenshot', { screenshot: data.metadata.screenshot });
