@@ -1,9 +1,17 @@
 
 import uvicorn
 import os
+import logging
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Body
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+
+# Filter out noisy health check logs
+class HealthCheckFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "GET /api/health" not in record.getMessage()
+
+logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 from backend.models.api_models import ChatRequest, ChatResponse, ActionConfirmation
 from backend.services.gemini_service import GeminiService
 from backend.database import get_missions_list, get_mission_items_list, update_item_status_record
