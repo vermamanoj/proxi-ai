@@ -47,13 +47,13 @@ const App: React.FC = () => {
   const [animTick, setAnimTick] = useState(0);
 
   // Animation ticker for voice visualization - only animate when actually speaking
-  const isSpeaking = liveVolume > 0.02;
+  const isLiveSpeaking = liveVolume > 0.02;
   useEffect(() => {
-    if (liveConnected && !micMuted && isSpeaking) {
+    if (liveConnected && !micMuted && isLiveSpeaking) {
       const interval = setInterval(() => setAnimTick(t => t + 1), 100);
       return () => clearInterval(interval);
     }
-  }, [liveConnected, micMuted, isSpeaking]);
+  }, [liveConnected, micMuted, isLiveSpeaking]);
 
   // Auto-connect voice on page load
   useEffect(() => {
@@ -352,7 +352,7 @@ const App: React.FC = () => {
                       key={i}
                       className="w-1 bg-green-400 rounded-full transition-all duration-100"
                       style={{
-                        height: isSpeaking 
+                        height: isLiveSpeaking 
                           ? `${Math.max(6, Math.min(20, 8 + liveVolume * 300 + Math.sin(animTick * 0.5 + i * 1.5) * 6))}px`
                           : `${[8, 12, 10, 6][i]}px` // Static wave pattern when silent
                       }}

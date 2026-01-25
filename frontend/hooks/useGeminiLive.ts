@@ -16,6 +16,7 @@ export const useGeminiLive = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const inputContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const connectingRef = useRef(false); // Guard against multiple connect calls
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const nextStartTimeRef = useRef<number>(0);
@@ -135,6 +136,13 @@ export const useGeminiLive = () => {
   };
 
   const connect = async () => {
+    // Prevent multiple simultaneous connections
+    if (connectingRef.current || sessionRef.current) {
+      console.debug('[LIVE] Connection already in progress or established, skipping');
+      return;
+    }
+    connectingRef.current = true;
+    
     try {
       addLog(MessageSource.SYSTEM, "Initializing Gemini Live Uplink...");
       const apiKey = process.env.API_KEY;
@@ -233,6 +241,7 @@ export const useGeminiLive = () => {
     } catch (err: any) {
       addLog(MessageSource.SYSTEM, `Connection Failed: ${err.message}`);
       setConnected(false);
+      connectingRef.current = false;
     }
   };
 
@@ -244,6 +253,8 @@ export const useGeminiLive = () => {
     sourcesRef.current.forEach(s => s.stop());
     sourcesRef.current.clear();
     setConnected(false);
+    connectingRef.current = false;
+    sessionRef.current = null;
     if (abortControllerRef.current) abortControllerRef.current.abort();
     addLog(MessageSource.SYSTEM, "Disconnected.");
   };
