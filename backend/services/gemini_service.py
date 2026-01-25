@@ -436,9 +436,29 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                 # New conversation - prefix with GOAL
                 user_message = f"GOAL: {message}"
             
+            # Check if message contains embedded image data (from vision-action endpoint)
+            message_content = user_message
+            if "IMAGE_DATA:" in message:
+                # Extract image data and create multimodal content
+                import re
+                match = re.search(r'IMAGE_DATA:([^;]+);base64,([^\s]+)', message)
+                if match:
+                    mime_type = match.group(1)
+                    image_b64 = match.group(2)
+                    # Remove the IMAGE_DATA from text prompt
+                    text_prompt = re.sub(r'IMAGE_DATA:[^\s]+', '', message).strip()
+                    log_system(f"Multimodal request detected, image size: {len(image_b64)} chars", "VISION")
+                    # Create multimodal content for Gemini
+                    import base64
+                    image_bytes = base64.b64decode(image_b64)
+                    message_content = [
+                        text_prompt,
+                        {'mime_type': mime_type, 'data': image_bytes}
+                    ]
+            
             # Send message and store in history
-            log_system(f"Sending to model: {user_message[:100]}...", "MODEL")
-            response = await self._send_with_retry(chat, user_message)
+            log_system(f"Sending to model: {str(message_content)[:100]}...", "MODEL")
+            response = await self._send_with_retry(chat, message_content)
             log_system(f"Response received from model", "MODEL")
             
             # Update session history with user message

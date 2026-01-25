@@ -305,23 +305,59 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
   };
 
   const sendVisionCommand = async (file: File, message: string) => {
-    addLog(MessageSource.USER, `[UPLOAD] ${file.name}: ${message}`);
-    setStatus('analyzing_visuals');
+    addLog(MessageSource.USER, `[IMAGE] ${file.name}: ${message}`);
+    setStatus('processing');
+    
+    // Update trace for this vision request
+    updateTrace({ step_type: 'user_input', content: `[Image: ${file.name}] ${message}`, metadata: { hasImage: true } });
 
     const formData = new FormData();
     formData.append('file', file);
     formData.append('prompt', message);
+    formData.append('complexity', complexity);
 
     try {
-      const res = await fetch('/api/vision', { method: 'POST', body: formData });
-      if (!res.ok) throw new Error(`Vision Upload Error: ${res.status}`);
-      const data = await res.json();
-      addLog(MessageSource.AGENT, data.response, { 
-        model: data.used_model,
-        type: 'vision_analysis',
-        filename: file.name 
-      });
-      speak("Visual analysis complete. Rendering architect report.");
+      // Use new streaming vision-action endpoint
+      const response = await fetch('/api/vision-action', { method: 'POST', body: formData });
+      if (!response.ok) throw new Error(`Vision Action Error: ${response.status}`);
+      if (!response.body) throw new Error("No response body");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      let buffer = '';
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        buffer += decoder.decode(value, { stream: !done });
+        
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const data = JSON.parse(line);
+            if (data.type === 'status_change') {
+              if (data.metadata?.screenshot) {
+                updateTrace({ step_type: 'status_change', content: data.content, metadata: data.metadata });
+              }
+            } else if (data.type === 'tool_call_batch') {
+              data.calls.forEach((c: any) => updateTrace({ step_type: 'tool_call', content: `${c.name}(${JSON.stringify(c.args)})` }));
+            } else if (data.type === 'tool_result') {
+              updateTrace({ step_type: 'tool_result', content: data.content, metadata: { name: data.name } });
+            } else if (data.type === 'response') {
+              updateTrace({ step_type: 'final_response', content: data.content });
+              addLog(MessageSource.AGENT, data.content);
+            } else if (data.type === 'llm_thought') {
+              updateTrace({ step_type: 'status_change', content: data.content, metadata: { phase: 'thinking' } });
+            }
+          } catch (e) {}
+        }
+      }
+      
+      setStatus('idle');
     } catch (err: any) {
       addLog(MessageSource.SYSTEM, `Error: ${err.message}`);
       setStatus('idle');

@@ -77,6 +77,32 @@ async def vision_analysis(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/vision-action")
+async def vision_with_action(
+    file: UploadFile = File(...),
+    prompt: str = Form("Analyze this image"),
+    complexity: str = Form("deep")
+):
+    """Process image with full agent pipeline - can execute actions based on image content"""
+    import base64
+    try:
+        contents = await file.read()
+        image_base64 = base64.b64encode(contents).decode('utf-8')
+        mime_type = file.content_type or 'image/png'
+        
+        # Create a message that includes the image context for the agent
+        enhanced_prompt = f"""The user has uploaded an image and wants you to: {prompt}
+
+The image is provided as base64 data. Use look_at_uploaded_image() to analyze it, then execute the requested actions.
+IMAGE_DATA:{mime_type};base64,{image_base64}"""
+        
+        return StreamingResponse(
+            gemini_service.route_and_execute_stream(enhanced_prompt, complexity),
+            media_type="application/x-ndjson"
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # --- MEMORY / MISSION API ENDPOINTS ---
 
 @app.get("/api/missions")
