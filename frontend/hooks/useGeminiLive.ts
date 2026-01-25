@@ -61,8 +61,8 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     
     sessionRef.current.then(session => {
         try {
-            // Using 'true' for endOfTurn to prompt immediate response
-            session.send({ parts: [{ text }] }, true);
+            // sendClientContent is the correct method for Gemini Live API
+            session.sendClientContent({ turns: [{ role: 'user', parts: [{ text }] }], turnComplete: true });
         } catch (e: any) {
             addLog(MessageSource.SYSTEM, `Failed to send command: ${e.message}`);
         }
