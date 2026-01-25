@@ -39,9 +39,73 @@ def _get_ppt_app():
         return None
 
 
+def ppt_get_active_presentation() -> str:
+    """
+    Gets info about the currently active/open PowerPoint presentation.
+    Use this FIRST to check if a presentation is already open before trying to open a file.
+    
+    Returns:
+        Information about the active presentation (name, path, slide count) or error if none open.
+    """
+    log_system("Checking for active PowerPoint presentation", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available (Windows + pywin32 required)"
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt:
+            return "Error: Could not connect to PowerPoint application"
+        
+        if ppt.Presentations.Count == 0:
+            return "No presentation is currently open in PowerPoint"
+        
+        presentation = ppt.ActivePresentation
+        
+        # Get presentation details
+        name = presentation.Name
+        full_path = presentation.FullName
+        slide_count = presentation.Slides.Count
+        
+        # Get current slide
+        current_slide = 1
+        try:
+            current_slide = ppt.ActiveWindow.View.Slide.SlideIndex
+        except:
+            pass
+        
+        # Get slide titles
+        slides_info = []
+        for i in range(1, min(slide_count + 1, 11)):  # First 10 slides
+            title = "Untitled"
+            try:
+                slide = presentation.Slides(i)
+                if slide.Shapes.HasTitle:
+                    title = slide.Shapes.Title.TextFrame.TextRange.Text[:40]
+            except:
+                pass
+            slides_info.append(f"  {i}. {title}")
+        
+        return f"""Active Presentation: {name}
+Path: {full_path}
+Total Slides: {slide_count}
+Current Slide: {current_slide}
+
+Slides:
+{chr(10).join(slides_info)}
+{"  ..." if slide_count > 10 else ""}
+
+TIP: Use ppt_goto_slide(N) to navigate, ppt_get_slide_info(N) for details, ppt_duplicate_slide(N) to copy."""
+    
+    except Exception as e:
+        log_system(f"Error checking active presentation: {e}", "ERR")
+        return f"Error: {e}"
+
+
 def ppt_open_presentation(file_path: str) -> str:
     """
     Opens a PowerPoint presentation file.
+    NOTE: First check ppt_get_active_presentation() - a file may already be open!
     
     Args:
         file_path: Full path to the .pptx file.
@@ -743,6 +807,7 @@ def ppt_get_theme_colors(slide_number: int = 1) -> str:
 
 # Export all PPT tools
 PPT_TOOLS = {
+    "ppt_get_active_presentation": ppt_get_active_presentation,
     "ppt_open_presentation": ppt_open_presentation,
     "ppt_get_slide_info": ppt_get_slide_info,
     "ppt_edit_text": ppt_edit_text,

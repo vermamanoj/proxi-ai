@@ -41,6 +41,7 @@ from backend.tools.standard_tools import (
 )
 
 from backend.tools.ppt_tools import (
+    ppt_get_active_presentation,
     ppt_open_presentation,
     ppt_get_slide_info,
     ppt_edit_text,
@@ -129,6 +130,7 @@ class GeminiService:
             "get_window_rect": self.get_window_rect,
             "list_windows": self.list_windows,
             # PowerPoint Tools
+            "ppt_get_active_presentation": ppt_get_active_presentation,
             "ppt_open_presentation": ppt_open_presentation,
             "ppt_get_slide_info": ppt_get_slide_info,
             "ppt_edit_text": ppt_edit_text,
@@ -351,10 +353,11 @@ POWERPOINT WORKFLOW:
 When creating or editing presentations, follow this goal-based workflow:
 
 1. ANALYZE PHASE:
-   - ppt_open_presentation() to open the file
+   - FIRST: ppt_get_active_presentation() to check if a presentation is ALREADY OPEN
+   - If no presentation open: ppt_open_presentation(path) to open a file
    - ppt_get_theme_colors() to understand colors and fonts
    - ppt_get_slide_info(0) to see all slides
-   - If user references specific slides, use look_at_screen() to visually analyze layout/style
+   - If user references specific slides, use ppt_goto_slide(N) then look_at_screen() to visually analyze
 
 2. PLAN PHASE (think before acting):
    - Structure your content (titles, key points, flow)
