@@ -244,8 +244,6 @@ class GeminiService:
 
         final_tools = [types.Tool(function_declarations=self.tool_definitions)]
         
-        # RELAXED CONFIGURATION
-        # We moved System Instruction to config and removed auto_tool_config to prevent forcing empty responses
         hive_instruction = """
         You are Proxi, a specialized AI operator for Google Cloud and Windows.
         Your goal is to help the user by executing tools to fix problems.
@@ -327,27 +325,38 @@ class GeminiService:
                     if not chunk.candidates: continue
                     candidate = chunk.candidates[0]
                     
-                    # DEBUG LOGGING FOR EMPTY RESPONSES
-                    if candidate.finish_reason:
-                        log_system(f"Finish Reason: {candidate.finish_reason}", "DEBUG")
-                    
                     if not candidate.content: continue
                     if not candidate.content.parts: continue 
                     
                     for part in candidate.content.parts:
-                        # Append to our local buffer for history reconstruction
-                        model_response_parts.append(part)
+                        # --- SANITIZE PART FOR HISTORY ---
                         
+                        # 1. Handle Thoughts (Stream to UI, but DO NOT add to history)
                         if part.thought:
-                             has_thoughts = True
-                             log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
-                             yield json.dumps({"type": "llm_thought", "content": part.text}) + "\n"
-                        elif part.text:
-                             text_buffer += part.text
+                            has_thoughts = True
+                            log_system(f"THOUGHT: {part.text[:50]}...", "THOUGHT")
+                            yield json.dumps({"type": "llm_thought", "content": part.text}) + "\n"
+                            # CRITICAL: Do NOT append thought parts to `model_response_parts`.
+                            # This fixes "Corrupted thought signature" errors on subsequent turns.
+                            continue
+
+                        # 2. Handle Text & Tools
+                        clean_part = types.Part()
+                        
+                        if part.text:
+                            clean_part.text = part.text
+                            text_buffer += part.text
+                        
                         if part.function_call:
-                             if not function_calls:
-                                 yield json.dumps({"type": "status_change", "phase": "executing", "tool": part.function_call.name}) + "\n"
-                             function_calls.append(part.function_call)
+                            # FunctionCall objects are safe to reuse in history
+                            clean_part.function_call = part.function_call
+                            if not function_calls:
+                                yield json.dumps({"type": "status_change", "phase": "executing", "tool": part.function_call.name}) + "\n"
+                            function_calls.append(part.function_call)
+                            
+                        # Only append if we extracted meaningful content (Text or Tool Call)
+                        if clean_part.text or clean_part.function_call:
+                            model_response_parts.append(clean_part)
 
                 log_system(f"Turn {current_turn} finished. Thoughts: {has_thoughts}, Calls: {len(function_calls)}", "DEBUG")
                 
@@ -355,8 +364,8 @@ class GeminiService:
                 if model_response_parts:
                     contents.append(types.Content(role="model", parts=model_response_parts))
                 else:
-                    # If parts are empty (Safety block or Stop), we can't append empty parts or API errors.
-                    # We handle the retry logic below.
+                    # If model only returned thoughts (and we stripped them), the parts list is empty.
+                    # This is fine for the API (it sees nothing happened), but we need to handle the loop logic.
                     pass
 
                 if text_buffer:
@@ -365,21 +374,18 @@ class GeminiService:
                 # --- NO TOOLS? CHECK FOR STALLS ---
                 if not function_calls:
                     if text_buffer:
-                        # Lazy Check (Loosened - only warn if mission not started but plan looks complex)
                         if current_mission_id is None and "assign_mission" in text_buffer:
                              log_system("Detected Text Plan describing tool use. Nudging...", "WARN")
                              contents.append(types.Content(role="user", parts=[types.Part(text="You are describing the tool call. Please EXECUTE it.")]))
                              continue
                         break # Normal text finish
                     
-                    # Empty Response
                     stall_count += 1
                     if stall_count >= 3:
-                         yield json.dumps({"type": "error", "content": "Model returned repeated empty responses. Check API Safety settings or Prompt."}) + "\n"
+                         yield json.dumps({"type": "error", "content": "Model returned repeated empty responses."}) + "\n"
                          break
                     
                     log_system(f"Empty response detected. Retrying (Attempt {stall_count})...", "WARN")
-                    # Try to provoke a response
                     contents.append(types.Content(role="user", parts=[types.Part(text="System Update: Please proceed with the tool call for the request.")]))
                     continue
                 
@@ -438,10 +444,9 @@ class GeminiService:
                     yield json.dumps({"type": "tool_result", "name": name, "content": str(res)[:500]}) + "\n"
 
                 # --- UPDATE HISTORY (USER TURN / FUNCTION RESULTS) ---
-                # The response to a tool call is always a USER turn in the API schema
                 contents.append(types.Content(role="user", parts=tool_response_parts))
                 
-                # Loop continues, sending the updated history to the model
+                # Loop continues
             
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
 
