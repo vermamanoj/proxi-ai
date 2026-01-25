@@ -40,6 +40,17 @@ from backend.tools.standard_tools import (
     create_github_issue
 )
 
+from backend.tools.ppt_tools import (
+    ppt_open_presentation,
+    ppt_get_slide_info,
+    ppt_edit_text,
+    ppt_add_slide,
+    ppt_duplicate_slide,
+    ppt_delete_slide,
+    ppt_save_presentation,
+    ppt_goto_slide,
+)
+
 # Load .env
 root_dir = Path(__file__).resolve().parent.parent.parent
 env_path = root_dir / ".env"
@@ -105,7 +116,16 @@ class GeminiService:
             "open_target": self.open_target,
             "read_page_content": self.read_page_content,
             "scroll_page": self.scroll_page,
-            "browser_command": self.browser_command
+            "browser_command": self.browser_command,
+            # PowerPoint Tools
+            "ppt_open_presentation": ppt_open_presentation,
+            "ppt_get_slide_info": ppt_get_slide_info,
+            "ppt_edit_text": ppt_edit_text,
+            "ppt_add_slide": ppt_add_slide,
+            "ppt_duplicate_slide": ppt_duplicate_slide,
+            "ppt_delete_slide": ppt_delete_slide,
+            "ppt_save_presentation": ppt_save_presentation,
+            "ppt_goto_slide": ppt_goto_slide,
         }
         
         log_system(f"Gemini Service Initialized with {len(self.tools_map)} tools.", "INIT")
