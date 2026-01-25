@@ -59,3 +59,18 @@ class DesktopInterface(ABC):
         url: Optional URL or Query string
         """
         pass
+
+    @abstractmethod
+    def focus_window(self, title: str):
+        """Bring a window to foreground by title (partial match)."""
+        pass
+
+    @abstractmethod
+    def get_window_rect(self, title: str):
+        """Get window position and size: {x, y, width, height}."""
+        pass
+
+    @abstractmethod
+    def list_windows(self):
+        """List all visible windows with their titles."""
+        pass

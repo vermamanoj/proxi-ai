@@ -124,6 +124,10 @@ class GeminiService:
             "read_page_content": self.read_page_content,
             "scroll_page": self.scroll_page,
             "browser_command": self.browser_command,
+            # Window Management Tools
+            "focus_window": self.focus_window,
+            "get_window_rect": self.get_window_rect,
+            "list_windows": self.list_windows,
             # PowerPoint Tools
             "ppt_open_presentation": ppt_open_presentation,
             "ppt_get_slide_info": ppt_get_slide_info,
@@ -191,6 +195,18 @@ class GeminiService:
     def scan_ui_tree(self): 
         """Scans the accessibility tree for UI elements."""
         return self.desktop_service.scan_ui_tree()
+
+    def focus_window(self, title: str):
+        """Brings a window to the foreground by title (partial match). Use before interacting with a specific app."""
+        return self.desktop_service.focus_window(title)
+
+    def get_window_rect(self, title: str):
+        """Gets window position and size: {x, y, width, height}. Use to calculate safe drawing coordinates."""
+        return self.desktop_service.get_window_rect(title)
+
+    def list_windows(self):
+        """Lists all visible windows with their titles and positions."""
+        return self.desktop_service.list_windows()
 
     def look_at_screen(self, purpose: str):
         base64_img = self.desktop_service.get_screenshot_base64()

@@ -335,3 +335,84 @@ class RealDesktopService(DesktopInterface):
 
             except Exception as e:
                 return f"Browser Command Failed: {e}"
+
+    def focus_window(self, title: str):
+        """Bring a window to foreground by title (partial match)."""
+        ok, msg = self._check_availability()
+        if not ok: return msg
+        
+        if not (self.os_type == "Windows" and USE_ACCESSIBILITY):
+            return "Error: Window focus requires Windows with pywinauto"
+        
+        try:
+            desktop = Desktop(backend="uia")
+            windows = desktop.windows(title_re=f".*{title}.*", visible_only=True)
+            if not windows:
+                return f"Error: No window found matching '{title}'"
+            
+            w = windows[0]
+            if w.is_minimized():
+                w.restore()
+            w.set_focus()
+            time.sleep(0.3)
+            return f"Focused window: {w.window_text()}"
+        except Exception as e:
+            return f"Focus window failed: {e}"
+
+    def get_window_rect(self, title: str):
+        """Get window position and size."""
+        ok, msg = self._check_availability()
+        if not ok: return {"error": msg}
+        
+        if not (self.os_type == "Windows" and USE_ACCESSIBILITY):
+            return {"error": "Window rect requires Windows with pywinauto"}
+        
+        try:
+            desktop = Desktop(backend="uia")
+            windows = desktop.windows(title_re=f".*{title}.*", visible_only=True)
+            if not windows:
+                return {"error": f"No window found matching '{title}'"}
+            
+            w = windows[0]
+            rect = w.rectangle()
+            return {
+                "title": w.window_text(),
+                "x": rect.left,
+                "y": rect.top,
+                "width": rect.width(),
+                "height": rect.height(),
+                "right": rect.right,
+                "bottom": rect.bottom
+            }
+        except Exception as e:
+            return {"error": f"Get window rect failed: {e}"}
+
+    def list_windows(self):
+        """List all visible windows."""
+        ok, msg = self._check_availability()
+        if not ok: return {"error": msg}
+        
+        if not (self.os_type == "Windows" and USE_ACCESSIBILITY):
+            return {"error": "List windows requires Windows with pywinauto"}
+        
+        try:
+            desktop = Desktop(backend="uia")
+            windows = desktop.windows(visible_only=True)
+            result = []
+            for w in windows[:20]:  # Limit to 20
+                try:
+                    title = w.window_text()
+                    if title and len(title.strip()) > 0:
+                        rect = w.rectangle()
+                        result.append({
+                            "title": title,
+                            "x": rect.left,
+                            "y": rect.top,
+                            "width": rect.width(),
+                            "height": rect.height()
+                        })
+                except:
+                    continue
+            return {"windows": result}
+        except Exception as e:
+            return {"error": f"List windows failed: {e}"}

@@ -119,3 +119,15 @@ user       512  0.1  1.0 1048576  524288 ?   Sl   08:10   0:02 /usr/bin/code"""
         if "github" in self.current_url:
             return "Simulated GitHub PR Page: [Open] Fix memory leak..."
         return f"Simulated Page Content for {self.current_url}..."
+
+    def focus_window(self, title: str):
+        return f"Simulated Focus: {title}"
+
+    def get_window_rect(self, title: str):
+        return {"title": f"Simulated {title}", "x": 100, "y": 100, "width": 800, "height": 600, "right": 900, "bottom": 700}
+
+    def list_windows(self):
+        return {"windows": [
+            {"title": "Paint", "x": 0, "y": 0, "width": 1200, "height": 800},
+            {"title": "Chrome", "x": 100, "y": 50, "width": 1400, "height": 900}
+        ]}
