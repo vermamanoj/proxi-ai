@@ -245,6 +245,13 @@
             padding: 2px 8px;
             background: #fff;
         }
+        /* Tab content panels */
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -312,13 +319,15 @@
             </div>
             
             <div class="tabs">
-                <div class="tab active">General</div>
-                <div class="tab">Contacts</div>
-                <div class="tab">Opportunities</div>
-                <div class="tab">History</div>
-                <div class="tab">Documents</div>
+                <div class="tab active" onclick="switchTab('general')">General</div>
+                <div class="tab" onclick="switchTab('contacts')">Contacts</div>
+                <div class="tab" onclick="switchTab('opportunities')">Opportunities</div>
+                <div class="tab" onclick="switchTab('history')">History</div>
+                <div class="tab" onclick="switchTab('documents')">Documents</div>
             </div>
             
+            <!-- General Tab -->
+            <div id="tab-general" class="tab-content active">
             <div class="field-group">
                 <label>Client ID:</label>
                 <div class="value">CLI-4532</div>
@@ -387,6 +396,119 @@
                     <span class="value">5% (Platinum Tier)</span>
                 </div>
             </div>
+            </div>
+            
+            <!-- Contacts Tab -->
+            <div id="tab-contacts" class="tab-content">
+                <h3 style="color: #000080; margin-bottom: 16px;">📞 Contact Directory</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="background: #e0e0e0;">
+                        <th style="padding: 8px; text-align: left; border: 1px solid #808080;">Name</th>
+                        <th style="padding: 8px; text-align: left; border: 1px solid #808080;">Title</th>
+                        <th style="padding: 8px; text-align: left; border: 1px solid #808080;">Email</th>
+                        <th style="padding: 8px; text-align: left; border: 1px solid #808080;">Phone</th>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">Jennifer Walsh</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">VP Procurement</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">j.walsh@acmecorp.com</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">(555) 234-5678</td>
+                    </tr>
+                    <tr style="background: #f8f8f8;">
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">Michael Chen</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">CTO</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">m.chen@acmecorp.com</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">(555) 234-5679</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">Robert Martinez</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">CFO</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">r.martinez@acmecorp.com</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">(555) 234-5680</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <!-- Opportunities Tab -->
+            <div id="tab-opportunities" class="tab-content">
+                <h3 style="color: #000080; margin-bottom: 16px;">💼 Active Opportunities</h3>
+                <div style="background: #ffffcc; border: 2px solid #ffc000; padding: 12px; margin-bottom: 16px;">
+                    <strong>🔥 HOT DEAL - Requires Immediate Attention</strong>
+                </div>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="background: #000080; color: white;">
+                        <th style="padding: 8px; text-align: left;">Opportunity</th>
+                        <th style="padding: 8px; text-align: left;">Value</th>
+                        <th style="padding: 8px; text-align: left;">Stage</th>
+                        <th style="padding: 8px; text-align: left;">Close Date</th>
+                    </tr>
+                    <tr style="background: #fff8dc;">
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;"><strong>Enterprise Renewal 2026</strong></td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0; color: #008000; font-weight: bold;">$2,300,000</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">🔴 Negotiation</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">Jan 26, 2026</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">Additional Seats Q2</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">$450,000</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">🟡 Proposal</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">Apr 15, 2026</td>
+                    </tr>
+                </table>
+                <div style="margin-top: 16px; padding: 12px; background: #f0f8ff; border: 1px solid #4a90d9;">
+                    <strong>Deal Notes:</strong> Competitor undercut by 12%. Client requesting best and final offer. Decision deadline: TODAY.
+                </div>
+            </div>
+            
+            <!-- History Tab -->
+            <div id="tab-history" class="tab-content">
+                <h3 style="color: #000080; margin-bottom: 16px;">📜 Interaction History</h3>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    <div style="padding: 8px; border-left: 3px solid #000080; margin-bottom: 8px; background: #f8f8f8;">
+                        <strong>Jan 26, 2026 09:15 AM</strong> - Phone Call<br>
+                        <em>Client requested urgent pricing revision. Competitor offer received.</em>
+                    </div>
+                    <div style="padding: 8px; border-left: 3px solid #008000; margin-bottom: 8px; background: #f8f8f8;">
+                        <strong>Jan 20, 2026 02:30 PM</strong> - Meeting<br>
+                        <em>Quarterly business review. Discussed expansion plans.</em>
+                    </div>
+                    <div style="padding: 8px; border-left: 3px solid #ffc000; margin-bottom: 8px; background: #f8f8f8;">
+                        <strong>Jan 10, 2026 11:00 AM</strong> - Email<br>
+                        <em>Sent renewal proposal at $2.3M.</em>
+                    </div>
+                    <div style="padding: 8px; border-left: 3px solid #000080; margin-bottom: 8px; background: #f8f8f8;">
+                        <strong>Dec 15, 2025 03:45 PM</strong> - Phone Call<br>
+                        <em>Renewal discussion initiated. Budget cycle confirmed.</em>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Documents Tab -->
+            <div id="tab-documents" class="tab-content">
+                <h3 style="color: #000080; margin-bottom: 16px;">📁 Related Documents</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr style="background: #e0e0e0;">
+                        <th style="padding: 8px; text-align: left; border: 1px solid #808080;">Document</th>
+                        <th style="padding: 8px; text-align: left; border: 1px solid #808080;">Type</th>
+                        <th style="padding: 8px; text-align: left; border: 1px solid #808080;">Date</th>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">📄 Proposal_AcmeCorp_2026.docx</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">Proposal</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">Jan 10, 2026</td>
+                    </tr>
+                    <tr style="background: #f8f8f8;">
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">📄 Contract_2024_Signed.pdf</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">Contract</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">Jan 15, 2024</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">📄 NDA_AcmeCorp.pdf</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">Legal</td>
+                        <td style="padding: 8px; border: 1px solid #c0c0c0;">Mar 01, 2021</td>
+                    </tr>
+                </table>
+            </div>
         </div>
     </div>
     
@@ -396,5 +518,21 @@
         <span class="status-section">Records: 24,521</span>
         <span class="status-section">Last Updated: 2026-01-26 02:28:00</span>
     </div>
+    <script>
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            // Remove active from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            // Show selected tab content
+            document.getElementById('tab-' + tabName).classList.add('active');
+            // Mark clicked tab as active
+            event.target.classList.add('active');
+        }
+    </script>
 </body>
 </html>

@@ -11,11 +11,11 @@
 
 ---
 
-## Demo Flow (90 seconds)
+## Demo Flow (~2 minutes)
 
 ### Setup
 - Have mock legacy apps open on desktop (Pricing Tool + CRM)
-- Have a Word doc with a proposal open
+- Have a brand template .pptx in Downloads folder (dated within last 7 days)
 - Open Proxi on phone (or browser in mobile view)
 
 ### Step 1: Check Pricing System (20 sec)
@@ -48,25 +48,41 @@
 
 ---
 
-### Step 3: Update Proposal (30 sec)
+### Step 3: Find Brand Template (25 sec)
 
-**Voice:** *"Update my proposal document - change the price to $1.95M and add a note about the loyalty discount."*
+**Voice:** *"I downloaded our company's brand template a few days ago but forgot the name. Find PowerPoint files from the last 7 days in my Downloads folder and show me what you find."*
 
 **Proxi executes:**
-- Opens/focuses Word document
-- `look_at_screen()` → finds price field
-- Selects and updates price to $1.95M
-- Adds text about loyalty discount justification
-- Saves document (Ctrl+S)
-- `share_screenshot()` → Shows updated proposal
+- `run_terminal_command()` → searches Downloads for recent .pptx files
+- `share_screenshot()` → Shows list of files found
 
-**Proxi responds:** *"Proposal updated with new price of $1.95M and loyalty discount note. Document saved."*
+**Proxi responds:** *"I found 3 PowerPoint files from the last 7 days: 'TechSolutions_BrandTemplate_2026.pptx', 'Q1_Planning.pptx', and 'Meeting_Notes.pptx'. Which one is your brand template?"*
 
 ---
 
-### Step 4: Close (15 sec)
+### Step 4: Create Business Case (30 sec)
 
-**Presenter:** *"Sarah shows the updated proposal. Deal closed. All from her phone, without leaving the room."*
+**Voice:** *"Use the TechSolutions brand template. Create a business case slide justifying a lower margin for this deal."*
+
+**Proxi executes:**
+- `open_target()` → opens the brand template
+- `ppt_add_slide()` → adds new slide
+- `ppt_edit_text()` → adds title: "Strategic Deal Justification"
+- `ppt_edit_text()` → adds content with key points:
+  - Customer LTV: $4.7M
+  - Minimum margin: 18%
+  - Recommended price: $1.95M
+  - Loyalty discount: 5%
+- `ppt_save_presentation()` → saves to Desktop
+- `share_screenshot()` → Shows completed slide
+
+**Proxi responds:** *"Business case created using your brand template. Saved to Desktop as 'AcmeCorp_DealJustification.pptx'."*
+
+---
+
+### Step 5: Close (15 sec)
+
+**Presenter:** *"Sarah shows the business case to her manager via screen share. Discount approved. Deal closed. All from her phone, without leaving the room."*
 
 ---
 
@@ -77,7 +93,9 @@
 3. **Mobile-first** - Phone was the only interface available
 4. **Time-critical** - 10-minute deadline, couldn't wait
 5. **Real business value** - $2.3M deal saved
-6. **Verification** - Screenshots proved each step worked
+6. **File discovery** - Found forgotten file by searching recent downloads
+7. **Document creation** - Built business case in PowerPoint on-the-fly
+8. **Human-in-loop** - Asked user to confirm which template before proceeding
 
 ---
 
@@ -103,9 +121,9 @@ If something doesn't work perfectly:
 
 ## Mock Apps Required
 
-1. **Legacy Pricing Tool** - SAP-like interface with pricing tiers
-2. **Legacy CRM** - Old-school customer database with search
-3. **Proposal Document** - Word doc with editable price field
+1. **Legacy Pricing Tool** - SAP-like interface with pricing tiers (`demo/pricing-tool.html`)
+2. **Legacy CRM** - Old-school customer database with interactive tabs (`demo/crm.html`)
+3. **Brand Template** - PowerPoint .pptx file in Downloads folder (use any branded template)
 
 ---
 
