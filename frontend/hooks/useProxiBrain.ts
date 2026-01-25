@@ -191,6 +191,15 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
                         activeTool: data.tool || undefined,
                         retryCount: data.retry ? prev.retryCount + 1 : prev.retryCount
                     }));
+                    
+                    // Handle screenshots - add to trace for display
+                    if (data.metadata?.screenshot) {
+                        updateTrace({ 
+                            step_type: 'status_change', 
+                            content: data.content || 'Screenshot', 
+                            metadata: { screenshot: data.metadata.screenshot }
+                        });
+                    }
                 }
                 else if (data.type === 'verification') {
                     setMissionState(prev => ({
