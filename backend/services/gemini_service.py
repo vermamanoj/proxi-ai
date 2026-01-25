@@ -118,6 +118,7 @@ class GeminiService:
             "type_text": self.type_text,
             "press_hotkey": self.press_hotkey,
             "look_at_screen": self.look_at_screen,
+            "share_screenshot": self.share_screenshot,
             "scan_ui_tree": self.scan_ui_tree,
             "wait_seconds": self.wait_seconds,
             "run_terminal_command": self.run_terminal_command,
@@ -224,6 +225,24 @@ class GeminiService:
         except Exception as e: 
             return f"Vision Error: {e}"
 
+    def share_screenshot(self, caption: str = "Screenshot"):
+        """
+        Takes a screenshot and shares it with the user in the chat UI.
+        Use this when the user asks to SEE or be SHOWN something on screen.
+        
+        Args:
+            caption: A brief description of what the screenshot shows.
+        
+        Returns:
+            Special marker that triggers screenshot display in UI.
+        """
+        base64_img = self.desktop_service.get_screenshot_base64()
+        if not base64_img: 
+            return "Screenshot failed - could not capture screen"
+        log_system(f"Screenshot captured for user: {caption}", "SCREENSHOT")
+        # Return special marker with base64 data - handled in streaming loop
+        return f"__SCREENSHOT__:data:image/jpeg;base64,{base64_img}:__CAPTION__:{caption}"
+
     async def _execute_with_index(self, index: int, name: str, args: dict):
         func = self.tools_map.get(name)
         if not func: return (index, name, f"Error: Tool {name} not found")
@@ -277,7 +296,8 @@ class GeminiService:
 
 YOU HAVE ACCESS TO THESE CAPABILITIES - USE THEM:
 - run_terminal_command: Execute PowerShell commands (dir, ls, Get-Process, etc.)
-- look_at_screen: Take screenshot and analyze what's visible
+- look_at_screen: Take screenshot and analyze what's visible (for YOUR analysis only)
+- share_screenshot: Take screenshot and SHOW it to the user in the chat UI
 - open_target: Open files, folders, URLs, or applications
 - click_at, type_text, press_hotkey: Control mouse and keyboard
 - ppt_* tools: Edit PowerPoint presentations
@@ -285,7 +305,8 @@ YOU HAVE ACCESS TO THESE CAPABILITIES - USE THEM:
 
 TO LIST FILES ON DESKTOP, use: run_terminal_command with "dir $env:USERPROFILE\\Desktop" or "ls ~/Desktop"
 TO OPEN AN IMAGE, use: open_target with the image path
-TO SEE THE SCREEN, use: look_at_screen with a description of what to analyze
+TO SEE THE SCREEN (for your analysis), use: look_at_screen
+TO SHOW THE USER A SCREENSHOT, use: share_screenshot - this displays it in the chat!
 
 CRITICAL RULE - THINK BEFORE YOU ACT:
 Before EVERY tool call, explain: WHAT you're doing, WHY, and WHAT you expect.
@@ -477,6 +498,14 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                             res = f"VERIFICATION FAILED: {judgment.get('reason')}"
                             yield json.dumps({"type": "verification", "status": "failed", "reason": judgment.get('reason')}) + "\n"
 
+                    # Handle screenshot sharing specially
+                    if str(res).startswith("__SCREENSHOT__:"):
+                        parts = str(res).split(":__CAPTION__:")
+                        image_data = parts[0].replace("__SCREENSHOT__:", "")
+                        caption = parts[1] if len(parts) > 1 else "Screenshot"
+                        yield json.dumps({"type": "status_change", "phase": "screenshot", "metadata": {"screenshot": image_data}, "content": caption}) + "\n"
+                        res = f"Screenshot shared with user: {caption}"
+                    
                     # Build response
                     response_parts.append(protos.Part(function_response=protos.FunctionResponse(
                         name=function_calls[i].name,
