@@ -75,6 +75,9 @@ class GeminiService:
             log_system(f"DB Init Failed: {e}", "ERR")
 
         self.desktop_service = get_desktop_service()
+        
+        # Session-based conversation history for multi-turn interactions
+        self.sessions = {}  # {session_id: [{"role": "user/model", "parts": [...]}]}
 
         # EXECUTION MAP - Keys must match function names exactly
         self.tools_map = {
@@ -192,8 +195,19 @@ class GeminiService:
                 raise e
 
     # --- MAIN ORCHESTRATOR ---
-    async def route_and_execute_stream(self, message: str, complexity_request: str = "fast"):
-        log_system(f"NEW REQUEST: {message} (Mode: {complexity_request})", "ROUTER")
+    async def route_and_execute_stream(self, message: str, complexity_request: str = "fast", session_id: str = None):
+        log_system(f"NEW REQUEST: {message} (Mode: {complexity_request}, Session: {session_id})", "ROUTER")
+        
+        # Generate session ID if not provided
+        if not session_id:
+            session_id = f"session_{int(time.time())}"
+        
+        # Get or create session history
+        if session_id not in self.sessions:
+            self.sessions[session_id] = []
+            log_system(f"New session created: {session_id}", "SESSION")
+        else:
+            log_system(f"Continuing session: {session_id} with {len(self.sessions[session_id])} messages", "SESSION")
 
         if not self.api_key:
             yield json.dumps({"type": "error", "content": "API Key Missing"})
@@ -210,21 +224,61 @@ class GeminiService:
         system_instruction = """You are Proxi, a Headless Operator with OS-level access.
 
 CRITICAL RULE - THINK BEFORE YOU ACT:
-Before EVERY tool call, you MUST first explain in text:
-1. WHAT you are about to do
-2. WHY you are doing it  
-3. WHAT you expect to find
+Before EVERY tool call, explain: WHAT you're doing, WHY, and WHAT you expect.
 
-Example: "I will check the system health metrics to assess CPU and memory usage. This will help identify any resource bottlenecks."
+INCIDENT RESOLUTION FLOW:
+1. DIAGNOSE: Check system health, then list processes (use `ps aux` or `top`) to identify the culprit
+2. ANALYZE: Identify the specific process causing issues (name, PID, resource usage)
+3. PRESENT OPTIONS: Tell the user what you found and what actions are available
+4. **STOP AND ASK**: For destructive actions, END your response with a question asking for approval
+5. EXECUTE: Only after user replies with approval, run the command
+6. VERIFY: Check system health again to confirm resolution
+7. CONFIRM: Report the final outcome to the user
+
+CRITICAL - APPROVAL MECHANISM:
+- Do NOT use send_slack_message for approvals
+- Do NOT use escalate_to_human for things you can fix
+- Instead, STOP your response and ask the user directly in the chat
+- End your message with: "Should I proceed? Reply 'yes' to approve or 'no' to cancel."
+- Then WAIT - do not call any more tools until user responds
+
+APPROVAL REQUIRED FOR:
+- Killing processes
+- Restarting services  
+- Deleting files
+- Modifying system configuration
+- Any action that could cause data loss
+
+WHEN PRESENTING FINDINGS:
+Include ALL relevant details so user can make an informed decision:
+- Process name and what it does
+- PID and resource usage (CPU%, memory)
+- How long it has been running
+- Who/what started it (owner/service)
+- Impact of killing it (data loss? can restart later?)
+- Your recommendation
+
+EXAMPLE APPROVAL REQUEST:
+"I found the issue:
+
+**Process:** ffmpeg (PID 1337)
+**Usage:** 99.8% CPU, 45% Memory
+**Task:** Video transcoding - converting wedding_video.mp4 to 4K format
+**Running for:** 45 minutes
+**Owner:** media-service (batch job)
+**Impact if killed:** Low - batch job can be restarted later, no data loss
+
+Recommended action: Kill process 1337 to restore system performance.
+
+Should I proceed? Reply 'yes' to approve or 'no' to cancel."
+[STOP HERE - wait for user response]
 
 GUIDELINES:
 - For status checks: Explain what you're checking, then call the tool.
-- For multi-step tasks: Start with `assign_mission` to define success criteria.
-- For desktop actions: ALWAYS explain coordinates/targets before clicking.
-- After each tool result: Summarize what you observed before the next action.
-- Use PowerShell syntax on Windows (use `;` not `&&`).
-
-SAFETY: You control real hardware. Never execute without explaining first."""
+- Use `ps aux | head -20` or `top -b -n1 | head -20` to list processes.
+- After fixing, ALWAYS verify by checking system health again.
+- Use PowerShell on Windows (`;` not `&&`), bash on Linux.
+- Only use send_slack_message for NOTIFICATIONS after resolution, not for approvals."""
 
         yield json.dumps({"type": "status_change", "phase": "planning", "content": f"Initializing ({complexity_request} mode)..."}) + "\n"
 
@@ -238,10 +292,25 @@ SAFETY: You control real hardware. Never execute without explaining first."""
                 tools=tools,
                 system_instruction=system_instruction
             )
-            chat = model.start_chat(enable_automatic_function_calling=False)
+            
+            # Use session history for conversation continuity
+            history = self.sessions[session_id]
+            chat = model.start_chat(history=history, enable_automatic_function_calling=False)
 
-            # Initial message
-            response = await self._send_with_retry(chat, f"GOAL: {message}")
+            # Format message based on context
+            if len(history) > 0:
+                # This is a follow-up message (like "yes" for approval)
+                user_message = message
+                log_system(f"Follow-up message in session: {message}", "SESSION")
+            else:
+                # New conversation - prefix with GOAL
+                user_message = f"GOAL: {message}"
+            
+            # Send message and store in history
+            response = await self._send_with_retry(chat, user_message)
+            
+            # Update session history with user message
+            self.sessions[session_id].append({"role": "user", "parts": [user_message]})
 
             max_turns = 15
             for turn in range(max_turns):
@@ -264,8 +333,10 @@ SAFETY: You control real hardware. Never execute without explaining first."""
                     log_system(f"LLM: {text_content[:100]}...", "THOUGHT" if function_calls else "RESPONSE")
                     yield json.dumps({"type": msg_type, "content": text_content}) + "\n"
 
-                # No tools = done
+                # No tools = done - save model response to session
                 if not function_calls:
+                    if text_content:
+                        self.sessions[session_id].append({"role": "model", "parts": [text_content]})
                     break
 
                 # Execute tools

@@ -40,7 +40,11 @@ async def chat(request: ChatRequest):
     """Streaming Endpoint for Agent Thoughts"""
     try:
         return StreamingResponse(
-            gemini_service.route_and_execute_stream(request.message, request.complexity),
+            gemini_service.route_and_execute_stream(
+                request.message, 
+                request.complexity,
+                request.session_id
+            ),
             media_type="application/x-ndjson"
         )
     except Exception as e:

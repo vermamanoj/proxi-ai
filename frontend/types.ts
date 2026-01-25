@@ -15,7 +15,7 @@ export interface LogEntry {
 }
 
 export interface TraceStep {
-    step_type: 'user_input' | 'llm_thought' | 'tool_call' | 'tool_result' | 'final_response' | 'system_instruction';
+    step_type: 'user_input' | 'llm_thought' | 'tool_call' | 'tool_result' | 'final_response' | 'system_instruction' | 'verification' | 'status_change';
     content: string | any;
     metadata?: any;
 }
@@ -40,6 +40,20 @@ export interface PendingAction {
   type: string;
   description: string;
   data: any;
+}
+
+export type ApprovalType = 'binary' | 'choice' | 'freeform' | 'confirm_screenshot';
+
+export interface ApprovalRequest {
+  id: string;
+  type: ApprovalType;
+  title: string;
+  description: string;
+  options?: string[];
+  screenshotUrl?: string;
+  placeholder?: string;
+  timeoutSeconds?: number;
+  metadata?: any;
 }
 
 export type MissionPhase = 'idle' | 'listening' | 'planning' | 'executing' | 'verifying' | 'success' | 'failed';

@@ -8,6 +8,7 @@ export const useProxiBrain = () => {
   const [lastTrace, setLastTrace] = useState<TraceStep[]>([]);
   const [complexity, setComplexity] = useState<Complexity>('fast');
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
   // Mission State Tracking
@@ -77,12 +78,19 @@ export const useProxiBrain = () => {
     addLog(MessageSource.USER, message);
     setStatus('processing');
     setPendingAction(null);
-    setLastTrace([]); 
+    
+    // Generate session ID if this is a new conversation (no existing trace)
+    let currentSessionId = sessionId;
+    if (!currentSessionId || lastTrace.length === 0) {
+      currentSessionId = `session_${Date.now()}`;
+      setSessionId(currentSessionId);
+      setLastTrace([]); // Clear trace for new session
+    }
     
     setMissionState({
         active: true,
         phase: 'planning',
-        goal: message,
+        goal: lastTrace.length === 0 ? message : missionState.goal, // Keep original goal for follow-ups
         verification: { status: 'pending' },
         retryCount: 0
     });
@@ -109,7 +117,7 @@ export const useProxiBrain = () => {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, complexity }),
+        body: JSON.stringify({ message, complexity, session_id: currentSessionId }),
         signal: controller.signal
       });
       
@@ -262,6 +270,7 @@ export const useProxiBrain = () => {
   const cancelAction = () => { setPendingAction(null); setStatus('idle'); };
   const toggleComplexity = () => setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
   const logSystemError = (msg: string) => addLog(MessageSource.SYSTEM, msg);
+  const clearSession = () => { setSessionId(null); setLastTrace([]); };
 
 
 
@@ -272,11 +281,13 @@ export const useProxiBrain = () => {
     complexity,
     pendingAction,
     missionState,
+    sessionId,
     sendCommand,
     sendVisionCommand,
     toggleComplexity,
     confirmAction,
     cancelAction,
-    logSystemError
+    logSystemError,
+    clearSession
   };
 };

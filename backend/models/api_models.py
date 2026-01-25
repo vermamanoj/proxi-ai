@@ -14,6 +14,7 @@ class TraceStep(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     complexity: Optional[str] = "fast"  # Options: "fast", "deep"
+    session_id: Optional[str] = None  # For conversation continuity
 
 class ActionConfirmation(BaseModel):
     action_token: str # Simple security or state validation

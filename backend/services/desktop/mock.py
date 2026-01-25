@@ -36,24 +36,50 @@ class MockDesktopService(DesktopInterface):
         cmd = command.lower()
         print(f"[DEMO CMD] {command}", flush=True)
         
-        if "top" in cmd or "htop" in cmd:
+        # Process listing commands
+        if any(x in cmd for x in ["top", "htop", "ps aux", "ps -aux", "ps -ef"]):
             if self.incident_active:
-                return "PID  USER      PR  NI  VIRT  RES  %CPU  COMMAND\n1337 root      20   0  10g   8g    99.8  ffmpeg_transcode\n882  sys       20   0  2g    1g    1.2   dockerd"
-            return "PID  USER      PR  NI  VIRT  RES  %CPU  COMMAND\n882  sys       20   0  2g    1g    1.2   dockerd\n443  user      20   0  4g    2g    0.5   chrome"
-        
-        if "kill" in cmd and "1337" in cmd:
-            if self.incident_active:
-                self.resolve_incident()
-                return "Process 1337 (ffmpeg_transcode) terminated. System load normalizing."
-            return "Process 1337 not found."
+                return """USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root      1337 99.8 45.2 10485760 8388608 ?   R    09:15  45:23 ffmpeg -i /data/uploads/wedding_video.mp4 -c:v libx264 -preset slow -crf 18 -c:a aac -o /data/output/wedding_4k.mp4
+  └─ Process Info: Video transcoding job converting wedding_video.mp4 to 4K H.264 format
+  └─ Started: 45 minutes ago | Owner: media-service | Priority: Low (batch job)
+  └─ Impact: Non-critical batch processing, safe to terminate and restart later
+
+root       882  1.2  2.1 2097152 1048576 ?   Ss   08:00   0:45 /usr/bin/dockerd --containerd=/run/containerd/containerd.sock
+user       443  0.5  4.2 4194304 2097152 ?   Sl   08:05   0:12 /opt/google/chrome/chrome --type=renderer"""
+            return """USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root       882  1.2  2.1 2097152 1048576 ?   Ss   08:00   0:45 /usr/bin/dockerd
+user       443  0.5  4.2 4194304 2097152 ?   Sl   08:05   0:12 /opt/google/chrome/chrome
+user       512  0.1  1.0 1048576  524288 ?   Sl   08:10   0:02 /usr/bin/code"""
+
+        # Kill commands - require the right PID
+        if "kill" in cmd:
+            if "1337" in cmd:
+                if self.incident_active:
+                    self.resolve_incident()
+                    return "Process 1337 terminated successfully."
+                return "kill: (1337): No such process"
+            # Wrong PID
+            return "Process terminated."
             
+        # Service restart
         if "systemctl" in cmd and "restart" in cmd:
             if self.incident_active:
                 self.resolve_incident()
                 return "Service restarted successfully. CPU load normalizing."
             return "Service restarted."
 
-        return f"Mock Output for: {command}"
+        # Other common diagnostic commands
+        if "free" in cmd or "memory" in cmd:
+            return "              total        used        free      shared  buff/cache   available\nMem:       16384000    14000000     1000000      500000     1384000     1500000"
+        
+        if "df" in cmd:
+            return "Filesystem     1K-blocks      Used Available Use% Mounted on\n/dev/sda1      500000000 450000000  50000000  90% /"
+        
+        if "uptime" in cmd:
+            return " 14:30:00 up 45 days,  3:22,  2 users,  load average: 4.50, 3.20, 2.10" if self.incident_active else " 14:30:00 up 45 days,  3:22,  2 users,  load average: 0.15, 0.10, 0.05"
+
+        return f"Command executed: {command}"
 
     def get_screenshot_base64(self):
         # Returns a 1x1 pixel base64 image string to satisfy the API
