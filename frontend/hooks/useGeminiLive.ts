@@ -10,6 +10,8 @@ export const useGeminiLive = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [volume, setVolume] = useState(0);
   const [activeTool, setActiveTool] = useState<ActiveToolState | null>(null);
+  const [micMuted, setMicMuted] = useState(false);
+  const micMutedRef = useRef(false); // Ref for use in audio callback
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const inputContextRef = useRef<AudioContext | null>(null);
@@ -166,10 +168,14 @@ export const useGeminiLive = () => {
               // Calc Volume
               let sum = 0;
               for (let i = 0; i < inputData.length; i++) sum += inputData[i] * inputData[i];
-              setVolume(Math.sqrt(sum / inputData.length));
+              const currentVolume = Math.sqrt(sum / inputData.length);
+              setVolume(micMutedRef.current ? 0 : currentVolume);
 
-              const pcmBlob = createPcmBlob(inputData);
-              sessionPromise.then(session => session.sendRealtimeInput({ media: pcmBlob }));
+              // Only send audio if mic is not muted
+              if (!micMutedRef.current) {
+                const pcmBlob = createPcmBlob(inputData);
+                sessionPromise.then(session => session.sendRealtimeInput({ media: pcmBlob }));
+              }
             };
 
             source.connect(processor);
@@ -184,7 +190,7 @@ export const useGeminiLive = () => {
                  sourcesRef.current.clear();
                  return;
              }
-             if (message.toolCall) {
+             if (message.toolCall?.functionCalls) {
                 const responses = await handleToolCall(message.toolCall.functionCalls);
                 sessionPromise.then(s => s.sendToolResponse({ functionResponses: responses }));
              }
@@ -226,7 +232,15 @@ export const useGeminiLive = () => {
     addLog(MessageSource.SYSTEM, "Disconnected.");
   };
 
-  return { connected, connect, disconnect, sendCommand, volume, logs, activeTool };
+  const toggleMicMute = useCallback(() => {
+    setMicMuted(prev => {
+      const newVal = !prev;
+      micMutedRef.current = newVal;
+      return newVal;
+    });
+  }, []);
+
+  return { connected, connect, disconnect, sendCommand, volume, logs, activeTool, micMuted, toggleMicMute };
 };
 
 function decodeAtob(base64: string) {

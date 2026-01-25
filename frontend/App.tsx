@@ -36,12 +36,13 @@ const App: React.FC = () => {
     sendCommand: liveSendCommand,
     volume: liveVolume, 
     logs: liveLogs, 
-    activeTool: liveActiveTool 
+    activeTool: liveActiveTool,
+    micMuted,
+    toggleMicMute
   } = useGeminiLive();
 
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
   const [viewMode, setViewMode] = useState<'summary' | 'timeline' | 'full'>('timeline');
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,10 +61,10 @@ const App: React.FC = () => {
   const statusColor = isProcessing ? 'bg-yellow-500' : isSpeaking ? 'bg-blue-500' : liveConnected ? 'bg-green-500' : 'bg-gray-500';
 
   useEffect(() => {
-    if (brainStatus === 'idle' && !isRecording) {
+    if (brainStatus === 'idle') {
       inputRef.current?.focus();
     }
-  }, [brainStatus, isRecording]);
+  }, [brainStatus]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,15 +88,6 @@ const App: React.FC = () => {
       sendVisionCommand(file, prompt);
       setInput('');
       if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
-  const handleVoiceToggle = () => {
-    if (liveConnected) {
-      setIsRecording(!isRecording);
-    } else {
-      liveConnect();
-      setIsRecording(true);
     }
   };
 
@@ -265,7 +257,7 @@ const App: React.FC = () => {
             request={approvalRequest}
             onApprove={() => confirmAction()}
             onDeny={() => cancelAction()}
-            isListening={isRecording}
+            isListening={liveConnected && !micMuted}
           />
         </div>
       )}
@@ -307,20 +299,42 @@ const App: React.FC = () => {
             )}
           </div>
 
-          {/* Voice Button */}
+          {/* Voice Button - Connect/Disconnect */}
           <button
             type="button"
-            onClick={handleVoiceToggle}
-            className={`p-3 rounded-xl transition-all ${
-              isRecording
-                ? 'bg-red-500 text-white animate-pulse'
-                : liveConnected
+            onClick={liveConnected ? liveDisconnect : liveConnect}
+            className={`p-3 rounded-xl transition-all relative ${
+              liveConnected
                 ? 'bg-green-500/20 text-green-500 border border-green-500/50'
                 : 'bg-gray-800 text-gray-400 hover:text-gray-300'
             }`}
+            title={liveConnected ? 'Disconnect Voice' : 'Connect Voice'}
           >
-            {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            <Mic className="w-5 h-5" />
+            {/* Live listening indicator - pulsing ring based on volume */}
+            {liveConnected && !micMuted && liveVolume > 0.01 && (
+              <span 
+                className="absolute inset-0 rounded-xl border-2 border-green-400 animate-ping opacity-50"
+                style={{ animationDuration: `${Math.max(0.3, 1 - liveVolume * 5)}s` }}
+              />
+            )}
           </button>
+
+          {/* Mic Mute Button - Only show when connected */}
+          {liveConnected && (
+            <button
+              type="button"
+              onClick={toggleMicMute}
+              className={`p-3 rounded-xl transition-all ${
+                micMuted
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/50'
+                  : 'bg-green-500/10 text-green-400 border border-green-500/30'
+              }`}
+              title={micMuted ? 'Unmute Mic' : 'Mute Mic'}
+            >
+              {micMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            </button>
+          )}
 
           {/* Send Button */}
           <button
