@@ -178,6 +178,53 @@ There's a high CPU alert. Check system health, identify the culprit, and fix it.
 Open VS Code, create a new Python file, write a function to calculate fibonacci, and save it.
 ```
 
+#### PowerPoint Editing
+
+Proxi can edit PowerPoint presentations while preserving organization themes and formatting.
+
+**Basic Operations:**
+```
+Open presentation.pptx and tell me what slides it has
+```
+
+```
+Go to slide 3 and read the content
+```
+
+**Theme-Aware Content Creation:**
+```
+Open deck.pptx, look at slides 2-3 for the theme style, then create 3 new slides about LLM Security
+```
+
+**Visual Editing:**
+```
+Add a picture from C:/images/logo.png to slide 1 in the top right corner
+```
+
+```
+Add a blue arrow shape pointing right on slide 5
+```
+
+**Available PPT Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `ppt_open_presentation` | Open a .pptx file |
+| `ppt_get_slide_info` | Read slide structure and text |
+| `ppt_edit_text` | Edit text preserving formatting |
+| `ppt_add_slide` | Add new slide with theme layout |
+| `ppt_duplicate_slide` | Clone slide (best for theme preservation) |
+| `ppt_delete_slide` | Remove a slide |
+| `ppt_add_picture` | Insert image at position |
+| `ppt_add_shape` | Add shapes (rectangle, oval, arrow, etc.) |
+| `ppt_move_shape` | Reposition shapes |
+| `ppt_resize_shape` | Resize shapes |
+| `ppt_format_text` | Bold, italic, size, color |
+| `ppt_get_theme_colors` | Extract theme colors and fonts |
+| `ppt_save_presentation` | Save changes |
+
+**Note:** PowerPoint must be installed. Works via COM automation (no admin required).
+
 ---
 
 ## Demo Mode
