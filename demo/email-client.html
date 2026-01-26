@@ -327,6 +327,37 @@
             border-radius: 4px;
             cursor: pointer;
         }
+        .attach-btn.has-attachment {
+            background: #d4edda;
+            color: #155724;
+        }
+        .attachment-list {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            display: none;
+        }
+        .attachment-list.show {
+            display: block;
+        }
+        .attachment-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+        .attachment-item .remove-btn {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: #dc3545;
+            cursor: pointer;
+        }
         /* Toast notification */
         .toast {
             display: none;
@@ -427,10 +458,11 @@
                 <input type="text" id="compose-subject" placeholder="Subject">
             </div>
             <textarea class="compose-textarea" id="compose-body" placeholder="Write your message..."></textarea>
+            <div class="attachment-list" id="attachment-list"></div>
         </div>
         <div class="compose-footer">
             <button class="send-btn" onclick="sendEmail()">Send</button>
-            <button class="attach-btn">📎 Attach</button>
+            <button class="attach-btn" id="attach-btn" onclick="addAttachment()">📎 Attach</button>
         </div>
     </div>
 
@@ -520,28 +552,80 @@
             document.getElementById('compose-modal').classList.remove('active');
         }
 
+        // Track attachments
+        let currentAttachments = [];
+
+        function addAttachment(filename = null) {
+            // If no filename provided, use a default business case
+            const name = filename || 'ACME_BusinessCase.pptx';
+            if (!currentAttachments.includes(name)) {
+                currentAttachments.push(name);
+                renderAttachments();
+            }
+        }
+
+        function removeAttachment(index) {
+            currentAttachments.splice(index, 1);
+            renderAttachments();
+        }
+
+        function renderAttachments() {
+            const list = document.getElementById('attachment-list');
+            const btn = document.getElementById('attach-btn');
+            
+            if (currentAttachments.length > 0) {
+                list.classList.add('show');
+                btn.classList.add('has-attachment');
+                btn.innerHTML = `📎 ${currentAttachments.length} file(s)`;
+                list.innerHTML = currentAttachments.map((name, i) => `
+                    <div class="attachment-item">
+                        <span>📄</span>
+                        <span>${name}</span>
+                        <span style="color: #666; font-size: 12px;">(${Math.floor(Math.random() * 500 + 100)} KB)</span>
+                        <button class="remove-btn" onclick="removeAttachment(${i})">✕</button>
+                    </div>
+                `).join('');
+            } else {
+                list.classList.remove('show');
+                btn.classList.remove('has-attachment');
+                btn.innerHTML = '📎 Attach';
+                list.innerHTML = '';
+            }
+        }
+
         function sendEmail() {
             const to = document.getElementById('compose-to').value;
             const subject = document.getElementById('compose-subject').value;
             const body = document.getElementById('compose-body').value;
+            const attachments = [...currentAttachments];
 
-            // Show toast
+            // Show toast with attachment info
             const toast = document.getElementById('toast');
-            toast.textContent = `Email sent to ${to}!`;
+            const attachText = attachments.length > 0 ? ` with ${attachments.length} attachment(s)` : '';
+            toast.textContent = `✉️ Email sent to ${to}${attachText}!`;
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 3000);
 
             // Close compose
             closeCompose();
 
-            // Clear fields
+            // Clear fields and attachments
             document.getElementById('compose-to').value = '';
             document.getElementById('compose-subject').value = '';
             document.getElementById('compose-body').value = '';
+            currentAttachments = [];
+            renderAttachments();
         }
 
+        // Function that Proxi can call to attach a file (for demo)
+        function attachFile(filename) {
+            openCompose();
+            addAttachment(filename);
+        }
+        window.attachFile = attachFile;
+
         // Function that Proxi can call to simulate receiving an email
-        function receiveEmail(sender, subject, preview, hasAttachment = false) {
+        function receiveEmail(sender, subject, preview, hasAttachment = false, attachmentName = null) {
             const newEmail = {
                 id: emails.length + 1,
                 sender: sender,
@@ -551,6 +635,7 @@
                 unread: true,
                 starred: false,
                 attachment: hasAttachment,
+                attachmentName: attachmentName || (hasAttachment ? 'attachment.pdf' : null),
                 newArrival: true
             };
             emails.unshift(newEmail);

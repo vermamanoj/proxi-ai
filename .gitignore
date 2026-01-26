@@ -19,6 +19,9 @@ backend/static/
 # Logs
 *.log
 
+# SQLite databases
+*.db
+
 # OS
 .DS_Store
 Thumbs.db
