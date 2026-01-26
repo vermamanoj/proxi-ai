@@ -104,37 +104,7 @@ export function useAuth() {
       return false;
     } catch (error) {
       console.error('Login failed:', error);
-      // Demo mode: allow demo/demo123 locally
-      if (username === 'demo' && password === 'demo123') {
-        const user = {
-          username: 'demo',
-          displayName: 'Demo User',
-          role: 'user',
-        };
-        setAuthState({
-          isAuthenticated: true,
-          user,
-          isLoading: false,
-        });
-        localStorage.setItem('proxi_auth', JSON.stringify(user));
-        return true;
-      }
-      // Judge mode
-      if (username === 'judge' && password === 'gemini2026') {
-        const user = {
-          username: 'judge',
-          displayName: 'Hackathon Judge',
-          role: 'judge',
-        };
-        setAuthState({
-          isAuthenticated: true,
-          user,
-          isLoading: false,
-        });
-        localStorage.setItem('proxi_auth', JSON.stringify(user));
-        return true;
-      }
-      return false;
+            return false;
     }
   }, []);
 

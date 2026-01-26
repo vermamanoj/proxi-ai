@@ -117,31 +117,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
           </button>
         </form>
 
-        {/* Demo Credentials */}
-        <div className="mt-8 p-4 bg-gray-900/50 border border-gray-800 rounded-xl">
-          <p className="text-sm text-gray-400 text-center mb-3">Demo Credentials</p>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-gray-500">Username:</span>
-              <button 
-                onClick={() => setUsername('demo')}
-                className="ml-2 text-proxi-accent hover:underline"
-              >
-                demo
-              </button>
-            </div>
-            <div>
-              <span className="text-gray-500">Password:</span>
-              <button 
-                onClick={() => setPassword('demo123')}
-                className="ml-2 text-proxi-accent hover:underline"
-              >
-                demo123
-              </button>
-            </div>
-          </div>
-        </div>
-
+        
         {/* Footer */}
         <p className="text-center text-gray-500 text-sm mt-8">
           Built for Google Gemini Hackathon 2026

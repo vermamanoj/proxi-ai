@@ -3,8 +3,10 @@ import uvicorn
 import os
 import logging
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Body
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request, Response
+from backend.auth import AuthService, get_auth_service
 
 # Filter out noisy health check logs
 class HealthCheckFilter(logging.Filter):
@@ -23,8 +25,9 @@ app = FastAPI(
     version="0.3.0"
 )
 
-# Initialize Service
+# Initialize Services
 gemini_service = GeminiService()
+auth_service = get_auth_service()
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,6 +46,88 @@ async def root():
 async def health_check():
     mode = os.getenv("RUNTIME_MODE", "DEMO")
     return {"message": "Proxi System Online", "status": "operational", "mode": mode}
+
+# Authentication endpoints
+@app.post("/api/auth/login")
+async def login(request: Request):
+    """Login endpoint"""
+    try:
+        data = await request.json()
+        username = data.get("username")
+        password = data.get("password")
+        
+        if not username or not password:
+            return JSONResponse(
+                {"error": "Username and password required"}, 
+                status_code=400
+            )
+        
+        user = auth_service.authenticate(username, password)
+        if user:
+            session = auth_service.create_session(username)
+            response = JSONResponse({
+                "username": user.username,
+                "display_name": user.display_name,
+                "role": user.role
+            })
+            response.set_cookie(
+                key="session_id",
+                value=session.session_id,
+                httponly=True,
+                secure=False,  # Set to True in production with HTTPS
+                samesite="lax"
+            )
+            return response
+        else:
+            return JSONResponse(
+                {"error": "Invalid credentials"}, 
+                status_code=401
+            )
+    except Exception as e:
+        return JSONResponse(
+            {"error": f"Login failed: {str(e)}"}, 
+            status_code=500
+        )
+
+@app.get("/api/auth/session")
+async def check_session(request: Request):
+    """Check if session is valid"""
+    try:
+        session_id = request.cookies.get("session_id")
+        if not session_id:
+            return JSONResponse({"error": "No session"}, status_code=401)
+        
+        user = auth_service.get_user_for_session(session_id)
+        if user:
+            return JSONResponse({
+                "username": user.username,
+                "display_name": user.display_name,
+                "role": user.role
+            })
+        
+        return JSONResponse({"error": "Invalid session"}, status_code=401)
+    except Exception as e:
+        return JSONResponse(
+            {"error": f"Session check failed: {str(e)}"}, 
+            status_code=500
+        )
+
+@app.post("/api/auth/logout")
+async def logout(request: Request):
+    """Logout endpoint"""
+    try:
+        session_id = request.cookies.get("session_id")
+        if session_id:
+            auth_service.invalidate_session(session_id)
+        
+        response = JSONResponse({"message": "Logged out successfully"})
+        response.delete_cookie("session_id")
+        return response
+    except Exception as e:
+        return JSONResponse(
+            {"error": f"Logout failed: {str(e)}"}, 
+            status_code=500
+        )
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):

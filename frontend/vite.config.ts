@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true,
       port: 5173,
-      allowedHosts: ['proxi.audista.com', 'localhost', 'construction-pose-charles-ethnic.trycloudflare.com'],
+      allowedHosts: ['proxi.audista.com', 'localhost', 'infants-frost-installed-stranger.trycloudflare.com'],
       proxy: {
         // CRITICAL: Proxy API requests to the Python Backend running on port 8080
         '/api': {
