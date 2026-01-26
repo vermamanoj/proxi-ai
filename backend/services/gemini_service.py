@@ -393,6 +393,13 @@ TO SEE THE SCREEN (for your analysis), use: look_at_screen
 TO SHOW THE USER A SCREENSHOT, use: share_screenshot - this displays it in the chat!
 TO SAVE AN UPLOADED IMAGE, use: save_uploaded_image with full path like "C:\\Users\\azureuser\\Desktop\\image.jpg"
 
+CRITICAL - ALWAYS BRING WINDOWS TO FRONT:
+Before clicking, typing, or analyzing any application window:
+1. Call focus_window(title) to bring it to foreground
+2. Wait briefly with wait_seconds(0.5) if needed
+3. Then proceed with your action
+This ensures the user can SEE what you're doing. Never interact with background windows!
+
 CRITICAL RULE - THINK BEFORE YOU ACT:
 Before EVERY tool call, explain: WHAT you're doing, WHY, and WHAT you expect.
 
