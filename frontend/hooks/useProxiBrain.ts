@@ -9,6 +9,7 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
   const [complexity, setComplexity] = useState<Complexity>('fast');
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionTimestamp, setSessionTimestamp] = useState<number>(0); // Track when session was created
   const [awaitingApproval, setAwaitingApproval] = useState(false); // Track if we're waiting for user approval
   const [isSpeaking, setIsSpeaking] = useState(false); // Track if TTS is active
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
@@ -96,29 +97,40 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
     window.speechSynthesis.speak(utterance);
   }, [pendingAction, audioEnabled]);
 
-  const sendCommand = async (message: string) => {
+  const sendCommand = async (message: string, isButtonApproval: boolean = false) => {
     if (!message.trim()) return;
+
+    // SECURITY: Block audio/text approval for destructive actions - require button click
+    const isApprovalWord = ['yes', 'no', 'proceed', 'cancel', 'approve', 'deny'].some(
+      word => message.toLowerCase().trim() === word
+    );
+    
+    if (pendingAction && isApprovalWord && !isButtonApproval) {
+      addLog(MessageSource.SYSTEM, "⚠️ Security: Destructive actions require button approval. Please click Approve or Deny.");
+      return;
+    }
 
     addLog(MessageSource.USER, message);
     setStatus('processing');
     setPendingAction(null);
     
-    // Generate session ID if this is a new conversation
-    // Only continue existing session if we're awaiting approval response
+    // Session persistence: keep session for 5 minutes to maintain context for follow-ups like "yes"
+    const SESSION_TTL_MS = 5 * 60 * 1000; // 5 minutes
+    const now = Date.now();
     let currentSessionId = sessionId;
-    const isApprovalResponse = awaitingApproval && 
-      ['yes', 'no', 'proceed', 'cancel', 'approve', 'deny'].some(
-        word => message.toLowerCase().trim() === word || 
-                message.toLowerCase().includes(word)
-      );
     
-    if (!currentSessionId || !isApprovalResponse) {
+    // Check if session is still valid (exists and not expired)
+    const sessionExpired = !currentSessionId || (now - sessionTimestamp > SESSION_TTL_MS);
+    
+    // Detect if this looks like a new topic (long message with new intent)
+    const isNewTopic = message.length > 50 && !awaitingApproval;
+    
+    if (sessionExpired || isNewTopic) {
       currentSessionId = `session_${Date.now()}`;
       setSessionId(currentSessionId);
-      // Add separator instead of clearing trace (keep history visible)
-      if (lastTrace.length > 0) {
-        updateTrace({ step_type: 'status_change', content: '───── New Conversation ─────', metadata: { separator: true } });
-      }
+      setSessionTimestamp(now);
+      // Clear trace for new conversation (prevents stale data confusion)
+      setLastTrace([]);
     }
     setAwaitingApproval(false); // Reset at start of each request
     
@@ -222,10 +234,28 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
                     case 'tool_call_batch':
                         for (const call of data.calls) {
                              updateTrace({ step_type: 'tool_call', content: call.name, metadata: { args: call.args } });
+                             // Track Triple Handshake phases
+                             if (call.name === 'assign_mission') {
+                                 setMissionState(prev => ({ ...prev, active: true, phase: 'planning', goal: call.args?.goal || prev.goal }));
+                             } else if (call.name === 'report_execution') {
+                                 setMissionState(prev => ({ ...prev, phase: 'verifying' }));
+                             }
                         }
                         break;
                     case 'tool_result':
                         updateTrace({ step_type: 'tool_result', content: data.name, metadata: { output: data.content } });
+                        // Track verification results
+                        if (data.name === 'assign_mission') {
+                            setMissionState(prev => ({ ...prev, phase: 'executing' }));
+                        } else if (data.content?.includes('VERIFICATION')) {
+                            const passed = data.content.includes('PASSED') || data.content.includes('verified');
+                            const failed = data.content.includes('FAILED');
+                            setMissionState(prev => ({
+                                ...prev,
+                                phase: passed ? 'success' : failed ? 'failed' : prev.phase,
+                                verification: { status: passed ? 'success' : failed ? 'failed' : 'pending' }
+                            }));
+                        }
                         break;
                     case 'response':
                         updateTrace({ step_type: 'final_response', content: data.content });
@@ -233,13 +263,28 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
                         speak(data.content);
                         setMissionState(prev => ({ ...prev, active: false }));
                         
-                        // Check if agent is asking for approval - if so, keep session alive
+                        // Check if agent is asking for approval - if so, keep session alive and show approval UI
                         const responseText = (data.content || '').toLowerCase();
                         const isApprovalRequest = responseText.includes('should i proceed') || 
+                                                  responseText.includes('should i kill') ||
                                                   responseText.includes('reply \'yes\'') ||
                                                   responseText.includes('approve or') ||
-                                                  responseText.includes('confirm or cancel');
+                                                  responseText.includes('confirm or cancel') ||
+                                                  responseText.includes('requires approval') ||
+                                                  responseText.includes('authorization required') ||
+                                                  responseText.includes('approve this action') ||
+                                                  responseText.includes('confirm to proceed');
                         setAwaitingApproval(isApprovalRequest);
+                        
+                        // Show approval card when agent asks for confirmation
+                        if (isApprovalRequest) {
+                            setPendingAction({
+                                type: 'confirmation',
+                                description: data.content,
+                                data: { responseText: data.content }
+                            });
+                            setStatus('awaiting_confirmation');
+                        }
                         break;
                     case 'error':
                         addLog(MessageSource.SYSTEM, `Error: ${data.content}`);
@@ -364,11 +409,20 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
     }
   };
 
-  const confirmAction = async () => {}; 
-  const cancelAction = () => { setPendingAction(null); setStatus('idle'); };
+  const confirmAction = async () => {
+    setPendingAction(null);
+    // Send "yes" with button approval flag to bypass security check
+    await sendCommand('yes', true);
+  }; 
+  const cancelAction = () => { 
+    setPendingAction(null); 
+    setStatus('idle');
+    // Send "no" with button approval flag
+    sendCommand('no', true);
+  };
   const toggleComplexity = () => setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
   const logSystemError = (msg: string) => addLog(MessageSource.SYSTEM, msg);
-  const clearSession = () => { setSessionId(null); setLastTrace([]); };
+  const clearSession = () => { setSessionId(null); setSessionTimestamp(0); setLastTrace([]); };
 
 
 

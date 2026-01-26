@@ -1,14 +1,22 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Settings, Mic, MicOff, Send, Camera, Flame, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, Server, ServerOff } from 'lucide-react';
+import { Settings, Mic, MicOff, Send, Camera, Flame, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, Server, ServerOff, LogOut } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { useBackendHealth } from './hooks/useBackendHealth';
+import { useAuth } from './hooks/useAuth';
 import { ChatView } from './components/ChatView';
 import { MissionProgress } from './components/MissionProgress';
 import { ApprovalCard } from './components/ApprovalCard';
+import { LandingPage } from './components/LandingPage';
+import { LoginPage } from './components/LoginPage';
+import { VerificationBadge } from './components/VerificationBadge';
 import { ApprovalRequest, TraceStep, MessageSource } from './types';
 
 const App: React.FC = () => {
+  // Auth state
+  const { isAuthenticated, isLoading: authLoading, user, login, logout } = useAuth();
+  const [authView, setAuthView] = useState<'landing' | 'login'>('landing');
+
   // Audio output toggle state
   const [audioEnabled, setAudioEnabled] = useState(true);
   // Backend (Core) toggle - when ON, connects to backend for system actions
@@ -42,7 +50,7 @@ const App: React.FC = () => {
     activeTool: liveActiveTool,
     micMuted,
     toggleMicMute
-  } = useGeminiLive(coreEnabled, audioEnabled);
+  } = useGeminiLive(coreEnabled, audioEnabled, complexity);
 
   // Hook 3: Backend Health Monitoring (only when core is enabled)
   const { status: backendStatus, mode: backendMode } = useBackendHealth(coreEnabled ? 5000 : 0);
@@ -154,8 +162,31 @@ const App: React.FC = () => {
     }
   };
 
+  // Auth loading state
+  if (authLoading) {
+    return (
+      <div className="h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <Zap className="w-12 h-12 text-proxi-accent mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not authenticated - show landing or login
+  if (!isAuthenticated) {
+    if (authView === 'login') {
+      return <LoginPage onLogin={login} onBack={() => setAuthView('landing')} />;
+    }
+    return <LandingPage onLogin={() => setAuthView('login')} />;
+  }
+
+  // Authenticated - show main app
   return (
     <div className="h-screen bg-proxi-black text-gray-200 flex flex-col font-mono overflow-hidden">
+      {/* Centered container for desktop - full width on mobile, max-width on larger screens */}
+      <div className="h-full flex flex-col w-full max-w-2xl mx-auto lg:border-x lg:border-gray-800">
       
       {/* Mobile Safe Area Spacer - accounts for notch/status bar */}
       <div className="h-10 sm:h-0 bg-gray-900 shrink-0" />
@@ -203,6 +234,15 @@ const App: React.FC = () => {
               {!coreEnabled ? 'OFF' : backendStatus === 'connected' ? backendMode : '...'}
             </span>
           </button>
+          
+          {/* Triple Handshake Badge - show when mission is active */}
+          {missionState.active && (
+            <VerificationBadge
+              phase={missionState.phase as any}
+              goal={missionState.goal}
+              verificationStatus={missionState.verification?.status as any}
+            />
+          )}
         </div>
         
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
@@ -245,6 +285,15 @@ const App: React.FC = () => {
             className="p-2 text-gray-500 hover:text-gray-300 hover:bg-gray-800 rounded-lg transition-colors"
           >
             <Settings className="w-5 h-5" />
+          </button>
+
+          {/* Logout */}
+          <button
+            onClick={logout}
+            className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+            title={`Logout ${user?.displayName || ''}`}
+          >
+            <LogOut className="w-5 h-5" />
           </button>
         </div>
       </header>
@@ -486,6 +535,7 @@ const App: React.FC = () => {
           </button>
         </form>
       </footer>
+      </div>{/* End centered container */}
     </div>
   );
 };

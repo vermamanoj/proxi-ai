@@ -5,15 +5,25 @@ import { LogEntry, MessageSource, ActiveToolState } from '../types';
 import { SYSTEM_INSTRUCTION_RELAY, SYSTEM_INSTRUCTION_CHAT, TOOLS } from '../constants';
 import { blobToBase64, createPcmBlob, decodeAudioData, encodePcm } from '../utils/audio';
 
-export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled: boolean = true) => {
+export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled: boolean = true, complexity: 'fast' | 'deep' = 'fast') => {
   const [connected, setConnected] = useState(false);
+  const connectedRef = useRef(false); // Ref for use in audio callback
   const backendEnabledRef = useRef(backendEnabled);
   const audioOutputEnabledRef = useRef(audioOutputEnabled);
+  const complexityRef = useRef(complexity); // Track complexity for delegate_task
   
-  // Keep refs in sync with props
+  // Keep refs in sync with state/props
+  useEffect(() => {
+    connectedRef.current = connected;
+  }, [connected]);
+  
   useEffect(() => {
     backendEnabledRef.current = backendEnabled;
   }, [backendEnabled]);
+  
+  useEffect(() => {
+    complexityRef.current = complexity;
+  }, [complexity]);
   
   useEffect(() => {
     audioOutputEnabledRef.current = audioOutputEnabled;
@@ -58,6 +68,8 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
   const sessionRef = useRef<Promise<any> | null>(null); 
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const abortControllerRef = useRef<AbortController | null>(null);
+  const backendSessionRef = useRef<string | null>(null); // Track backend session for delegate_task
+  const backendSessionTimestampRef = useRef<number>(0); // Session expiry tracking
 
   const addLog = useCallback((source: MessageSource, text: string, metadata?: any) => {
     setLogs(prev => [...prev, {
@@ -111,11 +123,27 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
             abortControllerRef.current = controller;
 
             try {
-                // Use 'deep' complexity for robust reasoning
+                // Session management: keep session for 5 minutes for follow-ups like "yes"
+                const SESSION_TTL_MS = 5 * 60 * 1000;
+                const now = Date.now();
+                const sessionExpired = !backendSessionRef.current || 
+                    (now - backendSessionTimestampRef.current > SESSION_TTL_MS);
+                const isNewTopic = task.length > 50; // Long messages = new topic
+                
+                if (sessionExpired || isNewTopic) {
+                    backendSessionRef.current = `session_${now}`;
+                    backendSessionTimestampRef.current = now;
+                }
+                
+                // Use complexity from UI setting
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: task, complexity: 'deep' }), 
+                    body: JSON.stringify({ 
+                        message: task, 
+                        complexity: complexityRef.current,
+                        session_id: backendSessionRef.current 
+                    }), 
                     signal: controller.signal
                 });
 
@@ -270,10 +298,16 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
               const currentVolume = Math.sqrt(sum / inputData.length);
               setVolume(micMutedRef.current ? 0 : currentVolume);
 
-              // Only send audio if mic is not muted
-              if (!micMutedRef.current) {
+              // Only send audio if mic is not muted and connection is active
+              if (!micMutedRef.current && connectedRef.current) {
                 const pcmBlob = createPcmBlob(inputData);
-                sessionPromise.then(session => session.sendRealtimeInput({ media: pcmBlob }));
+                sessionPromise.then(session => {
+                  try {
+                    session.sendRealtimeInput({ media: pcmBlob });
+                  } catch (e) {
+                    // Ignore errors when WebSocket is closing
+                  }
+                }).catch(() => {});
               }
             };
 
