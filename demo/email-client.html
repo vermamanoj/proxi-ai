@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechMail - Corporate Email</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: #f4f4f4;
+        }
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+        /* Sidebar */
+        .sidebar {
+            width: 200px;
+            background: #1a1a2e;
+            color: white;
+            padding: 0;
+        }
+        .logo {
+            padding: 20px;
+            font-size: 24px;
+            font-weight: bold;
+            background: #16213e;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: #4a90d9;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .compose-btn {
+            margin: 15px;
+            padding: 12px 20px;
+            background: #4a90d9;
+            border: none;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            width: calc(100% - 30px);
+        }
+        .compose-btn:hover {
+            background: #3a7bc8;
+        }
+        .nav-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-left: 3px solid transparent;
+        }
+        .nav-item:hover {
+            background: #16213e;
+        }
+        .nav-item.active {
+            background: #16213e;
+            border-left-color: #4a90d9;
+        }
+        .nav-item .count {
+            margin-left: auto;
+            background: #4a90d9;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        /* Header */
+        .header {
+            background: white;
+            padding: 15px 25px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        .search-box {
+            flex: 1;
+            max-width: 500px;
+            position: relative;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 10px 15px 10px 40px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .search-box::before {
+            content: "🔍";
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+        .avatar {
+            width: 36px;
+            height: 36px;
+            background: #4a90d9;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        /* Email List */
+        .email-list-container {
+            flex: 1;
+            overflow-y: auto;
+            background: white;
+            margin: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .email-list-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #fafafa;
+        }
+        .email-list-header input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        .toolbar-btn {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .toolbar-btn:hover {
+            background: #f0f0f0;
+        }
+        .email-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            gap: 15px;
+        }
+        .email-item:hover {
+            background: #f8f9fa;
+        }
+        .email-item.unread {
+            background: #f0f7ff;
+            font-weight: 600;
+        }
+        .email-item.unread:hover {
+            background: #e5f0fa;
+        }
+        .email-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+        }
+        .email-star {
+            color: #ccc;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .email-star.starred {
+            color: #f4b400;
+        }
+        .email-sender {
+            width: 180px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .email-content {
+            flex: 1;
+            display: flex;
+            gap: 8px;
+            overflow: hidden;
+        }
+        .email-subject {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .email-preview {
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: normal;
+        }
+        .email-time {
+            color: #666;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+        .email-attachment {
+            color: #666;
+        }
+        /* Status bar */
+        .status-bar {
+            padding: 10px 25px;
+            background: #f8f9fa;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+        }
+        /* New email highlight */
+        .email-item.new-arrival {
+            animation: highlight 2s ease-out;
+        }
+        @keyframes highlight {
+            0% { background: #d4edda; }
+            100% { background: #f0f7ff; }
+        }
+        /* Compose Modal */
+        .compose-modal {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 500px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        .compose-modal.active {
+            display: block;
+        }
+        .compose-header {
+            background: #1a1a2e;
+            color: white;
+            padding: 12px 15px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .compose-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .compose-body {
+            padding: 15px;
+        }
+        .compose-field {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding: 8px 0;
+        }
+        .compose-field label {
+            width: 60px;
+            color: #666;
+            font-size: 14px;
+        }
+        .compose-field input {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 14px;
+        }
+        .compose-textarea {
+            width: 100%;
+            height: 200px;
+            border: none;
+            outline: none;
+            resize: none;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .compose-footer {
+            padding: 10px 15px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+        }
+        .send-btn {
+            padding: 10px 25px;
+            background: #4a90d9;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .send-btn:hover {
+            background: #3a7bc8;
+        }
+        .attach-btn {
+            padding: 10px 15px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        /* Toast notification */
+        .toast {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            z-index: 2000;
+        }
+        .toast.show {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">✉</div>
+                TechMail
+            </div>
+            <button class="compose-btn" onclick="openCompose()">+ Compose</button>
+            <div class="nav-item active">
+                <span>📥</span> Inbox
+                <span class="count" id="inbox-count">4</span>
+            </div>
+            <div class="nav-item">
+                <span>⭐</span> Starred
+            </div>
+            <div class="nav-item">
+                <span>📤</span> Sent
+            </div>
+            <div class="nav-item">
+                <span>📝</span> Drafts
+                <span class="count">2</span>
+            </div>
+            <div class="nav-item">
+                <span>🗑️</span> Trash
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <div class="search-box">
+                    <input type="text" placeholder="Search mail...">
+                </div>
+                <div class="user-info">
+                    <span>Sarah Johnson</span>
+                    <div class="avatar">SJ</div>
+                </div>
+            </div>
+
+            <div class="email-list-container">
+                <div class="email-list-header">
+                    <input type="checkbox">
+                    <button class="toolbar-btn">🔄 Refresh</button>
+                    <button class="toolbar-btn">📁 Archive</button>
+                    <button class="toolbar-btn">🗑️ Delete</button>
+                    <span style="margin-left: auto; color: #666; font-size: 13px;">1-4 of 4</span>
+                </div>
+
+                <div id="email-list">
+                    <!-- Emails will be inserted here -->
+                </div>
+            </div>
+
+            <div class="status-bar">
+                <span>Last synced: Just now</span>
+                <span>Connected to: mail.techsolutions.com</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compose Modal -->
+    <div class="compose-modal" id="compose-modal">
+        <div class="compose-header">
+            <span>New Message</span>
+            <button class="compose-close" onclick="closeCompose()">×</button>
+        </div>
+        <div class="compose-body">
+            <div class="compose-field">
+                <label>To:</label>
+                <input type="text" id="compose-to" placeholder="recipient@example.com">
+            </div>
+            <div class="compose-field">
+                <label>Subject:</label>
+                <input type="text" id="compose-subject" placeholder="Subject">
+            </div>
+            <textarea class="compose-textarea" id="compose-body" placeholder="Write your message..."></textarea>
+        </div>
+        <div class="compose-footer">
+            <button class="send-btn" onclick="sendEmail()">Send</button>
+            <button class="attach-btn">📎 Attach</button>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">Email sent successfully!</div>
+
+    <script>
+        // Initial emails
+        const emails = [
+            {
+                id: 1,
+                sender: "Mike Chen",
+                subject: "Q1 Sales Report",
+                preview: "Hi Sarah, Please find attached the Q1 sales figures...",
+                time: "10:45 AM",
+                unread: true,
+                starred: false,
+                attachment: true
+            },
+            {
+                id: 2,
+                sender: "HR Department",
+                subject: "Benefits Enrollment Reminder",
+                preview: "This is a reminder that open enrollment ends Friday...",
+                time: "9:30 AM",
+                unread: true,
+                starred: false,
+                attachment: false
+            },
+            {
+                id: 3,
+                sender: "Jennifer Walsh",
+                subject: "RE: Acme Corp Meeting",
+                preview: "Thanks for the update. I'll prepare the contract...",
+                time: "Yesterday",
+                unread: false,
+                starred: true,
+                attachment: false
+            },
+            {
+                id: 4,
+                sender: "IT Support",
+                subject: "System Maintenance Notice",
+                preview: "Scheduled maintenance this weekend from 2-4 AM...",
+                time: "Yesterday",
+                unread: false,
+                starred: false,
+                attachment: false
+            }
+        ];
+
+        function renderEmails() {
+            const list = document.getElementById('email-list');
+            list.innerHTML = emails.map(email => `
+                <div class="email-item ${email.unread ? 'unread' : ''} ${email.newArrival ? 'new-arrival' : ''}" data-id="${email.id}">
+                    <input type="checkbox">
+                    <span class="email-star ${email.starred ? 'starred' : ''}" onclick="toggleStar(${email.id})">
+                        ${email.starred ? '★' : '☆'}
+                    </span>
+                    <span class="email-sender">${email.sender}</span>
+                    <div class="email-content">
+                        <span class="email-subject">${email.subject}</span>
+                        <span class="email-preview">— ${email.preview}</span>
+                    </div>
+                    ${email.attachment ? '<span class="email-attachment">📎</span>' : ''}
+                    <span class="email-time">${email.time}</span>
+                </div>
+            `).join('');
+            
+            // Update inbox count
+            document.getElementById('inbox-count').textContent = emails.filter(e => e.unread).length || emails.length;
+        }
+
+        function toggleStar(id) {
+            const email = emails.find(e => e.id === id);
+            if (email) {
+                email.starred = !email.starred;
+                renderEmails();
+            }
+        }
+
+        function openCompose() {
+            document.getElementById('compose-modal').classList.add('active');
+        }
+
+        function closeCompose() {
+            document.getElementById('compose-modal').classList.remove('active');
+        }
+
+        function sendEmail() {
+            const to = document.getElementById('compose-to').value;
+            const subject = document.getElementById('compose-subject').value;
+            const body = document.getElementById('compose-body').value;
+
+            // Show toast
+            const toast = document.getElementById('toast');
+            toast.textContent = `Email sent to ${to}!`;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+
+            // Close compose
+            closeCompose();
+
+            // Clear fields
+            document.getElementById('compose-to').value = '';
+            document.getElementById('compose-subject').value = '';
+            document.getElementById('compose-body').value = '';
+        }
+
+        // Function that Proxi can call to simulate receiving an email
+        function receiveEmail(sender, subject, preview, hasAttachment = false) {
+            const newEmail = {
+                id: emails.length + 1,
+                sender: sender,
+                subject: subject,
+                preview: preview,
+                time: "Just now",
+                unread: true,
+                starred: false,
+                attachment: hasAttachment,
+                newArrival: true
+            };
+            emails.unshift(newEmail);
+            renderEmails();
+            
+            // Show notification
+            const toast = document.getElementById('toast');
+            toast.textContent = `📬 New email from ${sender}!`;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Expose function globally for Proxi to call
+        window.receiveEmail = receiveEmail;
+
+        // Auto-receive demo email after 30 seconds (for demo purposes)
+        // Uncomment to enable:
+        // setTimeout(() => receiveEmail("Proxi Assistant", "Business Case: Acme Renewal", "Please find attached the business case for the Acme Corporation deal...", true), 30000);
+
+        // Initial render
+        renderEmails();
+    </script>
+</body>
+</html>
