@@ -1,7 +1,7 @@
 # PROXI: SYSTEM BLUEPRINT
-**Version:** v2.2.0-STABLE  
+**Version:** v3.0.0-BETA  
 **Target:** Google Gemini Hackathon ($100k Top Prize)  
-**Last Updated:** January 2026
+**Last Updated:** January 26, 2026
 
 ---
 
@@ -247,6 +247,7 @@ Session Created → User asks question → Agent responds
 
 ## 10. STATUS
 
+### Completed
 - ✅ Verifiable Agent Architecture
 - ✅ Demo Mode (Mock Incidents)
 - ✅ Triple Handshake Protocol
@@ -264,3 +265,31 @@ Session Created → User asks question → Agent responds
 - ✅ LocalStorage Session Persistence
 - ✅ Window Management Tools
 - ✅ PowerPoint Automation (15 tools)
+- ✅ Interactive Mock Applications (CRM tabs, Pricing Tool)
+
+### In Progress
+- 🔄 Authentication System (local user/session)
+- 🔄 Registered Workstations UI
+- 🔄 Multi-tier Cloud Deployment
+- 🔄 OS Command Guardrails
+
+### Planned
+- 📋 Headless Operation (Virtual Display Driver)
+- 📋 On-demand VM Startup
+- 📋 Mock Apps Server (Flask)
+- 📋 Reverse Proxy Configuration
+
+---
+
+## 11. DEPLOYMENT
+
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for:
+- Multi-tier architecture (Frontend + Backend separation)
+- Authentication implementation
+- Registered workstations feature
+- Security & command guardrails
+- Deployment scripts (Ubuntu, Windows)
+- Tailscale networking
+- Headless operation setup
+- Testing procedures
+- Hackathon submission checklist

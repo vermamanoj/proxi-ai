@@ -1,5 +1,7 @@
-
 import { FunctionDeclaration, Type } from "@google/genai";
+
+// API Base URL - empty for same-origin, or set for cross-origin
+export const API_BASE = import.meta.env.VITE_API_URL || '';
 
 // System instruction when backend is enabled - relay mode
 export const SYSTEM_INSTRUCTION_RELAY = `
