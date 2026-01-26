@@ -1,0 +1,138 @@
+import { useState, useEffect, useCallback } from 'react';
+import { API_BASE } from '../constants';
+import { DEFAULT_WORKSTATIONS, Workstation, WorkstationStatus } from '../config/workstations';
+
+interface UseWorkstationsResult {
+  workstations: Workstation[];
+  activeWorkstation: Workstation | null;
+  isLoading: boolean;
+  error: string | null;
+  backendAvailable: boolean;
+  setActiveWorkstation: (id: string) => void;
+  refreshWorkstations: () => Promise<void>;
+}
+
+/**
+ * Hook for managing workstation state.
+ * Fetches from backend API when available, falls back to static config.
+ */
+export function useWorkstations(): UseWorkstationsResult {
+  const [workstations, setWorkstations] = useState<Workstation[]>(DEFAULT_WORKSTATIONS);
+  const [activeWorkstationId, setActiveWorkstationId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [backendAvailable, setBackendAvailable] = useState(false);
+
+  // Fetch workstations from backend
+  const fetchFromBackend = useCallback(async (): Promise<Workstation[] | null> => {
+    try {
+      const response = await fetch(`${API_BASE}/api/workstations`, {
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setBackendAvailable(true);
+        return data.workstations || data;
+      }
+      return null;
+    } catch (err) {
+      console.warn('Backend unavailable, using static workstation config');
+      setBackendAvailable(false);
+      return null;
+    }
+  }, []);
+
+  // Check health of a single workstation
+  const checkWorkstationHealth = useCallback(async (ws: Workstation): Promise<WorkstationStatus> => {
+    try {
+      // For localhost containers, check directly
+      if (ws.host === '127.0.0.1' || ws.host === 'localhost') {
+        const response = await fetch(`http://${ws.host}:${ws.port}/health`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(3000),
+        });
+        return response.ok ? 'online' : 'offline';
+      }
+      
+      // For remote workstations, ask backend to check
+      if (backendAvailable) {
+        const response = await fetch(`${API_BASE}/api/workstations/${ws.id}/health`, {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          return data.status as WorkstationStatus;
+        }
+      }
+      
+      return 'unknown';
+    } catch {
+      return 'offline';
+    }
+  }, [backendAvailable]);
+
+  // Refresh all workstations
+  const refreshWorkstations = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Try backend first
+      const backendWorkstations = await fetchFromBackend();
+      
+      if (backendWorkstations) {
+        setWorkstations(backendWorkstations);
+      } else {
+        // Use static config with health checks
+        const updatedWorkstations = await Promise.all(
+          DEFAULT_WORKSTATIONS.map(async (ws) => ({
+            ...ws,
+            status: await checkWorkstationHealth(ws),
+          }))
+        );
+        setWorkstations(updatedWorkstations);
+      }
+    } catch (err) {
+      setError('Failed to load workstations');
+      setWorkstations(DEFAULT_WORKSTATIONS);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchFromBackend, checkWorkstationHealth]);
+
+  // Initial load
+  useEffect(() => {
+    refreshWorkstations();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(refreshWorkstations, 30000);
+    return () => clearInterval(interval);
+  }, [refreshWorkstations]);
+
+  // Set default active workstation
+  useEffect(() => {
+    if (!activeWorkstationId && workstations.length > 0) {
+      const defaultWs = workstations.find(w => w.isDefault) || workstations[0];
+      setActiveWorkstationId(defaultWs.id);
+    }
+  }, [workstations, activeWorkstationId]);
+
+  const setActiveWorkstation = useCallback((id: string) => {
+    setActiveWorkstationId(id);
+  }, []);
+
+  const activeWorkstation = workstations.find(w => w.id === activeWorkstationId) || null;
+
+  return {
+    workstations,
+    activeWorkstation,
+    isLoading,
+    error,
+    backendAvailable,
+    setActiveWorkstation,
+    refreshWorkstations,
+  };
+}
+
+export default useWorkstations;
