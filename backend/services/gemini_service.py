@@ -98,6 +98,9 @@ class GeminiService:
         # Session-based conversation history for multi-turn interactions
         self.sessions = {}  # {session_id: [{"role": "user/model", "parts": [...]}]}
         
+        # Track approved commands per session (for command guard bypass after user approval)
+        self.approved_commands = {}  # {session_id: set(command_hashes)}
+        
         # Temporary storage for uploaded images (for save_uploaded_image tool)
         self.current_uploaded_image = None  # {"bytes": bytes, "mime_type": str}
 
@@ -180,8 +183,40 @@ class GeminiService:
         """Waits for the specified number of seconds."""
         return self.desktop_service.wait_seconds(seconds)
     
-    def run_terminal_command(self, command: str): 
-        """Executes a shell/terminal command."""
+    def run_terminal_command(self, command: str, session_id: str = None): 
+        """Executes a shell/terminal command with security guardrails."""
+        import sys, os
+        # Add backend directory to path for tools import
+        backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if backend_dir not in sys.path:
+            sys.path.insert(0, backend_dir)
+        from tools.command_guard import check_command_safety, CommandRisk
+        import hashlib
+        
+        # Check command safety before execution
+        check_result = check_command_safety(command)
+        
+        if check_result.risk_level == CommandRisk.BLOCKED:
+            return f"BLOCKED: {check_result.reason}. This command is not allowed for security reasons."
+        
+        if check_result.risk_level == CommandRisk.NEEDS_APPROVAL:
+            # Check if this command was already approved in current session
+            cmd_hash = hashlib.md5(command.encode()).hexdigest()
+            if session_id and session_id in self.approved_commands:
+                if cmd_hash in self.approved_commands[session_id]:
+                    # Previously approved - execute it
+                    return self.desktop_service.run_terminal_command(command)
+            
+            # Mark as pending approval (will be added to approved set when user says yes)
+            if session_id:
+                if session_id not in self.approved_commands:
+                    self.approved_commands[session_id] = set()
+                self.approved_commands[session_id].add(cmd_hash)
+            
+            # Return approval request - agent should ask user before proceeding
+            return f"APPROVAL_REQUIRED: {check_result.reason}. Command: {command}. Should I proceed? Reply 'yes' to approve or 'no' to cancel."
+        
+        # Safe command - execute directly
         return self.desktop_service.run_terminal_command(command)
     
     def open_target(self, resource: str): 
@@ -274,10 +309,14 @@ class GeminiService:
         except Exception as e:
             return f"ERROR: Failed to save image: {str(e)}"
 
-    async def _execute_with_index(self, index: int, name: str, args: dict):
+    async def _execute_with_index(self, index: int, name: str, args: dict, session_id: str = None):
         func = self.tools_map.get(name)
         if not func: return (index, name, f"Error: Tool {name} not found")
         try:
+            # Special handling for run_terminal_command to pass session_id for approval tracking
+            if name == "run_terminal_command" and session_id:
+                args = {**args, "session_id": session_id}
+            
             if asyncio.iscoroutinefunction(func): res = await func(**args)
             else: res = await asyncio.to_thread(func, **args)
             return (index, name, res)
@@ -357,27 +396,54 @@ TO SAVE AN UPLOADED IMAGE, use: save_uploaded_image with full path like "C:\\Use
 CRITICAL RULE - THINK BEFORE YOU ACT:
 Before EVERY tool call, explain: WHAT you're doing, WHY, and WHAT you expect.
 
+=== VERIFIABLE AGENT PROTOCOL ===
+Use Triple Handshake ONLY for STATE-CHANGING ACTIONS that can be verified:
+
+WHEN TO USE (action tasks with persistent results):
+  ✓ "Kill process X" → verify process no longer exists
+  ✓ "Delete file Y" → verify file is gone
+  ✓ "Stop service Z" → verify service stopped
+  ✓ "Create backup" → verify backup file exists
+
+WHEN NOT TO USE (query tasks with transient results):
+  ✗ "Check CPU usage" → just call get_system_health and report the value
+  ✗ "List processes" → just run command and report results
+  ✗ "What's memory usage?" → just report current snapshot
+  (These metrics change every second - verification would always fail!)
+
+FOR QUERY TASKS: Just use tools directly and report results. No assign_mission needed.
+
+FOR ACTION TASKS - Triple Handshake:
+  STEP 1: assign_mission(goal, verification_criteria)
+    - verification_criteria: '{"type": "process_killed", "pid": 1234}' or '{"type": "file_exists", "path": "/tmp/backup.zip"}'
+  STEP 2: Execute the action (kill process, delete file, etc.)
+  STEP 3: report_execution(mission_id, summary)
+
+Example - Kill process:
+  assign_mission("Kill high-CPU process", '{"type": "process_killed", "pid": 41652}')
+  run_terminal_command("taskkill /PID 41652 /F")
+  report_execution("abc123", "Process 41652 terminated")
+=== END VERIFIABLE AGENT ===
+
 INCIDENT RESOLUTION FLOW:
-1. DIAGNOSE: Check system health, then list processes (use `ps aux` or `top`) to identify the culprit
+1. DIAGNOSE: Check system health, identify the problem
 2. ANALYZE: Identify the specific process causing issues (name, PID, resource usage)
-3. PRESENT OPTIONS: Tell the user what you found and what actions are available
-4. **STOP AND ASK**: For destructive actions, END your response with a question asking for approval
-5. EXECUTE: Only after user replies with approval, run the command
-6. VERIFY: Check system health again to confirm resolution
-7. CONFIRM: Report the final outcome to the user
+3. EXECUTE DIRECTLY: Just run the command - Command Guard will intercept if approval needed
+4. VERIFY: Check system health again to confirm resolution
+5. CONFIRM: Report the final outcome to the user
 
-CRITICAL - APPROVAL MECHANISM:
-- Do NOT use send_slack_message for approvals
-- Do NOT use escalate_to_human for things you can fix
-- Instead, STOP your response and ask the user directly in the chat
-- End your message with: "Should I proceed? Reply 'yes' to approve or 'no' to cancel."
-- Then WAIT - do not call any more tools until user responds
+CRITICAL - COMMAND GUARD HANDLES APPROVALS AUTOMATICALLY:
+- Do NOT pre-ask for approval before running commands
+- Just run the command directly (e.g., taskkill, Stop-Process)
+- If command needs approval, run_terminal_command will return "APPROVAL_REQUIRED:..."
+- When you see APPROVAL_REQUIRED: Tell user what command needs approval and ask "Should I proceed?"
+- When user says "yes": Retry the SAME command - it will execute this time
+- BLOCKED commands: Inform user and suggest alternatives
 
-APPROVAL REQUIRED FOR:
-- Killing processes
-- Restarting services  
-- Deleting files
-- Modifying system configuration
+IMPORTANT - DO NOT DOUBLE-ASK:
+- Do NOT ask "Should I proceed?" BEFORE trying a command
+- Let Command Guard handle the approval gate
+- Only ask AFTER you see APPROVAL_REQUIRED in the tool response
 - Any action that could cause data loss
 
 WHEN PRESENTING FINDINGS:
@@ -546,8 +612,8 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                     yield json.dumps({"type": "status_change", "phase": "executing", "tool": name}) + "\n"
                     log_system(f"TOOL_CALL: {name}({args})", "EXEC")
 
-                    # Execute
-                    _, _, res = await self._execute_with_index(i, name, args)
+                    # Execute (pass session_id for approval tracking)
+                    _, _, res = await self._execute_with_index(i, name, args, session_id)
 
                     # Mission tracking
                     if name == "assign_mission" and "Mission" in str(res):

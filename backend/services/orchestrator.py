@@ -15,22 +15,26 @@ from backend.utils.logger import log_system
 
 # --- TRIPLE HANDSHAKE WORKFLOW ---
 
-def assign_mission(goal: str, verification_criteria: dict):
+def assign_mission(goal: str, verification_criteria: str = "{}"):
     """
     Starts a new verifiable mission.
     
     Args:
         goal: The objective (e.g., "Restore service health").
-        verification_criteria: A dictionary defining success metrics. 
-            Examples:
-            - {"metric": "cpu", "threshold": 50, "condition": "less_than"}
-            - {"metric": "http", "url": "http://localhost:8080/health", "expected_status": 200}
-            - {"metric": "visual", "description": "Ensure the login button is visible"}
+        verification_criteria: JSON string defining success metrics. Examples:
+            - '{"metric": "cpu", "threshold": 50, "condition": "less_than"}'
+            - '{"metric": "http", "url": "http://localhost:8080/health", "expected_status": 200}'
     """
+    # Parse JSON string to dict
+    try:
+        criteria_dict = json.loads(verification_criteria) if isinstance(verification_criteria, str) else verification_criteria
+    except json.JSONDecodeError:
+        criteria_dict = {}
+    
     mission_id = str(uuid.uuid4())[:8]
-    create_mission_record(mission_id, goal, verification_criteria)
+    create_mission_record(mission_id, goal, criteria_dict)
     log_system(f"Mission Assigned: {goal} (ID: {mission_id})", "ORCHESTRATOR")
-    return f"Mission {mission_id} assigned. Criteria: {json.dumps(verification_criteria)}"
+    return f"Mission {mission_id} assigned. Criteria: {json.dumps(criteria_dict)}"
 
 def report_execution(mission_id: str, summary: str):
     """
@@ -57,10 +61,66 @@ def verify_mission(mission_id: str):
     log_system(f"Verifying Mission {mission_id} against criteria: {criteria}", "VERIFIER")
     
     evidence = {}
+    verification_type = criteria.get("type", criteria.get("metric"))  # Support both new and legacy format
     
-    # 1. CPU Check
-    if criteria.get("metric") == "cpu":
-        # Check if we should use desktop service for CPU (Mock Support)
+    # 1. Process Killed Check (supports both "process_killed" and "process_exists" formats)
+    if verification_type in ["process_killed", "process_exists"]:
+        pid = criteria.get("pid")
+        if pid:
+            try:
+                # Check if process still exists
+                process_exists = psutil.pid_exists(int(pid))
+                evidence["pid"] = pid
+                evidence["process_exists"] = process_exists
+                
+                # For process_killed or process_exists with condition "is_false"/"false" - expect NOT running
+                expect_gone = (verification_type == "process_killed" or 
+                              criteria.get("condition") in ["is_false", "false", False])
+                
+                if expect_gone:
+                    if process_exists:
+                        finalize_mission(mission_id, "FAILED")
+                        return json.dumps({"fail_reason": f"Process {pid} still running.", "evidence": evidence})
+                    else:
+                        finalize_mission(mission_id, "PASSED")
+                        return json.dumps({"status": "VERIFICATION PASSED", "message": f"Process {pid} confirmed terminated.", "evidence": evidence})
+                else:
+                    # Expect process to be running
+                    if not process_exists:
+                        finalize_mission(mission_id, "FAILED")
+                        return json.dumps({"fail_reason": f"Process {pid} not running.", "evidence": evidence})
+                    else:
+                        finalize_mission(mission_id, "PASSED")
+                        return json.dumps({"status": "VERIFICATION PASSED", "message": f"Process {pid} confirmed running.", "evidence": evidence})
+            except Exception as e:
+                evidence["error"] = str(e)
+    
+    # 2. File Exists Check (NEW - for action verification)
+    if verification_type == "file_exists":
+        import os
+        path = criteria.get("path")
+        should_exist = criteria.get("should_exist", True)
+        if path:
+            exists = os.path.exists(path)
+            evidence["path"] = path
+            evidence["exists"] = exists
+            if exists != should_exist:
+                finalize_mission(mission_id, "FAILED")
+                return json.dumps({"fail_reason": f"File {path} {'exists' if exists else 'does not exist'}, expected {'to exist' if should_exist else 'to not exist'}.", "evidence": evidence})
+            else:
+                finalize_mission(mission_id, "PASSED")
+                return json.dumps({"status": "VERIFICATION PASSED", "message": f"File check passed for {path}.", "evidence": evidence})
+    
+    # 3. Service Status Check (NEW)
+    if verification_type == "service_stopped" or verification_type == "service_running":
+        service_name = criteria.get("service")
+        expected_running = (verification_type == "service_running")
+        # This would need platform-specific implementation
+        evidence["service"] = service_name
+        evidence["check_type"] = verification_type
+    
+    # 4. Legacy CPU Check (kept for backwards compatibility but should not be used for transient metrics)
+    if verification_type == "cpu":
         ds = get_desktop_service()
         health = ds.get_system_health()
         cpu = health.get("cpu_percent", psutil.cpu_percent(interval=1))
@@ -71,7 +131,7 @@ def verify_mission(mission_id: str):
              finalize_mission(mission_id, "FAILED")
              return json.dumps({"fail_reason": f"CPU is {cpu}%, expected < {threshold}%."})
 
-    # 2. HTTP Check
+    # 5. HTTP Check
     if criteria.get("metric") == "http":
         url = criteria.get("url")
         try:
