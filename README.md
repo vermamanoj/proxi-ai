@@ -99,14 +99,19 @@ RUNTIME_MODE=DEMO
 
 ## Features
 
-### 🎯 Verifiable Agent (Truth Layer)
-Proxi never blindly trusts its own output. Every task goes through:
-1. **Assign** - Define goal + success criteria
+### 🎯 Verifiable Agent (Triple Handshake)
+Proxi never blindly trusts its own output. State-changing actions go through:
+1. **Assign** - Define goal + verification criteria (process_killed, file_exists)
 2. **Execute** - Run tools with transparency
-3. **Verify** - Independent system check
+3. **Verify** - Independent system check confirms actual state
 4. **Judge** - Pass, retry, or escalate
 
-### 🖥️ Desktop Control (Ghost Mode)
+### �️ Command Guard (Security Layer)
+- Automatic approval gates for destructive commands (kill, delete, stop)
+- Session-based approval tracking
+- Blocked commands for dangerous operations
+
+### �🖥️ Desktop Control (Ghost Mode)
 - Mouse clicks, drags, scrolling
 - Keyboard typing and hotkeys
 - Screenshot + Vision analysis
@@ -124,9 +129,16 @@ Proxi never blindly trusts its own output. Every task goes through:
 - Voice commands (Gemini Live)
 - Real-time status streaming
 - Works over Cloudflare Tunnel
-- Session persistence (survives page refresh)
+- Session persistence (5-minute TTL for follow-ups)
 - Core toggle (enable/disable backend)
 - Mic mute with visual feedback
+- Approval buttons for destructive actions
+
+### 📊 PowerPoint Automation
+- Get/set active presentation
+- Navigate, duplicate, delete slides
+- Edit text shapes by name
+- Create business documents on-the-fly
 
 ### 🔍 Transparency Protocol
 The agent explains reasoning before every action:
@@ -153,7 +165,7 @@ Agent: "Terminating ffmpeg to resolve spike..."
                           ▼
 ┌─────────────────────────────────────────────────────────┐
 │  BACKEND (FastAPI)                                      │
-│  ├── GeminiService (AI orchestration, 25 tools)        │
+│  ├── GeminiService (AI orchestration, 45 tools)        │
 │  ├── Orchestrator (Mission tracking, verification)     │
 │  └── DesktopService (Factory: Mock or Real)            │
 └─────────────────────────────────────────────────────────┘

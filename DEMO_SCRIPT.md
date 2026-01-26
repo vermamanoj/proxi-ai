@@ -139,4 +139,71 @@ If something doesn't work perfectly:
 
 ---
 
-*Last Updated: January 2026*
+*Last Updated: January 27, 2026*
+
+---
+
+## 📊 Test Results (2026-01-27 02:49 AM)
+
+### Test Scenario
+User prompt: *"I am in client meeting I need some data from pricing tool and crm database. You will find links to these tools in desktop. I am in a deal closing situation, competition has given new quote which is lesser than us. I think we give new quote at 14% margin we might win. You need to find whats minimum margin allowed. Also if there is any approval needed then we will have to build business case. Check details of client acme corporation from crm and build a business case. Then put it into a PPT, there would be a brand related PPT that I downloaded today."*
+
+### Execution Timeline
+
+| Time | Action | Tool Used | Result |
+|------|--------|-----------|--------|
+| 02:49:41 | Scan desktop | `run_terminal_command` | Found pricing-tool.html, crm.html ✅ |
+| 02:49:46 | Open Pricing Tool | `open_target` | Opened successfully ✅ |
+| 02:49:50 | Analyze pricing UI | `look_at_screen` | Extracted margin rules ✅ |
+| 02:50:08 | Open CRM | `open_target` | Opened successfully ✅ |
+| 02:50:12 | Analyze CRM | `look_at_screen` | Found Acme Corp ✅ |
+| 02:51:11 | Parallel open | `open_target` x2 | Both apps opened ✅ |
+| 02:52:57 | Focus Pricing Tool | `open_target` | Navigated to approval section ✅ |
+| 02:53:20 | Check PPT | `ppt_get_active_presentation` | Found brand template.pptx ✅ |
+| 02:53:34 | Duplicate slide | `ppt_duplicate_slide` | Created slide 4 ✅ |
+| 02:54:22 | Better layout | `ppt_delete_slide` + `ppt_duplicate_slide` | Used Slide 2 layout ✅ |
+| 02:54:30 | Edit content | `ppt_edit_text` x2 | Title + bullets added ✅ |
+| 02:54:47 | Verify | `look_at_screen` | Confirmed slide content ✅ |
+
+### Data Extracted
+
+**From Pricing Tool:**
+- Minimum Margin: 18%
+- Target Margin: 28%
+- Policy: Deals below 15% require CFO approval
+- Floor Price: $1,850.00/seat/year
+
+**From CRM (Acme Corporation):**
+- Client ID: CLI-4532
+- Industry: Technology/Software
+- Account Tier: Enterprise
+- Loyalty Status: Platinum (3+ years, $3M+ lifetime)
+- Lifetime Value: $4,700,000
+- Account Manager: Sarah Johnson
+
+### Output Generated
+
+**Slide Title:** BUSINESS CASE: ACME RENEWAL
+
+**Content:**
+- Situation: Competitor undercutting pricing. High risk of churn.
+- Client: Acme Corporation (Platinum Status).
+- Value: $4.7M Lifetime Value, Strategic Partner.
+- Proposal: Match pricing with 14% Margin.
+- Policy Check: 14% is below 15% threshold.
+- Requirement: CFO Approval Required.
+- Recommendation: Approve exception to secure key account.
+
+### Observations
+
+1. **Vision Accuracy:** Correctly read data from both legacy-style web apps
+2. **Intelligent Decisions:** System chose better slide layout autonomously (deleted Slide 3, used Slide 2)
+3. **Session Recovery:** "Try again" command maintained context (1 history item preserved)
+4. **Tool Orchestration:** 20+ tool calls coordinated smoothly
+5. **Total Time:** ~5 minutes (includes one retry)
+
+### Issues Noted
+- First CRM lookup stalled briefly (needed "Try again")
+- Window focus sometimes failed, system adapted by reopening apps
+
+### Verdict: ✅ DEMO READY

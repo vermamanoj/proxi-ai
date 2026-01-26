@@ -1,6 +1,6 @@
 # PROXI: SYSTEM BLUEPRINT
 **Version:** v3.0.0-BETA  
-**Target:** Google Gemini Hackathon ($100k Top Prize)  
+**Target:** Google Gemini Hackathon ($50k Top Prize)  
 **Last Updated:** January 26, 2026
 
 ---
@@ -70,7 +70,7 @@ Proxi is a **Headless OS-Level AI Agent** that lets you work while on the move. 
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │ GeminiService                                        │   │
 │  │ ├── System Instruction (Transparency Required)      │   │
-│  │ ├── Tool Map (25 tools)                              │   │
+│  │ ├── Tool Map (45 tools)                              │   │
 │  │ └── Chat Session (Multi-turn with history)          │   │
 │  └─────────────────────────────────────────────────────┘   │
 │  ┌─────────────────────────────────────────────────────┐   │
