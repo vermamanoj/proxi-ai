@@ -114,24 +114,23 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
     setStatus('processing');
     setPendingAction(null);
     
-    // Session persistence: keep session for 5 minutes to maintain context for follow-ups like "yes"
-    const SESSION_TTL_MS = 5 * 60 * 1000; // 5 minutes
+    // Session persistence: keep session for 10 minutes for multi-step tasks
+    // ONLY expire on timeout - do NOT reset based on message length
+    const SESSION_TTL_MS = 10 * 60 * 1000; // 10 minutes for complex tasks
     const now = Date.now();
     let currentSessionId = sessionId;
     
     // Check if session is still valid (exists and not expired)
     const sessionExpired = !currentSessionId || (now - sessionTimestamp > SESSION_TTL_MS);
     
-    // Detect if this looks like a new topic (long message with new intent)
-    const isNewTopic = message.length > 50 && !awaitingApproval;
-    
-    if (sessionExpired || isNewTopic) {
+    if (sessionExpired) {
       currentSessionId = `session_${Date.now()}`;
       setSessionId(currentSessionId);
-      setSessionTimestamp(now);
       // Clear trace for new conversation (prevents stale data confusion)
       setLastTrace([]);
     }
+    // Always update timestamp to keep session alive during active use
+    setSessionTimestamp(now);
     setAwaitingApproval(false); // Reset at start of each request
     
     setMissionState({

@@ -70,6 +70,7 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
   const abortControllerRef = useRef<AbortController | null>(null);
   const backendSessionRef = useRef<string | null>(null); // Track backend session for delegate_task
   const backendSessionTimestampRef = useRef<number>(0); // Session expiry tracking
+  const taskInProgressRef = useRef<boolean>(false); // Prevent overlapping delegate_task calls
 
   const addLog = useCallback((source: MessageSource, text: string, metadata?: any) => {
     setLogs(prev => [...prev, {
@@ -116,6 +117,15 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
 
         if (call.name === 'delegate_task') {
             const task = call.args.task_description;
+            
+            // Prevent overlapping requests - if a task is already running, queue this one
+            if (taskInProgressRef.current) {
+                addLog(MessageSource.SYSTEM, `⏳ Task already in progress. Please wait...`);
+                responses.push({ id: call.id, name: call.name, response: { result: "A task is already running. Please wait for it to complete." } });
+                continue;
+            }
+            
+            taskInProgressRef.current = true;
             addLog(MessageSource.SYSTEM, `Handing off to Core...`, { task });
             setActiveTool({ name: "Gemini 3 Pro", startTime: Date.now() });
 
@@ -123,17 +133,18 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
             abortControllerRef.current = controller;
 
             try {
-                // Session management: keep session for 5 minutes for follow-ups like "yes"
-                const SESSION_TTL_MS = 5 * 60 * 1000;
+                // Session management: keep session for 10 minutes for multi-step tasks
+                // ONLY expire session on timeout - do NOT reset based on message length
+                const SESSION_TTL_MS = 10 * 60 * 1000; // 10 minutes for complex tasks
                 const now = Date.now();
                 const sessionExpired = !backendSessionRef.current || 
                     (now - backendSessionTimestampRef.current > SESSION_TTL_MS);
-                const isNewTopic = task.length > 50; // Long messages = new topic
                 
-                if (sessionExpired || isNewTopic) {
+                if (sessionExpired) {
                     backendSessionRef.current = `session_${now}`;
-                    backendSessionTimestampRef.current = now;
                 }
+                // Always update timestamp to keep session alive during active use
+                backendSessionTimestampRef.current = now;
                 
                 // Use complexity from UI setting
                 const response = await fetch('/api/chat', {
@@ -216,10 +227,14 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
                     }
                 }
 
+                // Truncate response for voice output - Gemini can only speak ~500 chars well
+                const voiceResult = finalSummary 
+                    ? (finalSummary.length > 500 ? finalSummary.substring(0, 500) + "... Task completed. Check chat for full details." : finalSummary)
+                    : "Task completed successfully.";
                 responses.push({
                     id: call.id,
                     name: call.name,
-                    response: { result: finalSummary || "Task completed." }
+                    response: { result: voiceResult }
                 });
 
             } catch (err: any) {
@@ -239,6 +254,7 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
             } finally {
                 setActiveTool(null);
                 abortControllerRef.current = null;
+                taskInProgressRef.current = false; // Allow new tasks
             }
         }
     }
