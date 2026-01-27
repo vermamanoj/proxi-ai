@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Settings, Mic, MicOff, Send, Camera, Flame, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, Server, ServerOff, LogOut } from 'lucide-react';
+import { Settings, Mic, MicOff, Send, Camera, Flame, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, Server, ServerOff, LogOut, Plus } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { useBackendHealth } from './hooks/useBackendHealth';
@@ -36,7 +36,8 @@ const App: React.FC = () => {
     toggleComplexity,
     confirmAction,
     cancelAction,
-    logSystemError
+    logSystemError,
+    clearSession: brainClearSession
   } = useProxiBrain(audioEnabled);
 
   // Hook 2: Real-time Voice (Live API / WebRTC)
@@ -49,7 +50,8 @@ const App: React.FC = () => {
     logs: liveLogs, 
     activeTool: liveActiveTool,
     micMuted,
-    toggleMicMute
+    toggleMicMute,
+    clearSession: liveClearSession
   } = useGeminiLive(coreEnabled, audioEnabled, complexity);
 
   // Hook 3: Backend Health Monitoring (only when core is enabled)
@@ -268,6 +270,18 @@ const App: React.FC = () => {
             {isSpeaking && (
               <span className="absolute inset-0 rounded-lg border-2 border-blue-400 animate-ping opacity-75" />
             )}
+          </button>
+
+          {/* New Session Button */}
+          <button
+            onClick={() => {
+              liveClearSession();
+              brainClearSession();
+            }}
+            className="p-2 text-gray-500 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
+            title="New Session (clear chat)"
+          >
+            <Plus className="w-5 h-5" />
           </button>
 
           {/* Demo trigger - only show in demo mode */}

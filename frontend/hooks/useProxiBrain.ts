@@ -421,7 +421,13 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
   };
   const toggleComplexity = () => setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
   const logSystemError = (msg: string) => addLog(MessageSource.SYSTEM, msg);
-  const clearSession = () => { setSessionId(null); setSessionTimestamp(0); setLastTrace([]); };
+  const clearSession = () => { 
+    setSessionId(null); 
+    setSessionTimestamp(0); 
+    setLastTrace([]); 
+    setLogs([]);
+    addLog(MessageSource.SYSTEM, "New session started.");
+  };
 
 
 

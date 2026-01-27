@@ -430,7 +430,16 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     });
   }, []);
 
-  return { connected, connect, disconnect, sendCommand, volume, logs, activeTool, micMuted, toggleMicMute };
+  // Clear logs and start fresh session
+  const clearSession = useCallback(() => {
+    setLogs([]);
+    backendSessionRef.current = null;
+    backendSessionTimestampRef.current = 0;
+    taskInProgressRef.current = false;
+    addLog(MessageSource.SYSTEM, "New session started.");
+  }, [addLog]);
+
+  return { connected, connect, disconnect, sendCommand, volume, logs, activeTool, micMuted, toggleMicMute, clearSession };
 };
 
 function decodeAtob(base64: string) {
