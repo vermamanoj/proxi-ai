@@ -52,6 +52,7 @@ class Workstation:
     created_at: str = ""
     owner: str = ""
     tags: List[str] = field(default_factory=list)
+    is_default: bool = False  # Whether this is the default workstation
     
     def to_dict(self) -> dict:
         return asdict(self)

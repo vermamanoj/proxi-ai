@@ -551,7 +551,7 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
         for (const goal of log.metadata.plan) {
           if (goal.status === 'active' || goal.status === 'pending') {
             addLog(MessageSource.SYSTEM, `❌ ${goal.id}: cancelled - ${reason}`, { 
-              goalUpdate: { goal_id: goal.id, status: 'failed', result: reason }
+              goalUpdate: { goal_id: String(goal.id), status: 'failed', result: reason }
             });
             return;
           }
@@ -559,6 +559,35 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
       }
     }
   }, [logs, addLog]);
+
+  // Auto-save session periodically (every 30 seconds if there's content)
+  useEffect(() => {
+    if (!backendSessionRef.current || logs.length < 2) return;
+    
+    const saveInterval = setInterval(async () => {
+      if (backendSessionRef.current && logs.length > 1) {
+        const sessionId = backendSessionRef.current;
+        const firstUserMsg = logs.find(l => l.source === MessageSource.USER);
+        const title = firstUserMsg?.text?.substring(0, 50) || "Session";
+        try {
+          await createSession(sessionId, title);
+          await updateSession(sessionId, {
+            messages: logs.map(l => ({
+              id: l.id,
+              timestamp: l.timestamp.toISOString(),
+              source: l.source,
+              text: l.text,
+              metadata: l.metadata
+            }))
+          } as any);
+        } catch (e) {
+          // Silent fail for auto-save
+        }
+      }
+    }, 30000);
+    
+    return () => clearInterval(saveInterval);
+  }, [logs]);
   
   return { connected, connectionStatus, connect, disconnect, sendCommand, volume, logs: chatLogs, activeTool, micMuted, toggleMicMute, clearSession, loadSession, markActiveGoalFailed };
 };

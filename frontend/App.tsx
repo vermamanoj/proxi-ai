@@ -136,38 +136,38 @@ const App: React.FC = () => {
 
   // Extract mission goals from logs (combine both voice and text logs)
   const missionGoals: Goal[] = useMemo(() => {
-    const goals: Goal[] = [];
     const goalUpdates: Record<string, { status: Goal['status']; result?: string }> = {};
+    let latestPlan: any[] | null = null;
     
     // Combine both log sources
     const allLogs = [...brainLogs, ...liveLogs];
     
-    // First pass: collect all goal updates
+    // Collect all goal updates and find the LATEST plan (not first)
     for (const log of allLogs) {
       if (log.metadata?.goalUpdate) {
         const update = log.metadata.goalUpdate;
-        goalUpdates[update.goal_id] = { status: update.status, result: update.result };
+        // Ensure goal_id is always a string for consistent matching
+        goalUpdates[String(update.goal_id)] = { status: update.status, result: update.result };
       }
-    }
-    
-    // Second pass: find plan and apply updates
-    for (const log of allLogs) {
       if (log.metadata?.plan) {
-        for (const g of log.metadata.plan) {
-          const update = goalUpdates[g.id];
-          goals.push({
-            id: g.id,
-            title: g.title,
-            description: g.description,
-            status: update?.status || g.status || 'pending',
-            result: update?.result
-          });
-        }
-        break; // Only use first plan found
+        latestPlan = log.metadata.plan; // Keep updating to get the latest
       }
     }
     
-    return goals;
+    // Build goals from latest plan with updates applied
+    if (!latestPlan) return [];
+    
+    return latestPlan.map(g => {
+      // Ensure string comparison for goal IDs
+      const update = goalUpdates[String(g.id)];
+      return {
+        id: g.id,
+        title: g.title,
+        description: g.description,
+        status: update?.status || g.status || 'pending',
+        result: update?.result
+      };
+    });
   }, [brainLogs, liveLogs]);
 
   // Extract pending escalation from logs
