@@ -140,6 +140,106 @@ async def logout(request: Request):
             status_code=500
         )
 
+# --- Magic Link Endpoints ---
+
+@app.post("/api/auth/magic-link")
+async def create_magic_link(request: Request):
+    """Create a magic link for passwordless access (admin only)."""
+    try:
+        # Check if user is admin
+        session_id = request.cookies.get("session_id")
+        if session_id:
+            user = auth_service.get_user_for_session(session_id)
+            if not user or user.role != "admin":
+                return JSONResponse({"error": "Admin access required"}, status_code=403)
+        else:
+            return JSONResponse({"error": "Authentication required"}, status_code=401)
+        
+        data = await request.json()
+        link = auth_service.create_magic_link(
+            role=data.get("role", "judge"),
+            label=data.get("label", ""),
+            expires_hours=data.get("expires_hours", 72),
+            uses=data.get("uses", 10)
+        )
+        
+        return JSONResponse({
+            "token": link.token,
+            "label": link.label,
+            "role": link.role,
+            "expires_at": link.expires_at.isoformat(),
+            "uses_remaining": link.uses_remaining,
+            "url": f"/magic/{link.token}"
+        })
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/api/auth/magic-link/{token}")
+async def validate_magic_link(token: str):
+    """Validate a magic link without redeeming it."""
+    link = auth_service.validate_magic_link(token)
+    if not link:
+        return JSONResponse({"error": "Invalid or expired link"}, status_code=401)
+    
+    return JSONResponse({
+        "valid": True,
+        "label": link.label,
+        "role": link.role,
+        "uses_remaining": link.uses_remaining
+    })
+
+@app.post("/api/auth/magic-link/{token}/redeem")
+async def redeem_magic_link(token: str):
+    """Redeem a magic link and get a session."""
+    session = auth_service.redeem_magic_link(token)
+    if not session:
+        return JSONResponse({"error": "Invalid or expired link"}, status_code=401)
+    
+    # Get the user info
+    user = auth_service.get_user_for_session(session.session_id)
+    
+    response = JSONResponse({
+        "username": user.username,
+        "display_name": user.display_name,
+        "role": user.role
+    })
+    response.set_cookie(
+        key="session_id",
+        value=session.session_id,
+        httponly=True,
+        secure=False,  # Set to True in production with HTTPS
+        samesite="lax"
+    )
+    return response
+
+@app.get("/api/auth/magic-links")
+async def list_magic_links(request: Request):
+    """List all magic links (admin only)."""
+    session_id = request.cookies.get("session_id")
+    if session_id:
+        user = auth_service.get_user_for_session(session_id)
+        if not user or user.role != "admin":
+            return JSONResponse({"error": "Admin access required"}, status_code=403)
+    else:
+        return JSONResponse({"error": "Authentication required"}, status_code=401)
+    
+    return JSONResponse({"links": auth_service.list_magic_links()})
+
+@app.delete("/api/auth/magic-link/{token}")
+async def revoke_magic_link(token: str, request: Request):
+    """Revoke a magic link (admin only)."""
+    session_id = request.cookies.get("session_id")
+    if session_id:
+        user = auth_service.get_user_for_session(session_id)
+        if not user or user.role != "admin":
+            return JSONResponse({"error": "Admin access required"}, status_code=403)
+    else:
+        return JSONResponse({"error": "Authentication required"}, status_code=401)
+    
+    if auth_service.revoke_magic_link(token):
+        return JSONResponse({"status": "revoked"})
+    return JSONResponse({"error": "Link not found"}, status_code=404)
+
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     """Streaming Endpoint for Agent Thoughts"""

@@ -41,6 +41,20 @@ class Session:
         return datetime.utcnow() < self.expires_at
 
 
+@dataclass
+class MagicLink:
+    token: str
+    username: str
+    role: str
+    created_at: datetime
+    expires_at: datetime
+    uses_remaining: int = 1  # Single use by default
+    label: str = ""  # e.g., "Judge 1", "Hackathon Demo"
+    
+    def is_valid(self) -> bool:
+        return datetime.utcnow() < self.expires_at and self.uses_remaining > 0
+
+
 class AuthService:
     """
     Simple authentication service with local user storage.
@@ -50,12 +64,56 @@ class AuthService:
         self.users_file = users_file or self._default_users_file()
         self.session_timeout = timedelta(minutes=session_timeout_minutes)
         self.sessions: Dict[str, Session] = {}
+        self.magic_links: Dict[str, MagicLink] = {}
         self._load_users()
+        self._load_magic_links()
     
     def _default_users_file(self) -> str:
         """Get default path for users file."""
         backend_dir = Path(__file__).parent.parent
         return str(backend_dir / "auth" / "users.json")
+    
+    def _magic_links_file(self) -> str:
+        """Get path for magic links file."""
+        return str(Path(self.users_file).parent / "magic_links.json")
+    
+    def _load_magic_links(self):
+        """Load magic links from JSON file."""
+        links_file = self._magic_links_file()
+        if os.path.exists(links_file):
+            try:
+                with open(links_file, 'r') as f:
+                    data = json.load(f)
+                    for token, link_data in data.items():
+                        self.magic_links[token] = MagicLink(
+                            token=link_data["token"],
+                            username=link_data["username"],
+                            role=link_data["role"],
+                            created_at=datetime.fromisoformat(link_data["created_at"]),
+                            expires_at=datetime.fromisoformat(link_data["expires_at"]),
+                            uses_remaining=link_data.get("uses_remaining", 1),
+                            label=link_data.get("label", "")
+                        )
+            except Exception as e:
+                print(f"[AUTH] Error loading magic links: {e}")
+    
+    def _save_magic_links(self):
+        """Save magic links to JSON file."""
+        links_file = self._magic_links_file()
+        os.makedirs(os.path.dirname(links_file), exist_ok=True)
+        data = {}
+        for token, link in self.magic_links.items():
+            data[token] = {
+                "token": link.token,
+                "username": link.username,
+                "role": link.role,
+                "created_at": link.created_at.isoformat(),
+                "expires_at": link.expires_at.isoformat(),
+                "uses_remaining": link.uses_remaining,
+                "label": link.label
+            }
+        with open(links_file, 'w') as f:
+            json.dump(data, f, indent=2)
     
     def _load_users(self):
         """Load users from JSON file."""
@@ -221,6 +279,104 @@ class AuthService:
         for sid in expired:
             del self.sessions[sid]
         return len(expired)
+    
+    # --- Magic Link Methods ---
+    
+    def create_magic_link(
+        self, 
+        role: str = "judge",
+        label: str = "",
+        expires_hours: int = 72,
+        uses: int = 10
+    ) -> MagicLink:
+        """
+        Create a magic link for passwordless access.
+        Default: 72 hours validity, 10 uses (for multiple judges sharing link).
+        """
+        token = secrets.token_urlsafe(32)
+        now = datetime.utcnow()
+        
+        # Generate a pseudo-username for this magic link
+        username = f"magic_{token[:8]}"
+        
+        link = MagicLink(
+            token=token,
+            username=username,
+            role=role,
+            created_at=now,
+            expires_at=now + timedelta(hours=expires_hours),
+            uses_remaining=uses,
+            label=label
+        )
+        
+        self.magic_links[token] = link
+        self._save_magic_links()
+        
+        print(f"[AUTH] Created magic link: {label or 'unnamed'} (role={role}, uses={uses}, expires={expires_hours}h)")
+        return link
+    
+    def validate_magic_link(self, token: str) -> Optional[MagicLink]:
+        """Validate a magic link token."""
+        link = self.magic_links.get(token)
+        if not link:
+            return None
+        
+        if not link.is_valid():
+            return None
+        
+        return link
+    
+    def redeem_magic_link(self, token: str) -> Optional[Session]:
+        """
+        Redeem a magic link and create a session.
+        Decrements uses_remaining.
+        """
+        link = self.validate_magic_link(token)
+        if not link:
+            return None
+        
+        # Decrement uses
+        link.uses_remaining -= 1
+        self._save_magic_links()
+        
+        # Create a session for this magic link user
+        session = self.create_session(link.username)
+        
+        # Store role info in a special way (we'll create a virtual user)
+        if link.username not in self.users:
+            self.users[link.username] = User(
+                username=link.username,
+                password_hash="",  # No password for magic link users
+                display_name=link.label or f"Guest ({link.role.title()})",
+                role=link.role,
+                created_at=datetime.utcnow().isoformat()
+            )
+        
+        print(f"[AUTH] Magic link redeemed: {link.label or link.username} ({link.uses_remaining} uses left)")
+        return session
+    
+    def list_magic_links(self) -> list:
+        """List all magic links with their status."""
+        result = []
+        for token, link in self.magic_links.items():
+            result.append({
+                "token": token,
+                "label": link.label,
+                "role": link.role,
+                "uses_remaining": link.uses_remaining,
+                "expires_at": link.expires_at.isoformat(),
+                "is_valid": link.is_valid(),
+                "created_at": link.created_at.isoformat()
+            })
+        return result
+    
+    def revoke_magic_link(self, token: str) -> bool:
+        """Revoke a magic link."""
+        if token in self.magic_links:
+            del self.magic_links[token]
+            self._save_magic_links()
+            return True
+        return False
 
 
 # Singleton instance

@@ -19,8 +19,28 @@ import { ApprovalRequest, TraceStep, MessageSource } from './types';
 
 const App: React.FC = () => {
   // Auth state
-  const { isAuthenticated, isLoading: authLoading, user, login, logout } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user, login, logout, redeemMagicLink } = useAuth();
   const [authView, setAuthView] = useState<'landing' | 'login'>('landing');
+  const [magicLinkStatus, setMagicLinkStatus] = useState<'checking' | 'invalid' | null>(null);
+
+  // Handle magic link in URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const magicToken = params.get('magic');
+    
+    if (magicToken && !isAuthenticated && !authLoading) {
+      setMagicLinkStatus('checking');
+      redeemMagicLink(magicToken).then((success) => {
+        if (success) {
+          // Clear the magic token from URL
+          window.history.replaceState({}, '', window.location.pathname);
+          setMagicLinkStatus(null);
+        } else {
+          setMagicLinkStatus('invalid');
+        }
+      });
+    }
+  }, [isAuthenticated, authLoading, redeemMagicLink]);
 
   // Audio output toggle state
   const [audioEnabled, setAudioEnabled] = useState(true);
@@ -242,13 +262,15 @@ const App: React.FC = () => {
     setStagedImage(null);
   };
 
-  // Auth loading state
-  if (authLoading) {
+  // Auth loading state or magic link checking
+  if (authLoading || magicLinkStatus === 'checking') {
     return (
       <div className="h-screen bg-black flex items-center justify-center">
         <div className="text-center">
           <Zap className="w-12 h-12 text-proxi-accent mx-auto mb-4 animate-pulse" />
-          <p className="text-gray-400">Loading...</p>
+          <p className="text-gray-400">
+            {magicLinkStatus === 'checking' ? 'Verifying access link...' : 'Loading...'}
+          </p>
         </div>
       </div>
     );
@@ -256,6 +278,29 @@ const App: React.FC = () => {
 
   // Not authenticated - show landing or login
   if (!isAuthenticated) {
+    // Show invalid magic link error
+    if (magicLinkStatus === 'invalid') {
+      return (
+        <div className="h-screen bg-black flex items-center justify-center">
+          <div className="text-center max-w-md px-4">
+            <X className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white mb-2">Invalid or Expired Link</h2>
+            <p className="text-gray-400 mb-6">
+              This access link is no longer valid. It may have expired or been used too many times.
+            </p>
+            <button
+              onClick={() => {
+                setMagicLinkStatus(null);
+                window.history.replaceState({}, '', window.location.pathname);
+              }}
+              className="px-4 py-2 bg-proxi-accent text-black rounded font-medium hover:bg-proxi-accent/90"
+            >
+              Go to Login
+            </button>
+          </div>
+        </div>
+      );
+    }
     if (authView === 'login') {
       return <LoginPage onLogin={login} onBack={() => setAuthView('landing')} />;
     }

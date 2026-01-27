@@ -127,11 +127,41 @@ export function useAuth() {
     });
   }, []);
 
+  const redeemMagicLink = useCallback(async (token: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/magic-link/${token}/redeem`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const user = {
+          username: data.username,
+          displayName: data.display_name,
+          role: data.role,
+        };
+        setAuthState({
+          isAuthenticated: true,
+          user,
+          isLoading: false,
+        });
+        localStorage.setItem('proxi_auth', JSON.stringify(user));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Magic link redemption failed:', error);
+      return false;
+    }
+  }, []);
+
   return {
     ...authState,
     login,
     logout,
     checkSession,
+    redeemMagicLink,
   };
 }
 
