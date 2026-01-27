@@ -60,21 +60,21 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
   };
 
   return (
-    <div className="bg-gray-900 border border-proxi-accent/50 rounded-xl overflow-hidden shadow-lg shadow-proxi-accent/10 animate-in slide-in-from-bottom-4">
+    <div className="bg-gray-900/95 backdrop-blur-sm border border-yellow-500/30 rounded-2xl overflow-hidden shadow-2xl shadow-black/50 animate-in slide-in-from-bottom-4">
       {/* Header */}
-      <div className="bg-proxi-accent/10 px-4 py-3 flex items-start gap-3">
-        <div className="w-8 h-8 rounded-full bg-proxi-accent/20 flex items-center justify-center shrink-0">
-          <AlertTriangle className="w-4 h-4 text-proxi-accent" />
+      <div className="bg-yellow-500/10 px-5 py-4 flex items-start gap-4 border-b border-yellow-500/20">
+        <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center shrink-0">
+          <AlertTriangle className="w-6 h-6 text-yellow-400" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-bold text-proxi-accent">{request.title}</h3>
-          <p className="text-xs text-gray-400 mt-0.5">{request.description}</p>
+          <h3 className="text-base font-bold text-yellow-400">{request.title}</h3>
+          <p className="text-sm text-gray-300 mt-1 leading-relaxed">{request.description}</p>
         </div>
         <button
           onClick={onDeny}
-          className="p-1 text-gray-500 hover:text-gray-300 transition-colors"
+          className="p-2 text-gray-500 hover:text-gray-300 transition-colors rounded-lg hover:bg-gray-800"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
       </div>
 
@@ -149,19 +149,20 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
       )}
 
       {/* Action buttons */}
-      <div className="px-4 py-3 flex gap-2 bg-gray-900/50">
+      <div className="px-5 py-4 flex gap-3 bg-gray-900/50">
         {request.type === 'binary' || request.type === 'confirm_screenshot' ? (
           <>
             <button
               onClick={onDeny}
-              className="flex-1 py-2.5 px-4 border border-red-500/50 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/10 transition-colors"
+              className="flex-1 py-3 px-6 border border-gray-600 text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-800 hover:border-gray-500 transition-all"
             >
               Deny
             </button>
             <button
               onClick={handleApprove}
-              className="flex-1 py-2.5 px-4 bg-proxi-accent text-black rounded-lg text-sm font-bold hover:bg-proxi-accent/80 transition-colors"
+              className="flex-1 py-3 px-6 bg-green-500 text-white rounded-xl text-sm font-bold hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
             >
+              <CheckCircle2 className="w-4 h-4" />
               Approve
             </button>
           </>
@@ -169,14 +170,14 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
           <>
             <button
               onClick={onDeny}
-              className="py-2.5 px-4 border border-gray-700 text-gray-400 rounded-lg text-sm hover:bg-gray-800 transition-colors"
+              className="py-3 px-6 border border-gray-600 text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-800 transition-all"
             >
               Cancel
             </button>
             <button
               onClick={handleApprove}
               disabled={!canSubmit()}
-              className="flex-1 py-2.5 px-4 bg-proxi-accent text-black rounded-lg text-sm font-bold hover:bg-proxi-accent/80 transition-colors disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 py-3 px-6 bg-green-500 text-white rounded-xl text-sm font-bold hover:bg-green-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
             >
               <span>Submit</span>
               <ChevronRight className="w-4 h-4" />
