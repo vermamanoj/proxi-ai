@@ -94,7 +94,8 @@ class GeminiService:
         except Exception as e:
             log_system(f"DB Init Failed: {e}", "ERR")
 
-        self.desktop_service = get_desktop_service()
+        # NOTE: Desktop service is fetched dynamically via get_desktop_service() 
+        # to support agent switching at runtime
         
         # Session-based conversation history for multi-turn interactions
         self.sessions = {}  # {session_id: [{"role": "user/model", "parts": [...]}]}
@@ -186,27 +187,27 @@ class GeminiService:
     # --- DESKTOP WRAPPERS (names must match tools_map keys for SDK inference) ---
     def get_system_health(self): 
         """Returns system CPU, memory, and status."""
-        return self.desktop_service.get_system_health()
+        return get_desktop_service().get_system_health()
     
     def click_at(self, x: int, y: int): 
         """Clicks at the specified X,Y screen coordinates."""
-        return self.desktop_service.click_at(x, y)
+        return get_desktop_service().click_at(x, y)
     
     def drag_mouse(self, start_x: int, start_y: int, end_x: int, end_y: int): 
         """Drags from start coordinates to end coordinates."""
-        return self.desktop_service.drag_mouse(start_x, start_y, end_x, end_y)
+        return get_desktop_service().drag_mouse(start_x, start_y, end_x, end_y)
     
     def type_text(self, text: str): 
         """Types the specified text using keyboard."""
-        return self.desktop_service.type_text(text)
+        return get_desktop_service().type_text(text)
     
     def press_hotkey(self, keys: list[str]): 
         """Presses a keyboard hotkey combination."""
-        return self.desktop_service.press_hotkey(keys)
+        return get_desktop_service().press_hotkey(keys)
     
     def wait_seconds(self, seconds: int): 
         """Waits for the specified number of seconds."""
-        return self.desktop_service.wait_seconds(seconds)
+        return get_desktop_service().wait_seconds(seconds)
     
     def run_terminal_command(self, command: str, session_id: str = None): 
         """Executes a shell/terminal command with security guardrails."""
@@ -230,7 +231,7 @@ class GeminiService:
             if session_id and session_id in self.approved_commands:
                 if cmd_hash in self.approved_commands[session_id]:
                     # Previously approved - execute it
-                    return self.desktop_service.run_terminal_command(command)
+                    return get_desktop_service().run_terminal_command(command)
             
             # Mark as pending approval (will be added to approved set when user says yes)
             if session_id:
@@ -242,42 +243,42 @@ class GeminiService:
             return f"APPROVAL_REQUIRED: {check_result.reason}. Command: {command}. Should I proceed? Reply 'yes' to approve or 'no' to cancel."
         
         # Safe command - execute directly
-        return self.desktop_service.run_terminal_command(command)
+        return get_desktop_service().run_terminal_command(command)
     
     def open_target(self, resource: str): 
         """Opens a URL or file."""
-        return self.desktop_service.open_target(resource)
+        return get_desktop_service().open_target(resource)
     
     def read_page_content(self): 
         """Reads text content from the active window/page."""
-        return self.desktop_service.read_page_content()
+        return get_desktop_service().read_page_content()
     
     def scroll_page(self, direction: str = 'down'): 
         """Scrolls the active window up or down."""
-        return self.desktop_service.scroll_page(direction)
+        return get_desktop_service().scroll_page(direction)
     
     def browser_command(self, action: str, url: str = None): 
         """Controls browser via hotkeys (NEW_TAB, CLOSE_TAB, NAVIGATE, REFRESH, SEARCH)."""
-        return self.desktop_service.browser_command(action, url)
+        return get_desktop_service().browser_command(action, url)
     
     def scan_ui_tree(self): 
         """Scans the accessibility tree for UI elements."""
-        return self.desktop_service.scan_ui_tree()
+        return get_desktop_service().scan_ui_tree()
 
     def focus_window(self, title: str):
         """Brings a window to the foreground by title (partial match). Use before interacting with a specific app."""
-        return self.desktop_service.focus_window(title)
+        return get_desktop_service().focus_window(title)
 
     def get_window_rect(self, title: str):
         """Gets window position and size: {x, y, width, height}. Use to calculate safe drawing coordinates."""
-        return self.desktop_service.get_window_rect(title)
+        return get_desktop_service().get_window_rect(title)
 
     def list_windows(self):
         """Lists all visible windows with their titles and positions."""
-        return self.desktop_service.list_windows()
+        return get_desktop_service().list_windows()
 
     def look_at_screen(self, purpose: str):
-        base64_img = self.desktop_service.get_screenshot_base64()
+        base64_img = get_desktop_service().get_screenshot_base64()
         if not base64_img: return "Screenshot failed"
         try:
             model = genai.GenerativeModel(self.VISION_MODEL)
@@ -301,7 +302,7 @@ class GeminiService:
         Returns:
             Special marker that triggers screenshot display in UI.
         """
-        base64_img = self.desktop_service.get_screenshot_base64()
+        base64_img = get_desktop_service().get_screenshot_base64()
         if not base64_img: 
             return "Screenshot failed - could not capture screen"
         log_system(f"Screenshot captured for user: {caption}", "SCREENSHOT")
