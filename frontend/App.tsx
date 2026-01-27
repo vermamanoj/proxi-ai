@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Settings, Mic, MicOff, Send, Camera, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, Server, ServerOff, LogOut, Plus, History } from 'lucide-react';
+import { Settings, Mic, MicOff, Send, Camera, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, LogOut, Plus, History, MessageSquare, Monitor, ChevronDown, ChevronUp, Trash2, Info } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { useBackendHealth } from './hooks/useBackendHealth';
@@ -24,8 +24,12 @@ const App: React.FC = () => {
 
   // Audio output toggle state
   const [audioEnabled, setAudioEnabled] = useState(true);
-  // Backend (Core) toggle - when ON, connects to backend for system actions
-  const [coreEnabled, setCoreEnabled] = useState(true);
+  // Mode: 'chat' = voice only, 'remote' = backend + agents
+  const [mode, setMode] = useState<'chat' | 'remote'>('remote');
+  const coreEnabled = mode === 'remote'; // Backward compat
+  // Collapsible panels
+  const [missionExpanded, setMissionExpanded] = useState(true);
+  const [showDebugLogs, setShowDebugLogs] = useState(false);
 
   // Hook 1: Text & Vision (REST API)
   const { 
@@ -66,7 +70,6 @@ const App: React.FC = () => {
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showSessionHistory, setShowSessionHistory] = useState(false);
-  const [viewMode, setViewMode] = useState<'summary' | 'timeline' | 'full'>('timeline');
   const [animTick, setAnimTick] = useState(0);
   const [stagedImage, setStagedImage] = useState<{ file: File; preview: string } | null>(null);
 
@@ -274,42 +277,50 @@ const App: React.FC = () => {
           <h1 className="text-base sm:text-lg font-bold tracking-wider">
             PROXI<span className="text-proxi-accent">.OS</span>
           </h1>
-          {/* Core Toggle Button */}
-          <button
-            onClick={() => {
-              const newState = !coreEnabled;
-              setCoreEnabled(newState);
-              // Disconnect and reconnect voice to apply new mode
-              if (liveConnected) {
-                liveDisconnect();
-                setTimeout(() => liveConnect(), 500);
-              }
-            }}
-            className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-all cursor-pointer ${
-              !coreEnabled
-                ? 'bg-gray-700/50 text-gray-400 border border-gray-600/50 hover:bg-gray-700'
-                : backendStatus === 'connected' 
-                ? 'bg-green-500/10 text-green-400 border border-green-500/30 hover:bg-green-500/20'
-                : backendStatus === 'checking'
-                ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30'
-                : 'bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20'
-            }`}
-            title={coreEnabled ? 'Click to disable Core (chat-only mode)' : 'Click to enable Core (system actions)'}
-          >
-            {coreEnabled ? <Server className="w-3 h-3" /> : <ServerOff className="w-3 h-3" />}
-            <span className="hidden sm:inline">
-              {!coreEnabled 
-                ? 'Core: OFF' 
-                : backendStatus === 'connected' 
-                ? 'Core: ON' 
-                : backendStatus === 'checking' 
-                ? 'Core: ...' 
-                : 'Core: ⚠️'}
-            </span>
-            <span className="sm:hidden">
-              {!coreEnabled ? 'OFF' : backendStatus === 'connected' ? 'ON' : '...'}
-            </span>
-          </button>
+          {/* Mode Toggle: Chat ↔ Remote */}
+          <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+            <button
+              onClick={() => {
+                setMode('chat');
+                if (liveConnected) {
+                  liveDisconnect();
+                  setTimeout(() => liveConnect(), 500);
+                }
+              }}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-all ${
+                mode === 'chat'
+                  ? 'bg-blue-500/20 text-blue-400'
+                  : 'text-gray-500 hover:text-gray-300'
+              }`}
+              title="Chat mode - Voice assistant only"
+            >
+              <MessageSquare className="w-3 h-3" />
+              <span className="hidden sm:inline">Chat</span>
+            </button>
+            <button
+              onClick={() => {
+                setMode('remote');
+                if (liveConnected) {
+                  liveDisconnect();
+                  setTimeout(() => liveConnect(), 500);
+                }
+              }}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-all ${
+                mode === 'remote'
+                  ? backendStatus === 'connected'
+                    ? 'bg-green-500/20 text-green-400'
+                    : 'bg-yellow-500/20 text-yellow-400'
+                  : 'text-gray-500 hover:text-gray-300'
+              }`}
+              title="Remote mode - Desktop control via agents"
+            >
+              <Monitor className="w-3 h-3" />
+              <span className="hidden sm:inline">Remote</span>
+              {mode === 'remote' && backendStatus !== 'connected' && (
+                <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse" />
+              )}
+            </button>
+          </div>
           
           {/* Triple Handshake Badge - show when mission is active */}
           {missionState.active && (
@@ -346,8 +357,8 @@ const App: React.FC = () => {
             )}
           </button>
 
-          {/* Agent Selector */}
-          <AgentSelector />
+          {/* Agent Selector - only in Remote mode */}
+          {mode === 'remote' && <AgentSelector />}
 
           {/* Session History Button */}
           <button
@@ -403,8 +414,9 @@ const App: React.FC = () => {
               </button>
             </div>
             
-            {/* Mode Toggle */}
+            {/* Settings Options */}
             <div className="space-y-4">
+              {/* Reasoning Mode */}
               <div>
                 <label className="text-xs text-gray-500 uppercase tracking-wider">Reasoning Mode</label>
                 <button
@@ -439,8 +451,63 @@ const App: React.FC = () => {
                 </button>
               </div>
 
-              {/* Mission Status */}
-              {missionState && missionState.active && (
+              {/* Debug Logs Toggle */}
+              <div>
+                <label className="text-xs text-gray-500 uppercase tracking-wider">Debug Mode</label>
+                <button
+                  onClick={() => setShowDebugLogs(!showDebugLogs)}
+                  className={`mt-2 w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                    showDebugLogs
+                      ? 'border-orange-500 bg-orange-500/10 text-orange-400'
+                      : 'border-gray-700 bg-gray-800 text-gray-400'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <Info className="w-4 h-4" />
+                    {showDebugLogs ? 'Debug Logs ON' : 'Debug Logs OFF'}
+                  </span>
+                </button>
+              </div>
+
+              {/* Clear Chat History */}
+              <div>
+                <label className="text-xs text-gray-500 uppercase tracking-wider">Actions</label>
+                <button
+                  onClick={() => {
+                    liveClearSession();
+                    brainClearSession();
+                    setShowSettings(false);
+                  }}
+                  className="mt-2 w-full flex items-center justify-between p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all"
+                >
+                  <span className="flex items-center gap-2">
+                    <Trash2 className="w-4 h-4" />
+                    Clear Chat History
+                  </span>
+                </button>
+              </div>
+
+              {/* Current Mode Info */}
+              <div className="pt-4 border-t border-gray-700">
+                <div className="text-xs text-gray-500 mb-2">Current Mode</div>
+                <div className={`p-3 rounded-lg border ${
+                  mode === 'chat' 
+                    ? 'border-blue-500/30 bg-blue-500/10' 
+                    : 'border-green-500/30 bg-green-500/10'
+                }`}>
+                  <div className={`text-sm font-semibold ${mode === 'chat' ? 'text-blue-400' : 'text-green-400'}`}>
+                    {mode === 'chat' ? '💬 Chat Mode' : '🖥️ Remote Control'}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-1">
+                    {mode === 'chat' 
+                      ? 'Voice assistant only. No desktop access.' 
+                      : 'Full desktop control via connected agents.'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Mission Status - only in Remote mode */}
+              {mode === 'remote' && missionState && missionState.active && (
                 <div>
                   <label className="text-xs text-gray-500 uppercase tracking-wider">Current Mission</label>
                   <div className="mt-2 p-3 rounded-lg border border-gray-700 bg-gray-800/50">
@@ -459,45 +526,39 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Mission Progress (shows when there are steps) */}
-      {displayTrace.length > 0 && (
-        <MissionProgress
-          trace={displayTrace}
-          isProcessing={isProcessing}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-        />
+      {/* Chat Mode Banner */}
+      {mode === 'chat' && (
+        <div className="bg-blue-500/10 border-b border-blue-500/20 px-4 py-2 text-center">
+          <p className="text-xs text-blue-400">
+            💬 Chat Mode — Voice assistant only. Switch to <span className="font-semibold">Remote</span> for desktop control.
+          </p>
+        </div>
       )}
 
       {/* Main Chat Area */}
       <main className="flex-1 overflow-hidden flex flex-col">
-        {/* Mission Plan - show when goals exist */}
-        {missionGoals.length > 0 && (
-          <div className="shrink-0 px-3 pt-2">
-            <MissionPlan goals={missionGoals} />
+        {/* Collapsible Mission Panel - only in Remote mode when goals exist */}
+        {mode === 'remote' && missionGoals.length > 0 && (
+          <div className="shrink-0 border-b border-gray-800">
+            <button
+              onClick={() => setMissionExpanded(!missionExpanded)}
+              className="w-full flex items-center justify-between px-4 py-2 bg-gray-900/50 hover:bg-gray-800/50 transition-colors"
+            >
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                📋 Mission ({missionGoals.filter(g => g.status === 'complete').length}/{missionGoals.length})
+              </span>
+              {missionExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+            </button>
+            {missionExpanded && (
+              <div className="px-3 pb-2">
+                <MissionPlan goals={missionGoals} />
+              </div>
+            )}
           </div>
         )}
         
-        {viewMode === 'full' ? (
-          <ChatView trace={displayTrace} isProcessing={isProcessing} />
-        ) : (
-          <div className="h-full flex flex-col items-center justify-center text-gray-600 p-4 gap-4 overflow-y-auto">
-            {/* Show any screenshots in Timeline/Summary view */}
-            {displayTrace.filter(step => step.step_type === 'status_change' && step.metadata?.screenshot).map((step, idx) => (
-              <div key={idx} className="max-w-md">
-                <img 
-                  src={step.metadata.screenshot} 
-                  alt={step.content || 'Screenshot'} 
-                  className="rounded-lg border border-gray-700 max-h-64 object-contain"
-                />
-                {step.content && <p className="text-xs text-gray-500 mt-1 text-center">{step.content}</p>}
-              </div>
-            ))}
-            <p className="text-sm text-center">
-              {isProcessing ? 'Processing your request...' : 'Switch to Full view to see complete trace'}
-            </p>
-          </div>
-        )}
+        {/* Chat View - always full, no tabs */}
+        <ChatView trace={displayTrace} isProcessing={isProcessing} />
       </main>
 
       {/* Approval Card Overlay (for useProxiBrain) */}
