@@ -56,7 +56,7 @@ async def root():
 @app.get("/health")
 async def health():
     """Health check with system metrics."""
-    ds = get_desktop_service()
+    ds = get_desktop_service(allow_local=True)
     health_data = ds.get_system_health()
     return {
         "status": "healthy",
@@ -75,7 +75,7 @@ async def execute_tool(call: ToolCall):
     - Linux: run_terminal_command, get_system_health, open_target, wait_seconds
     - Windows: All desktop automation tools
     """
-    ds = get_desktop_service()
+    ds = get_desktop_service(allow_local=True)  # Agent always uses local execution
     tool_name = call.tool_name
     params = call.parameters
     
@@ -114,7 +114,7 @@ async def execute_tool(call: ToolCall):
 @app.get("/capabilities")
 async def get_capabilities():
     """List available tools on this agent."""
-    ds = get_desktop_service()
+    ds = get_desktop_service(allow_local=True)
     
     # Check what's available
     capabilities = []
@@ -144,7 +144,7 @@ async def get_capabilities():
 @app.post("/demo/trigger_incident")
 async def trigger_incident():
     """Simulate a high-CPU incident for demo purposes."""
-    ds = get_desktop_service()
+    ds = get_desktop_service(allow_local=True)
     if hasattr(ds, 'trigger_incident'):
         ds.trigger_incident()
         return {"status": "triggered", "message": "Simulated incident started"}
@@ -153,7 +153,7 @@ async def trigger_incident():
 @app.post("/demo/resolve_incident")
 async def resolve_incident():
     """Resolve simulated incident."""
-    ds = get_desktop_service()
+    ds = get_desktop_service(allow_local=True)
     if hasattr(ds, 'resolve_incident'):
         ds.resolve_incident()
         return {"status": "resolved"}

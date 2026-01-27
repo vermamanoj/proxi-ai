@@ -45,44 +45,6 @@
       "container"
     ]
   },
-  "windows-local": {
-    "id": "windows-local",
-    "name": "Windows Agent (Local)",
-    "description": "Local Windows development machine - desktop automation",
-    "workstation_type": "windows",
-    "host": "host.docker.internal",
-    "port": 8081,
-    "capabilities": [
-      "terminal",
-      "screenshot",
-      "desktop",
-      "file_operations"
-    ],
-    "status": "error",
-    "last_seen": "",
-    "created_at": "2026-01-27T15:04:49.894540",
-    "owner": "",
-    "tags": []
-  },
-  "Win11": {
-    "id": "Win11",
-    "name": "Windows Agent (Win11)",
-    "description": "Windows desktop automation agent",
-    "workstation_type": "windows",
-    "host": "host.docker.internal",
-    "port": 8081,
-    "capabilities": [
-      "terminal",
-      "screenshot",
-      "desktop",
-      "file_operations"
-    ],
-    "status": "unknown",
-    "last_seen": "",
-    "created_at": "2026-01-27T16:34:30.417379",
-    "owner": "",
-    "tags": []
-  },
   "linux-container": {
     "id": "linux-container",
     "name": "Linux Agent (Docker)",
@@ -99,6 +61,25 @@
     "status": "online",
     "last_seen": "2026-01-27T19:11:03.946443",
     "created_at": "2026-01-27T19:10:50.715003",
+    "owner": "",
+    "tags": []
+  },
+  "windows-agent": {
+    "id": "windows-agent",
+    "name": "Windows Agent",
+    "description": "Windows desktop automation",
+    "workstation_type": "windows",
+    "host": "localhost",
+    "port": 8081,
+    "capabilities": [
+      "terminal",
+      "screenshot",
+      "desktop",
+      "file_operations"
+    ],
+    "status": "unknown",
+    "last_seen": "",
+    "created_at": "2026-01-27T19:59:48.551094",
     "owner": "",
     "tags": []
   }

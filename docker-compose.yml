@@ -37,6 +37,8 @@ services:
       - ./.env:/app/.env:ro  # For GEMINI_API_KEY (Gemini Live)
     ports:
       - "4002:5173"
+    environment:
+      - VITE_API_URL=http://core:8000  # Docker internal networking
     depends_on:
       - core
     restart: unless-stopped

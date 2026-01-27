@@ -143,42 +143,6 @@ class WorkstationRegistry:
                 owner="demo",
                 tags=["demo", "sales", "windows"]
             ),
-            Workstation(
-                id="finance-desktop",
-                name="Finance Desktop",
-                description="Windows 11 with Excel, SAP, and financial applications",
-                workstation_type=WorkstationType.WINDOWS.value,
-                host="100.100.100.4",
-                port=8080,
-                capabilities=[
-                    "desktop_automation",
-                    "excel",
-                    "sap",
-                    "quickbooks"
-                ],
-                status=WorkstationStatus.OFFLINE.value,
-                created_at=datetime.utcnow().isoformat(),
-                owner="demo",
-                tags=["demo", "finance", "windows"]
-            ),
-            Workstation(
-                id="devops-container",
-                name="DevOps Container",
-                description="Docker container with CI/CD and monitoring tools",
-                workstation_type=WorkstationType.CONTAINER.value,
-                host="100.100.100.5",
-                port=8080,
-                capabilities=[
-                    "terminal",
-                    "kubernetes",
-                    "prometheus",
-                    "grafana"
-                ],
-                status=WorkstationStatus.OFFLINE.value,
-                created_at=datetime.utcnow().isoformat(),
-                owner="demo",
-                tags=["demo", "devops", "container"]
-            ),
         ]
         
         for ws in demo_workstations:
