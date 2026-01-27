@@ -1,7 +1,8 @@
 import { FunctionDeclaration, Type } from "@google/genai";
 
-// API Base URL - empty for same-origin, or set for cross-origin
-export const API_BASE = import.meta.env.VITE_API_URL || '';
+// API Base URL - always empty for browser requests (use relative URLs)
+// Vite proxy handles routing to backend (see vite.config.ts)
+export const API_BASE = '';
 
 // System instruction when backend is enabled - relay mode
 export const SYSTEM_INSTRUCTION_RELAY = `

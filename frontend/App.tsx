@@ -17,6 +17,7 @@ import { SessionHistory } from './components/SessionHistory';
 import { AgentSelector } from './components/AgentSelector';
 import { AdminPanel } from './components/AdminPanel';
 import { ApprovalRequest, TraceStep, MessageSource } from './types';
+import { useWorkstations } from './hooks/useWorkstations';
 
 const App: React.FC = () => {
   // Auth state
@@ -48,6 +49,9 @@ const App: React.FC = () => {
   // Mode: 'chat' = voice only, 'remote' = backend + agents
   const [mode, setMode] = useState<'chat' | 'remote'>('remote');
   const coreEnabled = mode === 'remote'; // Backward compat
+  
+  // Agent/workstation management
+  const { activeWorkstation } = useWorkstations();
   // Collapsible panels
   const [missionExpanded, setMissionExpanded] = useState(true);
   const [showDebugLogs, setShowDebugLogs] = useState(false);
@@ -370,7 +374,7 @@ const App: React.FC = () => {
             </button>
           </div>
           
-          {/* Triple Handshake Badge - show when mission is active */}
+          {/* Triple Handshake Badge - hidden for now (obsolete UI)
           {missionState.active && (
             <VerificationBadge
               phase={missionState.phase as any}
@@ -378,6 +382,7 @@ const App: React.FC = () => {
               verificationStatus={missionState.verification?.status as any}
             />
           )}
+          */}
         </div>
         
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
@@ -676,6 +681,16 @@ const App: React.FC = () => {
             }
           }}
         />
+      )}
+
+      {/* Agent Selection Prompt - when Remote mode but no agent selected */}
+      {mode === 'remote' && !activeWorkstation && (
+        <div className="border-t border-yellow-500/30 bg-yellow-500/10 px-4 py-2 flex items-center gap-2">
+          <Info className="w-4 h-4 text-yellow-400 shrink-0" />
+          <span className="text-sm text-yellow-300">
+            Select an agent from the dropdown above to execute remote commands
+          </span>
+        </div>
       )}
 
       {/* Input Area - ChatGPT style: mic+voice when empty, mic+send when typing */}
