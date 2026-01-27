@@ -76,6 +76,89 @@ docker-compose up -d
 | `agent` | proxi-agent | `backend/Dockerfile.agent` | Minimal, tools only |
 | `frontend` | proxi-frontend | `frontend/Dockerfile` | React static build |
 
+### 1.4 Remote Agent Networking (Tailscale)
+
+For agents behind NAT/firewall without inbound access, use **Tailscale** to create a secure mesh VPN.
+
+#### Why Tailscale?
+| Feature | Tailscale | ngrok | Cloudflare Tunnel |
+|---------|-----------|-------|-------------------|
+| Stable URL/IP | ✅ Fixed 100.x.x.x | ❌ Random (free) | ✅ Fixed |
+| Cost | Free | $8/mo for fixed | Free |
+| Antivirus issues | ✅ None | ✅ None | ⚠️ Flagged as malware |
+| Multi-agent mesh | ✅ Yes | ❌ No | ❌ No |
+
+#### Setup Steps
+
+**1. Create Tailscale Account**
+```bash
+# Visit https://login.tailscale.com (Google/Microsoft SSO)
+# Go to Settings → Keys → Generate auth key (reusable, no expiry)
+# Save: tskey-auth-xxxxxxxxxxxxx
+```
+
+**2. Install on Linux Agent**
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up --authkey=tskey-auth-xxxxxxxxxxxxx
+# Note the IP: tailscale ip -4  (e.g., 100.64.0.2)
+```
+
+**3. Install on Windows Agent**
+```powershell
+# Option A: GUI
+winget install Tailscale.Tailscale
+# Login via system tray → Google SSO
+
+# Option B: Headless (for servers)
+msiexec /i tailscale-setup.msi /quiet TS_AUTHKEY=tskey-auth-xxxxxxxxxxxxx
+tailscale status  # Verify connection
+```
+
+**4. Install on Docker (Sidecar)**
+```yaml
+# docker-compose.yml
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    hostname: proxi-agent
+    environment:
+      - TS_AUTHKEY=tskey-auth-xxxxxxxxxxxxx
+      - TS_STATE_DIR=/var/lib/tailscale
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+    cap_add:
+      - NET_ADMIN
+    network_mode: host
+
+  agent:
+    depends_on: [tailscale]
+    network_mode: "service:tailscale"
+```
+
+**5. Register Agent with Core**
+```bash
+# Get Tailscale IP
+tailscale ip -4  # e.g., 100.64.0.2
+
+# Register with Core
+curl -X POST http://core-server:4000/api/workstations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "win-agent-1",
+    "name": "Windows Desktop",
+    "host": "100.64.0.2",
+    "port": 4001,
+    "workstation_type": "windows"
+  }'
+```
+
+#### Environment Variables
+Add to `.env` for automated deployments:
+```bash
+TAILSCALE_AUTHKEY=tskey-auth-xxxxxxxxxxxxx
+```
+
 ---
 
 ## 2. NEW FEATURES ROADMAP

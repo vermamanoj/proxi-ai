@@ -9,6 +9,7 @@ import hashlib
 import secrets
 import json
 import os
+import sys
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 from dataclasses import dataclass, asdict
@@ -79,18 +80,51 @@ class AuthService:
         with open(self.users_file, 'w') as f:
             json.dump(data, f, indent=2)
     
+    def _generate_secure_password(self, length: int = 16) -> str:
+        """Generate a cryptographically secure random password."""
+        import string
+        alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+        return ''.join(secrets.choice(alphabet) for _ in range(length))
+    
     def _create_default_users(self):
-        """Create default demo users."""
+        """Create default demo users with random passwords on first run."""
         default_users = [
-            ("demo", "JDH*&#ksdfj3723", "Demo User", "user"),
-            ("judge", "geminJDH347^%sddsi2026", "Hackathon Judge", "judge"),
-            ("admin", "dksadj483748^%&UUY", "Administrator", "admin"),
+            ("demo", "Demo User", "user"),
+            ("judge", "Hackathon Judge", "judge"),
+            ("admin", "Administrator", "admin"),
         ]
         
-        for username, password, display_name, role in default_users:
-            self.create_user(username, password, display_name, role)
+        print("\n" + "="*60)
+        print("  🔐 PROXI FIRST RUN - DEFAULT CREDENTIALS")
+        print("="*60)
+        print("  Save these passwords! They are shown only once.")
+        print("-"*60)
         
-        print(f"[AUTH] Created default users in {self.users_file}")
+        generated_creds = []
+        for username, display_name, role in default_users:
+            password = self._generate_secure_password()
+            self.create_user(username, password, display_name, role)
+            generated_creds.append((username, password))
+            print(f"  {username:10} | {password}")
+        
+        print("-"*60)
+        print(f"  Stored in: {self.users_file}")
+        print("  To reset: delete users.json and restart")
+        print("="*60 + "\n")
+        sys.stdout.flush()
+        
+        # Write credentials file for Docker environments (stdout may not be visible)
+        creds_file = os.path.join(os.path.dirname(self.users_file), "INITIAL_CREDENTIALS.txt")
+        with open(creds_file, 'w') as f:
+            f.write("PROXI INITIAL CREDENTIALS\n")
+            f.write(f"Generated: {datetime.utcnow().isoformat()}\n")
+            f.write("DELETE THIS FILE after noting passwords!\n")
+            f.write("-" * 40 + "\n")
+            for username, password in generated_creds:
+                f.write(f"{username:10} | {password}\n")
+            f.write("-" * 40 + "\n")
+        print(f"  Credentials also saved to: {creds_file}")
+        sys.stdout.flush()
     
     def _hash_password(self, password: str) -> str:
         """Hash password using SHA-256 with salt."""

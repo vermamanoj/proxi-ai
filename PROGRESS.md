@@ -26,7 +26,7 @@
 | **Infra** | Docker Compose, Nginx, Cloudflare Tunnel, Tailscale |
 
 ### Key Patterns
-- **Factory Pattern**: `RUNTIME_MODE` switches Mock vs Real desktop service
+- **Core/Agent Split**: Security isolation - Core holds keys, Agent executes tools
 - **Triple Handshake**: assign_mission → report_execution → verify_mission
 - **Transparency Protocol**: Agent explains reasoning before every tool call
 - **Session Management**: Multi-turn conversation with history
@@ -99,8 +99,10 @@
 | P1 | Migrate to `google.genai` SDK | FutureWarning on deprecated `google.generativeai` |
 | P1 | ~~Test Triple Handshake workflow~~ | ✅ DONE - Working end-to-end |
 | P1 | ~~Integrate Command Guardrails~~ | ✅ DONE - Wired into run_terminal_command |
+| P1 | ~~Secure credentials storage~~ | ✅ DONE - users.json gitignored, random passwords on first run |
+| P1 | ~~Tailscale documentation~~ | ✅ DONE - Added to DEPLOYMENT.md |
 | P2 | Wire ApprovalModal to backend | ⚠️ Partial - detection patterns need tuning |
-| P2 | Setup Windows Server + Linux container | Real backends for testing |
+| P2 | Create Windows agent deployment script | Update deploy-backend.ps1 for agent mode |
 | P3 | Review Headless Operation plan | Virtual Display Driver for no-monitor VMs |
 | P3 | End-to-end demo flow test | Run DEMO_SCRIPT.md scenario |
 
@@ -117,10 +119,10 @@
 
 ## 🏗️ Architecture Notes
 
-### Runtime Modes
-- `RUNTIME_MODE=DEMO` → MockDesktopService (simulated)
-- `RUNTIME_MODE=REAL` → RealDesktopService (actual OS control)
-- Currently running in REAL mode
+### Architecture
+- **Core/Agent Split** - Core (port 4000) holds API keys, Agent (port 4001) executes tools
+- **Docker Compose** - 3 services: core, agent, frontend
+- **Tailscale** - Mesh VPN for remote agents behind NAT
 
 ### Key Files
 | File | Purpose |
@@ -129,20 +131,20 @@
 | `backend/services/gemini_service.py` | Core AI orchestration (619 lines) |
 | `backend/services/desktop/factory.py` | Mock/Real service switch |
 | `backend/services/orchestrator.py` | Triple Handshake workflow |
-| `backend/tools/command_guard.py` | Security guardrails (not wired) |
+| `backend/tools/command_guard.py` | Security guardrails (WIRED ✅) |
 | `backend/auth/auth_service.py` | Session-based authentication |
 | `backend/registry/workstation_registry.py` | Multi-workstation management |
 | `frontend/App.tsx` | Main React app (531 lines) |
 | `run_proxi.bat` | Windows startup script |
 
 ### Default Credentials
-| User | Password | Role |
-|------|----------|------|
-| demo | `JDH*&#ksdfj3723` | user |
-| judge | `geminJDH347^%sddsi2026` | judge |
-| admin | `dksadj483748^%&UUY` | admin |
+**Randomly generated on first run** - Check Docker logs for initial passwords:
+```bash
+docker logs proxi-ai-core-1 | grep -A 10 "FIRST RUN"
+```
+To reset: Delete `backend/auth/users.json` and restart.
 
-**Note:** Roles are stored but NOT enforced - no RBAC implemented yet.
+**Note:** Roles (user/judge/admin) are stored but NOT enforced - no RBAC implemented yet.
 
 ---
 
