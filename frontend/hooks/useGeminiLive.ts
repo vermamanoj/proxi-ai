@@ -207,6 +207,13 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
                                 } else if (data.type === 'response') {
                                     finalSummary = data.content;
                                     addLog(MessageSource.AGENT, `Core Result: ${data.content}`);
+                                } else if (data.type === 'plan') {
+                                    // Mission plan with goals
+                                    addLog(MessageSource.SYSTEM, `📋 Mission Plan`, { plan: data.goals });
+                                } else if (data.type === 'goal_update') {
+                                    // Goal status update
+                                    const statusEmoji = data.status === 'complete' ? '✅' : data.status === 'active' ? '🔄' : data.status === 'failed' ? '❌' : '⏳';
+                                    addLog(MessageSource.SYSTEM, `${statusEmoji} ${data.goal_id}: ${data.status}${data.result ? ' - ' + data.result : ''}`, { goalUpdate: data });
                                 }
                             } catch (e) {
                                 console.warn('[LIVE] Failed to parse line:', line.substring(0, 100));

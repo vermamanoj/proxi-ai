@@ -10,6 +10,7 @@ import { ApprovalCard } from './components/ApprovalCard';
 import { LandingPage } from './components/LandingPage';
 import { LoginPage } from './components/LoginPage';
 import { VerificationBadge } from './components/VerificationBadge';
+import { MissionPlan, Goal } from './components/MissionPlan';
 import { ApprovalRequest, TraceStep, MessageSource } from './types';
 
 const App: React.FC = () => {
@@ -95,6 +96,39 @@ const App: React.FC = () => {
   const displayTrace: TraceStep[] = liveConnected ? liveTrace : lastTrace;
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Extract mission goals from logs
+  const missionGoals: Goal[] = useMemo(() => {
+    const goals: Goal[] = [];
+    const goalUpdates: Record<string, { status: Goal['status']; result?: string }> = {};
+    
+    // First pass: collect all goal updates
+    for (const log of liveLogs) {
+      if (log.metadata?.goalUpdate) {
+        const update = log.metadata.goalUpdate;
+        goalUpdates[update.goal_id] = { status: update.status, result: update.result };
+      }
+    }
+    
+    // Second pass: find plan and apply updates
+    for (const log of liveLogs) {
+      if (log.metadata?.plan) {
+        for (const g of log.metadata.plan) {
+          const update = goalUpdates[g.id];
+          goals.push({
+            id: g.id,
+            title: g.title,
+            description: g.description,
+            status: update?.status || g.status || 'pending',
+            result: update?.result
+          });
+        }
+        break; // Only use first plan found
+      }
+    }
+    
+    return goals;
+  }, [liveLogs]);
 
   // Convert pendingAction to ApprovalRequest format
   const approvalRequest: ApprovalRequest | null = pendingAction ? {
@@ -393,7 +427,14 @@ const App: React.FC = () => {
       )}
 
       {/* Main Chat Area */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden flex flex-col">
+        {/* Mission Plan - show when goals exist */}
+        {missionGoals.length > 0 && (
+          <div className="shrink-0 px-3 pt-2">
+            <MissionPlan goals={missionGoals} />
+          </div>
+        )}
+        
         {viewMode === 'full' ? (
           <ChatView trace={displayTrace} isProcessing={isProcessing} />
         ) : (
