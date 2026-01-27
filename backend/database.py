@@ -4,7 +4,7 @@ import datetime
 from pathlib import Path
 from backend.utils.logger import log_system
 
-DB_PATH = Path("proxi_memory.db")
+DB_PATH = Path("/app/data/proxi_memory.db") if Path("/app/data").exists() else Path("proxi_memory.db")
 
 def init_db():
     """Initialize the SQLite database with missions and work_items tables."""

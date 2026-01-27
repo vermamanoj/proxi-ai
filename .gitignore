@@ -22,6 +22,10 @@ backend/static/
 # SQLite databases
 *.db
 
+# Persistent data (Docker volume)
+data/*
+!data/.gitkeep
+
 # Auth credentials (NEVER commit)
 backend/auth/users.json
 backend/auth/INITIAL_CREDENTIALS.txt

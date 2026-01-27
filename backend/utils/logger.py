@@ -4,9 +4,9 @@ import sys
 import os
 from pathlib import Path
 
-# Resolve path relative to this file
-root_dir = Path(__file__).resolve().parent.parent.parent
-DEBUG_LOG_PATH = root_dir / "proxi_debug.log"
+# Resolve path - use /app/data in Docker for persistence
+DATA_DIR = Path("/app/data") if Path("/app/data").exists() else Path(__file__).resolve().parent.parent.parent
+DEBUG_LOG_PATH = DATA_DIR / "proxi_debug.log"
 
 # Force unbuffered output
 os.environ['PYTHONUNBUFFERED'] = '1'

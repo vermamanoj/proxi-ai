@@ -11,6 +11,7 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./.env:/app/.env
+      - ./data:/app/data  # Persist database, logs, user auth
     ports:
       - "4000:8000"
     env_file:
