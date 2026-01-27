@@ -89,10 +89,10 @@ docker logs proxi-core --tail 20
 ### Option 3: Development Mode
 
 ```bash
-# Backend
+# Backend (Core)
 cd backend
 pip install -r requirements.txt
-uvicorn backend.main:app --reload --port 8080
+uvicorn backend.main:app --reload --port 8000
 
 # Frontend (separate terminal)
 cd frontend
@@ -191,26 +191,28 @@ Agent: "Terminating ffmpeg to resolve spike..."
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  FRONTEND (React + Vite)                                │
+│  FRONTEND (React + Vite) - Port 4002                    │
 │  ├── Voice Input (Gemini Live WebRTC)                  │
 │  ├── Neural Trace (Real-time thought visualization)    │
+│  ├── Agent Selector (switch target workstations)       │
 │  └── Mission Control (Status dashboard)                │
 └─────────────────────────────────────────────────────────┘
                           │ HTTPS/WebSocket
                           ▼
 ┌─────────────────────────────────────────────────────────┐
-│  BACKEND (FastAPI)                                      │
+│  PROXI CORE (FastAPI) - Port 4000                       │
 │  ├── GeminiService (AI orchestration, 45 tools)        │
 │  ├── Orchestrator (Mission tracking, verification)     │
-│  └── DesktopService (Factory: Mock or Real)            │
+│  ├── Auth & Sessions (user management)                 │
+│  └── Agent Proxy (routes tools to selected agent)      │
 └─────────────────────────────────────────────────────────┘
-                          │
+                          │ HTTP /execute
                           ▼
 ┌─────────────────────────────────────────────────────────┐
-│  DESKTOP (Windows/Linux)                                │
-│  ├── PyAutoGUI (Mouse/Keyboard)                        │
-│  ├── PyWinAuto (Windows UI Automation)                 │
-│  └── psutil (System metrics)                           │
+│  PROXI AGENT (Isolated) - Port 4001                     │
+│  ├── DesktopService (tool execution only)              │
+│  ├── No API keys, No DB, No user data                  │
+│  └── Blast radius limited if compromised               │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -218,15 +220,22 @@ Agent: "Terminating ffmpeg to resolve spike..."
 
 ## API Endpoints
 
+### Core (Port 4000)
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/chat` | POST | Send message, get streaming response |
-| `/api/vision` | POST | Analyze uploaded image |
-| `/api/vision-action` | POST | Image + action execution (streaming) |
-| `/api/missions` | GET | List all missions |
-| `/api/missions/{id}` | GET | Get mission details |
-| `/api/demo/trigger_chaos` | POST | Simulate CPU incident |
-| `/api/demo/reset_chaos` | POST | Clear simulated incident |
+| `/api/health` | GET | System health check |
+| `/api/sessions` | GET/POST | Session management |
+| `/api/workstations` | GET | List registered agents |
+| `/api/workstations/{id}/activate` | POST | Set active agent for tools |
+| `/api/workstations/deactivate` | POST | Use local execution |
+
+### Agent (Port 4001)
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Agent health status |
+| `/execute` | POST | Execute a tool |
+| `/capabilities` | GET | List available tools |
 
 ---
 
@@ -249,12 +258,12 @@ pip install -r backend/requirements.txt
 ### Desktop control not working
 - Windows: Run as Administrator
 - Must be in interactive session (not SSH)
-- Check `RUNTIME_MODE=REAL` in `.env`
+- Ensure agent is running and activated
 
 ### Frontend can't connect to backend
-- Verify backend is running on port 8080
-- Check CORS settings in `main.py`
-- Try `http://localhost:8080/api/chat` directly
+- Verify Core is running: `docker logs proxi-core`
+- Check ports: Core=4000, Agent=4001, Frontend=4002
+- Try `http://localhost:4000/api/health` directly
 
 ---
 
