@@ -22,6 +22,9 @@ backend/static/
 # SQLite databases
 *.db
 
+# Auth credentials (NEVER commit)
+backend/auth/users.json
+
 # OS
 .DS_Store
 Thumbs.db
