@@ -51,7 +51,8 @@ const App: React.FC = () => {
 
   // Hook 2: Real-time Voice (Live API / WebRTC)
   const { 
-    connected: liveConnected, 
+    connected: liveConnected,
+    connectionStatus,
     connect: liveConnect, 
     disconnect: liveDisconnect, 
     sendCommand: liveSendCommand,
@@ -435,22 +436,6 @@ const App: React.FC = () => {
                 </button>
               </div>
               
-              {/* Voice Uplink */}
-              <div>
-                <label className="text-xs text-gray-500 uppercase tracking-wider">Voice Uplink</label>
-                <button
-                  onClick={liveConnected ? liveDisconnect : liveConnect}
-                  className={`mt-2 w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
-                    liveConnected
-                      ? 'border-green-500 bg-green-500/10 text-green-400'
-                      : 'border-gray-700 bg-gray-800 text-gray-400'
-                  }`}
-                >
-                  <span>{liveConnected ? 'Connected' : 'Disconnected'}</span>
-                  <div className={`w-2 h-2 rounded-full ${liveConnected ? 'bg-green-500' : 'bg-gray-600'}`} />
-                </button>
-              </div>
-
               {/* Debug Logs Toggle */}
               <div>
                 <label className="text-xs text-gray-500 uppercase tracking-wider">Debug Mode</label>
@@ -626,7 +611,7 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Input Area */}
+      {/* Input Area - ChatGPT style: mic+voice when empty, mic+send when typing */}
       <footer className="border-t border-gray-800 bg-proxi-dark p-3 pb-safe">
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           {/* File Upload */}
@@ -683,68 +668,78 @@ const App: React.FC = () => {
             )}
           </div>
 
-          {/* Voice Control - Combined listening animation + mute toggle */}
+          {/* Right side buttons - changes based on input state */}
           <div className="flex items-center gap-1">
-            {/* Main Voice Button */}
+            {/* Mic button - always visible */}
             <button
               type="button"
-              onClick={liveConnected ? liveDisconnect : liveConnect}
-              className={`p-3 rounded-xl transition-all relative overflow-hidden ${
-                liveConnected
-                  ? micMuted 
-                    ? 'bg-red-500/20 text-red-400 border border-red-500/50'
-                    : 'bg-green-500/20 text-green-500 border border-green-500/50'
-                  : 'bg-gray-800 text-gray-400 hover:text-gray-300'
+              onClick={toggleMicMute}
+              className={`p-3 rounded-xl transition-all ${
+                !liveConnected
+                  ? 'bg-gray-800 text-gray-500'
+                  : micMuted
+                  ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                  : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
               }`}
-              title={liveConnected ? 'Disconnect Voice' : 'Connect Voice'}
+              title={!liveConnected ? 'Voice not connected' : micMuted ? 'Unmute Mic' : 'Mute Mic'}
+              disabled={!liveConnected}
             >
-              {/* Show bars when connected - animated when speaking, static when silent */}
-              {liveConnected && !micMuted ? (
-                <div className="flex items-end justify-center gap-0.5 w-5 h-5">
-                  {[0, 1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className="w-1 bg-green-400 rounded-full transition-all duration-100"
-                      style={{
-                        height: isLiveSpeaking 
-                          ? `${Math.max(6, Math.min(20, 8 + liveVolume * 300 + Math.sin(animTick * 0.5 + i * 1.5) * 6))}px`
-                          : `${[8, 12, 10, 6][i]}px` // Static wave pattern when silent
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : liveConnected && micMuted ? (
-                <MicOff className="w-5 h-5" />
-              ) : (
-                <Mic className="w-5 h-5" />
-              )}
+              {micMuted || !liveConnected ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
 
-            {/* Mic Mute Toggle - Only show when connected */}
-            {liveConnected && (
+            {/* Show Voice Uplink OR Send based on input */}
+            {input.trim() || stagedImage ? (
+              /* Send Button - when there's text */
+              <button
+                type="submit"
+                disabled={isProcessing}
+                className="p-3 bg-proxi-accent text-black rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:bg-proxi-accent/80"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            ) : (
+              /* Voice Uplink Button - when no text */
               <button
                 type="button"
-                onClick={toggleMicMute}
-                className={`p-2 rounded-lg transition-all ${
-                  micMuted
-                    ? 'bg-red-500/30 text-red-400 hover:bg-red-500/40'
-                    : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+                onClick={liveConnected ? liveDisconnect : liveConnect}
+                className={`p-3 rounded-xl transition-all ${
+                  connectionStatus === 'listening'
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/50'
+                    : connectionStatus === 'connecting' || connectionStatus === 'connected'
+                    ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50'
+                    : connectionStatus === 'error'
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/50'
+                    : 'bg-gray-800 text-gray-400 hover:text-gray-300'
                 }`}
-                title={micMuted ? 'Unmute Mic' : 'Mute Mic'}
+                title={liveConnected ? 'Disconnect Voice' : 'Connect Voice'}
               >
-                {micMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {/* Animated bars when listening */}
+                {connectionStatus === 'listening' && !micMuted ? (
+                  <div className="flex items-end justify-center gap-0.5 w-5 h-5">
+                    {[0, 1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="w-1 bg-green-400 rounded-full transition-all duration-100"
+                        style={{
+                          height: isLiveSpeaking 
+                            ? `${Math.max(6, Math.min(20, 8 + liveVolume * 300 + Math.sin(animTick * 0.5 + i * 1.5) * 6))}px`
+                            : `${[8, 12, 10, 6][i]}px`
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : connectionStatus === 'connecting' ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <div className="flex items-end justify-center gap-0.5 w-5 h-5">
+                    {[0, 1, 2, 3].map((i) => (
+                      <div key={i} className="w-1 bg-current rounded-full" style={{ height: `${[8, 14, 10, 6][i]}px` }} />
+                    ))}
+                  </div>
+                )}
               </button>
             )}
           </div>
-
-          {/* Send Button */}
-          <button
-            type="submit"
-            disabled={(!input.trim() && !stagedImage) || isProcessing}
-            className="p-3 bg-proxi-accent text-black rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:bg-proxi-accent/80"
-          >
-            <Send className="w-5 h-5" />
-          </button>
         </form>
       </footer>
       </div>{/* End centered container */}
@@ -755,12 +750,9 @@ const App: React.FC = () => {
         onClose={() => setShowSessionHistory(false)}
         onSelectSession={async (sessionId) => {
           try {
-            const res = await fetch(`/api/sessions/${sessionId}`);
-            if (res.ok) {
-              const session = await res.json();
-              if (session.messages && session.messages.length > 0) {
-                liveLoadSession(session.messages);
-              }
+            const session = await import('./services/sessionService').then(m => m.getSession(sessionId));
+            if (session?.messages && session.messages.length > 0) {
+              liveLoadSession(session.messages);
             }
           } catch (e) {
             console.error('Failed to load session:', e);

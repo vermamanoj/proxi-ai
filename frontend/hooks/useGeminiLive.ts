@@ -6,8 +6,28 @@ import { SYSTEM_INSTRUCTION_RELAY, SYSTEM_INSTRUCTION_CHAT, TOOLS } from '../con
 import { blobToBase64, createPcmBlob, decodeAudioData, encodePcm } from '../utils/audio';
 import { createSession, updateSession, closeSession as closeSessionApi } from '../services/sessionService';
 
+// Status messages that should NOT appear in chat (shown in compact indicator instead)
+const STATUS_MESSAGES = [
+  'Initializing Gemini Live Uplink...',
+  'Uplink Established. Listening in 2s...',
+  '🎤 Listening...',
+  'Uplink Closed.',
+  'Disconnected.',
+  'New session started.',
+  'Session restored.',
+  'Connection Failed:',
+  '🔴 Interrupted'
+];
+
+const isStatusMessage = (text: string): boolean => {
+  return STATUS_MESSAGES.some(msg => text.startsWith(msg));
+};
+
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'listening' | 'error';
+
 export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled: boolean = true, complexity: 'fast' | 'deep' = 'fast') => {
   const [connected, setConnected] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const connectedRef = useRef(false); // Ref for use in audio callback
   const backendEnabledRef = useRef(backendEnabled);
   const audioOutputEnabledRef = useRef(audioOutputEnabled);
@@ -293,7 +313,7 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     connectingRef.current = true;
     
     try {
-      addLog(MessageSource.SYSTEM, "Initializing Gemini Live Uplink...");
+      setConnectionStatus('connecting');
       const apiKey = process.env.API_KEY;
       if (!apiKey) throw new Error("API_KEY missing");
 
@@ -323,17 +343,17 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
         callbacks: {
           onopen: () => {
             setConnected(true);
+            setConnectionStatus('connected');
             // Start muted for 2 seconds to let user compose thoughts
             setMicMuted(true);
             micMutedRef.current = true;
-            addLog(MessageSource.SYSTEM, "Uplink Established. Listening in 2s...");
             
             // Auto-unmute after delay
             setTimeout(() => {
               if (connectedRef.current) {
                 setMicMuted(false);
                 micMutedRef.current = false;
-                addLog(MessageSource.SYSTEM, "🎤 Listening...");
+                setConnectionStatus('listening');
               }
             }, 2000);
             
@@ -430,14 +450,14 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
                  sourcesRef.current.add(source);
              }
           },
-          onclose: () => { setConnected(false); addLog(MessageSource.SYSTEM, "Uplink Closed."); },
-          onerror: (err) => { console.error(err); addLog(MessageSource.SYSTEM, "Error: " + err.message); }
+          onclose: () => { setConnected(false); setConnectionStatus('disconnected'); },
+          onerror: (err) => { console.error(err); setConnectionStatus('error'); }
         }
       });
       sessionRef.current = sessionPromise;
 
     } catch (err: any) {
-      addLog(MessageSource.SYSTEM, `Connection Failed: ${err.message}`);
+      setConnectionStatus('error');
       setConnected(false);
       connectingRef.current = false;
     }
@@ -451,10 +471,10 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     sourcesRef.current.forEach(s => s.stop());
     sourcesRef.current.clear();
     setConnected(false);
+    setConnectionStatus('disconnected');
     connectingRef.current = false;
     sessionRef.current = null;
     if (abortControllerRef.current) abortControllerRef.current.abort();
-    addLog(MessageSource.SYSTEM, "Disconnected.");
   };
 
   const toggleMicMute = useCallback(() => {
@@ -476,7 +496,6 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     }));
     setLogs(restoredLogs);
     backendSessionRef.current = null; // Don't overwrite the loaded session
-    addLog(MessageSource.SYSTEM, "Session restored.");
   }, [addLog]);
 
   // Save current session and start fresh
@@ -511,10 +530,12 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     backendSessionRef.current = null;
     backendSessionTimestampRef.current = 0;
     taskInProgressRef.current = false;
-    addLog(MessageSource.SYSTEM, "New session started.");
   }, [addLog, logs]);
 
-  return { connected, connect, disconnect, sendCommand, volume, logs, activeTool, micMuted, toggleMicMute, clearSession, loadSession };
+  // Filter out status messages from logs for chat display
+  const chatLogs = logs.filter(log => !isStatusMessage(log.text));
+  
+  return { connected, connectionStatus, connect, disconnect, sendCommand, volume, logs: chatLogs, activeTool, micMuted, toggleMicMute, clearSession, loadSession };
 };
 
 function decodeAtob(base64: string) {

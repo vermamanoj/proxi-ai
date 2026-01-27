@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Server, ChevronDown, Check, Wifi, WifiOff } from 'lucide-react';
+import { ChevronDown, Check, Wifi, WifiOff } from 'lucide-react';
 import { useWorkstations } from '../hooks/useWorkstations';
 
 interface AgentSelectorProps {
@@ -27,23 +27,45 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ className = '' }) 
     );
   };
 
+  // Get OS icon based on workstation description or name
+  const getOsIcon = (ws: { name: string; description?: string }) => {
+    const text = `${ws.name} ${ws.description || ''}`.toLowerCase();
+    if (text.includes('windows')) return '🪟';
+    if (text.includes('linux') || text.includes('ubuntu') || text.includes('docker')) return '🐧';
+    if (text.includes('mac')) return '🍎';
+    return '💻';
+  };
+
+  // Get short display name (first word or abbreviation)
+  const getShortName = (name: string) => {
+    // If name is short enough, use it
+    if (name.length <= 12) return name;
+    // Otherwise, take first word or abbreviate
+    const firstWord = name.split(' ')[0];
+    if (firstWord.length <= 10) return firstWord + '...';
+    return firstWord.substring(0, 8) + '...';
+  };
+
   return (
     <div className={`relative ${className}`}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700 transition-colors"
+        className="flex items-center gap-1.5 px-2 py-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700 transition-colors"
         disabled={isLoading}
       >
-        <Server className="w-4 h-4 text-blue-400" />
-        <span className="text-sm text-gray-300 max-w-[120px] truncate">
-          {activeWorkstation?.name || 'Select Agent'}
+        {/* OS Icon */}
+        <span className="text-sm">{activeWorkstation ? getOsIcon(activeWorkstation) : '💻'}</span>
+        {/* Short name - hidden on very small screens */}
+        <span className="text-xs text-gray-300 hidden sm:inline max-w-[80px] truncate">
+          {activeWorkstation ? getShortName(activeWorkstation.name) : 'Agent'}
         </span>
+        {/* Status indicator */}
         {activeWorkstation && (
           <span className={getStatusColor(activeWorkstation.status)}>
             {getStatusIcon(activeWorkstation.status)}
           </span>
         )}
-        <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
@@ -52,7 +74,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ className = '' }) 
             className="fixed inset-0 z-40" 
             onClick={() => setIsOpen(false)} 
           />
-          <div className="absolute top-full right-0 mt-2 w-64 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden">
+          <div className="absolute top-full right-0 mt-2 w-72 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden">
             <div className="p-2 border-b border-gray-800">
               <span className="text-xs text-gray-500 uppercase tracking-wider">Proxi Agents</span>
             </div>
@@ -68,15 +90,16 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ className = '' }) 
                     activeWorkstation?.id === ws.id ? 'bg-gray-800/50' : ''
                   }`}
                 >
-                  <div className={`${getStatusColor(ws.status)}`}>
-                    {getStatusIcon(ws.status)}
-                  </div>
-                  <div className="flex-1 text-left">
-                    <div className="text-sm text-gray-200">{ws.name}</div>
+                  {/* OS Icon */}
+                  <span className="text-lg">{getOsIcon(ws)}</span>
+                  {/* Status dot */}
+                  <div className={`w-2 h-2 rounded-full ${ws.status === 'online' ? 'bg-green-400' : 'bg-gray-500'}`} />
+                  <div className="flex-1 text-left min-w-0">
+                    <div className="text-sm text-gray-200 truncate">{ws.name}</div>
                     <div className="text-xs text-gray-500 truncate">{ws.description}</div>
                   </div>
                   {activeWorkstation?.id === ws.id && (
-                    <Check className="w-4 h-4 text-green-400" />
+                    <Check className="w-4 h-4 text-green-400 shrink-0" />
                   )}
                 </button>
               ))}
