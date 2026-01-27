@@ -118,9 +118,22 @@ export function useWorkstations(): UseWorkstationsResult {
     }
   }, [workstations, activeWorkstationId]);
 
-  const setActiveWorkstation = useCallback((id: string) => {
+  const setActiveWorkstation = useCallback(async (id: string) => {
     setActiveWorkstationId(id);
-  }, []);
+    
+    // Notify backend to activate this agent for proxied tool execution
+    if (backendAvailable) {
+      try {
+        await fetch(`${API_BASE}/api/workstations/${id}/activate`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+        console.log(`Activated agent: ${id}`);
+      } catch (err) {
+        console.warn('Failed to activate agent on backend:', err);
+      }
+    }
+  }, [backendAvailable]);
 
   const activeWorkstation = workstations.find(w => w.id === activeWorkstationId) || null;
 

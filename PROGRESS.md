@@ -434,3 +434,42 @@
 - **Proxi Agents** = Target systems (Windows/Linux/Mac)
 
 **Sessions Table Location:** Proxi Core (user owns sessions, may span agents)
+
+### 2026-01-27 Session 4 (Core/Agent Split)
+
+**Security-Driven Architecture Split:**
+
+```
+┌─────────────────┐     ┌─────────────────┐
+│   Proxi Core    │     │  Proxi Agent    │
+│  (Orchestrator) │────▶│   (Isolated)    │
+├─────────────────┤     ├─────────────────┤
+│ - Auth/Sessions │     │ - DesktopService│
+│ - Registry      │     │ - Tool execution│
+│ - Gemini LLM    │     │ - Health endpoint│
+│ - Proxy to Agent│     │ - No DB access  │
+│ - User DB       │     │ - No API keys   │
+└─────────────────┘     └─────────────────┘
+     Port 4000              Port 4001
+```
+
+**Why Split:** If LLM tool execution is compromised (prompt injection), blast radius limited to agent only. Core (with user DB, API keys) stays safe.
+
+**Files Added:**
+- `backend/agent_server.py` - Lightweight isolated agent endpoint
+- `backend/Dockerfile.agent` - Minimal image (no DB, no auth, no API keys)
+- `backend/requirements-agent.txt` - Only fastapi, uvicorn, psutil
+
+**Changes:**
+- Removed RUNTIME_MODE/DEMO mode (auto-detect OS now)
+- Updated `docker-compose.yml` - Core (4000), Agent (4001), Frontend (4002)
+- Updated `factory.py` - Simplified, OS-based selection only
+
+**Agent Test Results:**
+| Endpoint | Result |
+|----------|--------|
+| GET /health | ✅ healthy, Linux |
+| GET /capabilities | ✅ {terminal, system_health} |
+| POST /execute | ✅ run_terminal_command works |
+
+**Pending:** Core → Agent proxy (route tool calls to selected agent)

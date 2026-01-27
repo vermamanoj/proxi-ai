@@ -21,7 +21,7 @@ from backend.database import (
     create_session, get_session, update_session, get_sessions_list, close_session,
     append_session_message, append_session_goal, update_session_goal
 )
-from backend.services.desktop.factory import get_desktop_service
+from backend.services.desktop.factory import get_desktop_service, set_active_agent, clear_active_agent
 from backend.registry.workstation_registry import (
     get_registry, list_workstations, get_workstation, get_workstation_status
 )
@@ -342,6 +342,30 @@ async def remove_workstation(workstation_id: str):
     if registry.delete_workstation(workstation_id):
         return {"status": "deleted", "workstation_id": workstation_id}
     raise HTTPException(status_code=404, detail="Workstation not found")
+
+@app.post("/api/workstations/{workstation_id}/activate")
+async def activate_workstation(workstation_id: str):
+    """
+    Set a workstation as the active agent for tool execution.
+    All subsequent tool calls will be proxied to this agent.
+    """
+    ws = get_workstation(workstation_id)
+    if not ws:
+        raise HTTPException(status_code=404, detail="Workstation not found")
+    
+    agent_url = f"http://{ws['host']}:{ws['port']}"
+    set_active_agent(agent_url)
+    return {
+        "status": "activated",
+        "workstation_id": workstation_id,
+        "agent_url": agent_url
+    }
+
+@app.post("/api/workstations/deactivate")
+async def deactivate_workstation():
+    """Clear the active agent, use local execution."""
+    clear_active_agent()
+    return {"status": "deactivated", "message": "Using local execution"}
 
 # --- DEMO / JUDGE TOOLS ---
 
