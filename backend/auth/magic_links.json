@@ -1,0 +1,20 @@
+{
+  "ZSEAmJKGz-l6sdI1ivtXrMI2PUvWPpjM0a_J8e8doMI": {
+    "token": "ZSEAmJKGz-l6sdI1ivtXrMI2PUvWPpjM0a_J8e8doMI",
+    "username": "magic_ZSEAmJKG",
+    "role": "admin",
+    "created_at": "2026-01-27T21:36:10.831506",
+    "expires_at": "2026-02-03T21:36:10.831506",
+    "uses_remaining": 50,
+    "label": "Hackathon Judge"
+  },
+  "kZygxEtrmt7GqNgkDeGwc9n4oGtmABgkJ8pV3b8S57E": {
+    "token": "kZygxEtrmt7GqNgkDeGwc9n4oGtmABgkJ8pV3b8S57E",
+    "username": "magic_kZygxEtr",
+    "role": "user",
+    "created_at": "2026-01-27T21:36:46.934135",
+    "expires_at": "2026-02-03T21:36:46.934135",
+    "uses_remaining": 1,
+    "label": "Hackathon Judge"
+  }
+}

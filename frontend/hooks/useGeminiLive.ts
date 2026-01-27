@@ -314,8 +314,14 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     
     try {
       setConnectionStatus('connecting');
-      const apiKey = process.env.API_KEY;
-      if (!apiKey) throw new Error("API_KEY missing");
+      // Vite exposes env vars via import.meta.env with VITE_ prefix
+      const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        addLog(MessageSource.SYSTEM, '⚠️ Voice mode requires VITE_GEMINI_API_KEY in frontend/.env');
+        setConnectionStatus('error');
+        connectingRef.current = false;
+        return;
+      }
 
       const ai = new GoogleGenAI({ apiKey });
       inputContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
