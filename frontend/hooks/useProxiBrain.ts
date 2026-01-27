@@ -290,6 +290,16 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
                         addLog(MessageSource.SYSTEM, `Error: ${data.content}`);
                         setMissionState(prev => ({ ...prev, phase: 'failed', active: false }));
                         break;
+                    case 'plan':
+                        // Mission plan with goals - add to logs with metadata for MissionPlan UI
+                        addLog(MessageSource.SYSTEM, `📋 Mission Plan`, { plan: data.goals });
+                        break;
+                    case 'goal_update':
+                        // Goal progress update
+                        addLog(MessageSource.SYSTEM, `Goal ${data.goal_id}: ${data.status}`, { 
+                            goalUpdate: { goal_id: data.goal_id, status: data.status, result: data.result } 
+                        });
+                        break;
                 }
             } catch (e) {
                 console.warn("Failed to parse chunk, probably incomplete JSON:", line);
