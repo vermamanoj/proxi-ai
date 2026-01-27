@@ -60,13 +60,14 @@ class AuthService:
     Simple authentication service with local user storage.
     """
     
-    def __init__(self, users_file: str = None, session_timeout_minutes: int = 30):
+    def __init__(self, users_file: str = None, session_timeout_minutes: int = 60):
         self.users_file = users_file or self._default_users_file()
         self.session_timeout = timedelta(minutes=session_timeout_minutes)
         self.sessions: Dict[str, Session] = {}
         self.magic_links: Dict[str, MagicLink] = {}
         self._load_users()
         self._load_magic_links()
+        self._load_sessions()
     
     def _default_users_file(self) -> str:
         """Get default path for users file."""
@@ -76,6 +77,51 @@ class AuthService:
     def _magic_links_file(self) -> str:
         """Get path for magic links file."""
         return str(Path(self.users_file).parent / "magic_links.json")
+    
+    def _sessions_file(self) -> str:
+        """Get path for sessions file."""
+        return str(Path(self.users_file).parent / "sessions.json")
+    
+    def _load_sessions(self):
+        """Load sessions from JSON file."""
+        sessions_file = self._sessions_file()
+        if os.path.exists(sessions_file):
+            try:
+                with open(sessions_file, 'r') as f:
+                    data = json.load(f)
+                    for session_id, session_data in data.items():
+                        session = Session(
+                            session_id=session_data["session_id"],
+                            username=session_data["username"],
+                            created_at=datetime.fromisoformat(session_data["created_at"]),
+                            expires_at=datetime.fromisoformat(session_data["expires_at"]),
+                            ip_address=session_data.get("ip_address", ""),
+                            user_agent=session_data.get("user_agent", "")
+                        )
+                        # Only load if not expired
+                        if session.is_valid():
+                            self.sessions[session_id] = session
+                print(f"[AUTH] Loaded {len(self.sessions)} valid sessions")
+            except Exception as e:
+                print(f"[AUTH] Error loading sessions: {e}")
+    
+    def _save_sessions(self):
+        """Save sessions to JSON file."""
+        sessions_file = self._sessions_file()
+        os.makedirs(os.path.dirname(sessions_file), exist_ok=True)
+        data = {}
+        for session_id, session in self.sessions.items():
+            if session.is_valid():  # Only save valid sessions
+                data[session_id] = {
+                    "session_id": session.session_id,
+                    "username": session.username,
+                    "created_at": session.created_at.isoformat(),
+                    "expires_at": session.expires_at.isoformat(),
+                    "ip_address": session.ip_address,
+                    "user_agent": session.user_agent
+                }
+        with open(sessions_file, 'w') as f:
+            json.dump(data, f, indent=2)
     
     def _load_magic_links(self):
         """Load magic links from JSON file."""
@@ -233,6 +279,7 @@ class AuthService:
         )
         
         self.sessions[session_id] = session
+        self._save_sessions()  # Persist to disk
         return session
     
     def validate_session(self, session_id: str) -> Optional[Session]:
@@ -263,12 +310,14 @@ class AuthService:
             return None
         
         session.expires_at = datetime.utcnow() + self.session_timeout
+        self._save_sessions()  # Persist refreshed session
         return session
     
     def invalidate_session(self, session_id: str) -> bool:
         """Invalidate (logout) a session."""
         if session_id in self.sessions:
             del self.sessions[session_id]
+            self._save_sessions()  # Persist removal
             return True
         return False
     

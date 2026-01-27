@@ -133,13 +133,16 @@ const App: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Extract mission goals from logs
+  // Extract mission goals from logs (combine both voice and text logs)
   const missionGoals: Goal[] = useMemo(() => {
     const goals: Goal[] = [];
     const goalUpdates: Record<string, { status: Goal['status']; result?: string }> = {};
     
+    // Combine both log sources
+    const allLogs = [...brainLogs, ...liveLogs];
+    
     // First pass: collect all goal updates
-    for (const log of liveLogs) {
+    for (const log of allLogs) {
       if (log.metadata?.goalUpdate) {
         const update = log.metadata.goalUpdate;
         goalUpdates[update.goal_id] = { status: update.status, result: update.result };
@@ -147,7 +150,7 @@ const App: React.FC = () => {
     }
     
     // Second pass: find plan and apply updates
-    for (const log of liveLogs) {
+    for (const log of allLogs) {
       if (log.metadata?.plan) {
         for (const g of log.metadata.plan) {
           const update = goalUpdates[g.id];
@@ -164,7 +167,7 @@ const App: React.FC = () => {
     }
     
     return goals;
-  }, [liveLogs]);
+  }, [brainLogs, liveLogs]);
 
   // Extract pending escalation from logs
   const pendingEscalation = useMemo(() => {
