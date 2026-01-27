@@ -59,6 +59,40 @@ Or use the batch file:
 .\run_agent.bat
 ```
 
+### 5. Register with Proxi Core
+
+**IMPORTANT:** The agent must be registered with Core to appear in the UI dropdown.
+
+```powershell
+# Option A: Use the registration script
+.\scripts\register-agent.ps1 -AgentName "my-windows-pc" -CoreUrl "http://localhost:4000" -Port 8081
+
+# Option B: Manual API call
+$body = @{
+    id = "my-windows-pc"
+    name = "My Windows PC"
+    description = "Windows desktop automation"
+    workstation_type = "windows"
+    host = "host.docker.internal"  # Required for Docker to reach Windows host
+    port = 8081
+    capabilities = @("terminal", "screenshot", "desktop", "file_operations")
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:4000/api/workstations" -Method POST -ContentType "application/json" -Body $body
+```
+
+After registration, refresh the UI (or wait 30 seconds) - your agent will appear in the dropdown.
+
+### 6. Verify Registration
+
+```powershell
+# List all registered agents
+Invoke-RestMethod -Uri "http://localhost:4000/api/workstations"
+
+# Check specific agent health
+Invoke-RestMethod -Uri "http://localhost:4000/api/workstations/my-windows-pc/health"
+```
+
 ---
 
 ## Architecture
