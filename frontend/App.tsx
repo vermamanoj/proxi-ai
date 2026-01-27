@@ -50,8 +50,8 @@ const App: React.FC = () => {
   const [mode, setMode] = useState<'chat' | 'remote'>('remote');
   const coreEnabled = mode === 'remote'; // Backward compat
   
-  // Agent/workstation management
-  const { activeWorkstation } = useWorkstations();
+  // Agent/workstation management - single source of truth
+  const { activeWorkstation, workstations, setActiveWorkstation, isLoading: workstationsLoading } = useWorkstations();
   // Collapsible panels
   const [missionExpanded, setMissionExpanded] = useState(true);
   const [showDebugLogs, setShowDebugLogs] = useState(false);
@@ -411,7 +411,14 @@ const App: React.FC = () => {
           </button>
 
           {/* Agent Selector - only in Remote mode */}
-          {mode === 'remote' && <AgentSelector />}
+          {mode === 'remote' && (
+            <AgentSelector 
+              workstations={workstations}
+              activeWorkstation={activeWorkstation}
+              setActiveWorkstation={setActiveWorkstation}
+              isLoading={workstationsLoading}
+            />
+          )}
 
           {/* Session History Button */}
           <button

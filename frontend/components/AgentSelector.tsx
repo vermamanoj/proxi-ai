@@ -1,13 +1,22 @@
 import React, { useState } from 'react';
 import { ChevronDown, Check, Wifi, WifiOff } from 'lucide-react';
-import { useWorkstations } from '../hooks/useWorkstations';
+import { Workstation } from '../config/workstations';
 
 interface AgentSelectorProps {
+  workstations: Workstation[];
+  activeWorkstation: Workstation | null;
+  setActiveWorkstation: (id: string) => void;
+  isLoading: boolean;
   className?: string;
 }
 
-export const AgentSelector: React.FC<AgentSelectorProps> = ({ className = '' }) => {
-  const { workstations, activeWorkstation, setActiveWorkstation, isLoading } = useWorkstations();
+export const AgentSelector: React.FC<AgentSelectorProps> = ({ 
+  workstations, 
+  activeWorkstation, 
+  setActiveWorkstation, 
+  isLoading,
+  className = '' 
+}) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const getStatusColor = (status: string) => {
