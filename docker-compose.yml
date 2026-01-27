@@ -33,14 +33,10 @@ services:
     build: 
       context: ./frontend
       dockerfile: Dockerfile
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - ./.env:/app/../.env:ro
     ports:
       - "4002:5173"
-    env_file:
-      - .env
+    environment:
+      - VITE_API_URL=http://core:8000
     depends_on:
       - core
     restart: unless-stopped
