@@ -44,7 +44,7 @@ notepad .env
 .\run_proxi.bat
 ```
 
-### Option 2: Linux/Docker (Headless Server)
+### Option 2: Docker Compose (Recommended)
 
 ```bash
 # 1. Clone and configure
@@ -53,8 +53,37 @@ cd proxi-ai
 cp .env.example .env
 nano .env  # Add your GEMINI_API_KEY
 
-# 2. Deploy with Docker
-./deploy.sh
+# 2. Start all services (Core + Agent + Frontend)
+docker-compose up -d
+
+# 3. Check status
+docker-compose ps
+```
+
+**Services:**
+| Service | Port | Purpose |
+|---------|------|---------|
+| `core` | 4000 | Orchestration, LLM, Auth |
+| `agent` | 4001 | Isolated tool execution |
+| `frontend` | 4002 | React UI |
+
+### Option 2b: Manual Docker (Individual Containers)
+
+```bash
+# Build images
+docker build -t proxi-core -f backend/Dockerfile backend/
+docker build -t proxi-agent -f backend/Dockerfile.agent backend/
+
+# Run Core (needs API key)
+docker run -d --name proxi-core -p 4000:8000 \
+  -e GEMINI_API_KEY=your_key_here \
+  proxi-core
+
+# Run Agent (isolated, no API key needed)
+docker run -d --name proxi-agent -p 4001:8081 proxi-agent
+
+# Check logs
+docker logs proxi-core --tail 20
 ```
 
 ### Option 3: Development Mode
@@ -78,22 +107,28 @@ npm run dev
 Create a `.env` file in the project root:
 
 ```ini
-# Required
+# Required (Core only - Agent doesn't need this)
 GEMINI_API_KEY=your_gemini_api_key_here
 
 # Optional integrations
 GITHUB_TOKEN=your_github_token_here
-
-# Runtime mode (DEMO = safe simulation, REAL = actual control)
-RUNTIME_MODE=DEMO
 ```
 
-### Runtime Modes
+### Architecture (Security Split)
 
-| Mode | Description | Use Case |
-|------|-------------|----------|
-| `DEMO` | Simulated incidents, mock responses | Hackathon demos, safe testing |
-| `REAL` | Actual mouse/keyboard/shell control | Production use |
+```
+┌─────────────┐         ┌─────────────┐
+│  PROXI CORE │───HTTP──│ PROXI AGENT │
+│  Port 4000  │         │  Port 4001  │
+├─────────────┤         ├─────────────┤
+│ ✓ API Keys  │         │ ✗ No keys   │
+│ ✓ User DB   │         │ ✗ No DB     │
+│ ✓ LLM calls │         │ ✓ Tools only│
+└─────────────┘         └─────────────┘
+   SAFE ZONE            BLAST RADIUS
+```
+
+**Why?** If LLM tool execution is compromised, only Agent is affected. Core (with API keys, user data) stays safe.
 
 ---
 
