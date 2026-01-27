@@ -37,24 +37,14 @@ def get_desktop_service(agent_url: str = None):
     # Use provided URL or active agent URL
     url = agent_url or _active_agent_url
     
-    # If agent URL is set, use proxy
+    # If agent URL is set, use proxy to remote agent
     if url:
         if url not in _proxy_instances:
             from .proxy_adapter import ProxyDesktopService
             _proxy_instances[url] = ProxyDesktopService(url)
         return _proxy_instances[url]
     
-    # Local execution based on OS
-    current_os = platform.system().lower()
-    
-    if current_os == "linux":
-        if _linux_instance is None:
-            from .linux import LinuxDesktopService
-            _linux_instance = LinuxDesktopService()
-        return _linux_instance
-    
-    # Windows - use real desktop service
-    if _windows_instance is None:
-        from .real import RealDesktopService
-        _windows_instance = RealDesktopService()
-    return _windows_instance
+    # NO LOCAL EXECUTION - Core should not act as an agent
+    # User must select a registered agent before executing tools
+    from .null import NullDesktopService
+    return NullDesktopService()
