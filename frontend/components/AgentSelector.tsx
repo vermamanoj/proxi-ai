@@ -1,0 +1,96 @@
+import React, { useState } from 'react';
+import { Server, ChevronDown, Check, Wifi, WifiOff } from 'lucide-react';
+import { useWorkstations } from '../hooks/useWorkstations';
+
+interface AgentSelectorProps {
+  className?: string;
+}
+
+export const AgentSelector: React.FC<AgentSelectorProps> = ({ className = '' }) => {
+  const { workstations, activeWorkstation, setActiveWorkstation, isLoading } = useWorkstations();
+  const [isOpen, setIsOpen] = useState(false);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'online': return 'text-green-400';
+      case 'offline': return 'text-red-400';
+      case 'starting': return 'text-yellow-400';
+      default: return 'text-gray-400';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    return status === 'online' ? (
+      <Wifi className="w-3 h-3" />
+    ) : (
+      <WifiOff className="w-3 h-3" />
+    );
+  };
+
+  return (
+    <div className={`relative ${className}`}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-3 py-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700 transition-colors"
+        disabled={isLoading}
+      >
+        <Server className="w-4 h-4 text-blue-400" />
+        <span className="text-sm text-gray-300 max-w-[120px] truncate">
+          {activeWorkstation?.name || 'Select Agent'}
+        </span>
+        {activeWorkstation && (
+          <span className={getStatusColor(activeWorkstation.status)}>
+            {getStatusIcon(activeWorkstation.status)}
+          </span>
+        )}
+        <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setIsOpen(false)} 
+          />
+          <div className="absolute top-full right-0 mt-2 w-64 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden">
+            <div className="p-2 border-b border-gray-800">
+              <span className="text-xs text-gray-500 uppercase tracking-wider">Proxi Agents</span>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {workstations.map((ws) => (
+                <button
+                  key={ws.id}
+                  onClick={() => {
+                    setActiveWorkstation(ws.id);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 p-3 hover:bg-gray-800 transition-colors ${
+                    activeWorkstation?.id === ws.id ? 'bg-gray-800/50' : ''
+                  }`}
+                >
+                  <div className={`${getStatusColor(ws.status)}`}>
+                    {getStatusIcon(ws.status)}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="text-sm text-gray-200">{ws.name}</div>
+                    <div className="text-xs text-gray-500 truncate">{ws.description}</div>
+                  </div>
+                  {activeWorkstation?.id === ws.id && (
+                    <Check className="w-4 h-4 text-green-400" />
+                  )}
+                </button>
+              ))}
+            </div>
+            {workstations.length === 0 && (
+              <div className="p-4 text-center text-gray-500 text-sm">
+                No agents registered
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
+export default AgentSelector;

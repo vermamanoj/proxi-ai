@@ -12,6 +12,7 @@ import { LoginPage } from './components/LoginPage';
 import { VerificationBadge } from './components/VerificationBadge';
 import { MissionPlan, Goal } from './components/MissionPlan';
 import { SessionHistory } from './components/SessionHistory';
+import { AgentSelector } from './components/AgentSelector';
 import { ApprovalRequest, TraceStep, MessageSource } from './types';
 
 const App: React.FC = () => {
@@ -307,6 +308,9 @@ const App: React.FC = () => {
               <span className="absolute inset-0 rounded-lg border-2 border-blue-400 animate-ping opacity-75" />
             )}
           </button>
+
+          {/* Agent Selector */}
+          <AgentSelector />
 
           {/* Session History Button */}
           <button

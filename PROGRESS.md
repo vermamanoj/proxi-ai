@@ -404,3 +404,33 @@
 | PLAN parsing | `backend/services/gemini_service.py:615-668` | Chat with complex task |
 | MissionPlan UI | `frontend/components/MissionPlan.tsx` | Visual test |
 | SessionHistory UI | `frontend/components/SessionHistory.tsx` | Click History button |
+
+---
+
+## 📝 Session Log
+
+### 2026-01-27 Session 3 (Linux Sandbox)
+
+**Phase 1 Complete:** Linux container sandbox for safe testing
+
+| Test | Result |
+|------|--------|
+| Docker build | ✅ `proxi-backend-linux` image created |
+| Container run | ✅ `proxi-sandbox` on port 4000 |
+| Health check | ✅ `Proxi System Online` |
+| Session CRUD | ✅ Create, list, get, update all working |
+| Goal CRUD | ✅ Add goal, update status working |
+| LinuxDesktopService | ✅ `get_system_health()`, `run_terminal_command()` |
+
+**Files Added:**
+- `backend/requirements-linux.txt` - No Windows deps (pywin32, pywinauto, etc.)
+- `backend/services/desktop/linux.py` - Terminal/file ops for Linux
+- Updated `backend/Dockerfile` - Uses Linux requirements
+- Updated `backend/services/desktop/factory.py` - Auto-detects OS
+
+**Architecture Naming Finalized:**
+- **Proxi UI** = Frontend (React)
+- **Proxi Core** = Main backend (auth, sessions, registry, LLM)
+- **Proxi Agents** = Target systems (Windows/Linux/Mac)
+
+**Sessions Table Location:** Proxi Core (user owns sessions, may span agents)

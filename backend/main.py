@@ -22,6 +22,9 @@ from backend.database import (
     append_session_message, append_session_goal, update_session_goal
 )
 from backend.services.desktop.factory import get_desktop_service
+from backend.registry.workstation_registry import (
+    get_registry, list_workstations, get_workstation, get_workstation_status
+)
 
 app = FastAPI(
     title="Proxi Backend",
@@ -283,6 +286,62 @@ async def close_session_endpoint(session_id: str):
     """Close a session (archive it)."""
     close_session(session_id)
     return {"session_id": session_id, "status": "closed"}
+
+# --- WORKSTATION / AGENT MANAGEMENT ---
+
+@app.get("/api/workstations")
+async def get_workstations():
+    """List all registered Proxi Agents (workstations)."""
+    return {"workstations": list_workstations()}
+
+@app.get("/api/workstations/{workstation_id}")
+async def get_workstation_details(workstation_id: str):
+    """Get details of a specific workstation."""
+    ws = get_workstation(workstation_id)
+    if not ws:
+        raise HTTPException(status_code=404, detail="Workstation not found")
+    return ws
+
+@app.get("/api/workstations/{workstation_id}/health")
+async def check_workstation_health(workstation_id: str):
+    """Check health status of a workstation."""
+    status = await get_workstation_status(workstation_id)
+    return status
+
+@app.post("/api/workstations")
+async def register_workstation(request: Request):
+    """Register a new Proxi Agent (workstation)."""
+    from backend.registry.workstation_registry import Workstation
+    data = await request.json()
+    
+    required = ["id", "name", "host", "workstation_type"]
+    for field in required:
+        if field not in data:
+            raise HTTPException(status_code=400, detail=f"{field} required")
+    
+    ws = Workstation(
+        id=data["id"],
+        name=data["name"],
+        description=data.get("description", ""),
+        workstation_type=data["workstation_type"],
+        host=data["host"],
+        port=data.get("port", 8080),
+        capabilities=data.get("capabilities", []),
+        owner=data.get("owner", ""),
+        tags=data.get("tags", [])
+    )
+    
+    registry = get_registry()
+    registry.register_workstation(ws)
+    return {"status": "registered", "workstation": ws.to_dict()}
+
+@app.delete("/api/workstations/{workstation_id}")
+async def remove_workstation(workstation_id: str):
+    """Remove a registered workstation."""
+    registry = get_registry()
+    if registry.delete_workstation(workstation_id):
+        return {"status": "deleted", "workstation_id": workstation_id}
+    raise HTTPException(status_code=404, detail="Workstation not found")
 
 # --- DEMO / JUDGE TOOLS ---
 
