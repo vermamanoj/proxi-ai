@@ -35,8 +35,11 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+      - ./.env:/app/../.env:ro
     ports:
       - "4002:5173"
+    env_file:
+      - .env
     depends_on:
       - core
     restart: unless-stopped

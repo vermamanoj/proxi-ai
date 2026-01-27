@@ -214,6 +214,21 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
                                     // Goal status update
                                     const statusEmoji = data.status === 'complete' ? '✅' : data.status === 'active' ? '🔄' : data.status === 'failed' ? '❌' : '⏳';
                                     addLog(MessageSource.SYSTEM, `${statusEmoji} ${data.goal_id}: ${data.status}${data.result ? ' - ' + data.result : ''}`, { goalUpdate: data });
+                                } else if (data.type === 'approval_required') {
+                                    // Command needs user approval
+                                    addLog(MessageSource.SYSTEM, `🛡️ Approval Required: ${data.reason}`, { 
+                                        approvalRequired: true, 
+                                        command: data.command, 
+                                        reason: data.reason,
+                                        riskLevel: data.risk_level || 'moderate'
+                                    });
+                                } else if (data.type === 'escalation') {
+                                    // Mission escalated to human
+                                    addLog(MessageSource.SYSTEM, `🚨 Escalated to Human: ${data.reason}`, {
+                                        escalation: true,
+                                        missionId: data.mission_id,
+                                        reason: data.reason
+                                    });
                                 }
                             } catch (e) {
                                 console.warn('[LIVE] Failed to parse line:', line.substring(0, 100));
@@ -450,6 +465,20 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     });
   }, []);
 
+  // Load a saved session's messages into current view
+  const loadSession = useCallback((messages: any[]) => {
+    const restoredLogs: LogEntry[] = messages.map(msg => ({
+      id: msg.id || Math.random().toString(36).substring(7),
+      timestamp: new Date(msg.timestamp),
+      source: msg.source as MessageSource,
+      text: msg.text,
+      metadata: msg.metadata
+    }));
+    setLogs(restoredLogs);
+    backendSessionRef.current = null; // Don't overwrite the loaded session
+    addLog(MessageSource.SYSTEM, "Session restored.");
+  }, [addLog]);
+
   // Save current session and start fresh
   const clearSession = useCallback(async () => {
     // Save current session if it has content
@@ -485,7 +514,7 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     addLog(MessageSource.SYSTEM, "New session started.");
   }, [addLog, logs]);
 
-  return { connected, connect, disconnect, sendCommand, volume, logs, activeTool, micMuted, toggleMicMute, clearSession };
+  return { connected, connect, disconnect, sendCommand, volume, logs, activeTool, micMuted, toggleMicMute, clearSession, loadSession };
 };
 
 function decodeAtob(base64: string) {

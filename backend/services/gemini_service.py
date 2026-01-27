@@ -720,6 +720,24 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                         yield json.dumps({"type": "status_change", "phase": "screenshot", "metadata": {"screenshot": image_data}, "content": caption}) + "\n"
                         res = f"Screenshot shared with user: {caption}"
                     
+                    # Check for approval required
+                    res_str = str(res)
+                    if res_str.startswith("APPROVAL_REQUIRED:"):
+                        # Parse: "APPROVAL_REQUIRED: reason. Command: cmd. Should I proceed?"
+                        import re
+                        match = re.search(r'APPROVAL_REQUIRED:\s*(.+?)\.\s*Command:\s*(.+?)\.\s*Should', res_str)
+                        if match:
+                            reason, command = match.group(1), match.group(2)
+                            yield json.dumps({"type": "approval_required", "reason": reason, "command": command, "risk_level": "moderate"}) + "\n"
+                    
+                    # Check for escalation
+                    if "ESCALATED" in res_str and "Human Operator" in res_str:
+                        import re
+                        match = re.search(r'Mission\s+(\S+)\s+ESCALATED.*Reason:\s*(.+)', res_str)
+                        if match:
+                            mission_id, reason = match.group(1), match.group(2)
+                            yield json.dumps({"type": "escalation", "mission_id": mission_id, "reason": reason}) + "\n"
+                    
                     # Build response
                     response_parts.append(protos.Part(function_response=protos.FunctionResponse(
                         name=function_calls[i].name,

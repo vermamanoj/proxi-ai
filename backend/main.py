@@ -386,25 +386,5 @@ async def deactivate_workstation():
     clear_active_agent()
     return {"status": "deactivated", "message": "Using local execution"}
 
-# --- DEMO / JUDGE TOOLS ---
-
-@app.post("/api/demo/trigger_chaos")
-async def trigger_chaos():
-    """DEMO: Triggers a simulated high-CPU incident in the Mock Desktop."""
-    ds = get_desktop_service()
-    if hasattr(ds, 'trigger_incident'):
-        ds.trigger_incident()
-        return {"status": "chaos_triggered", "message": "Simulated incident started. CPU at 99%."}
-    return {"status": "ignored", "message": "Service doesn't support simulated incidents."}
-
-@app.post("/api/demo/reset")
-async def reset_demo():
-    """DEMO: Resets the simulated environment."""
-    ds = get_desktop_service()
-    if hasattr(ds, 'resolve_incident'):
-        ds.resolve_incident()
-        return {"status": "reset", "message": "Simulated environment normalized."}
-    return {"status": "ignored"}
-
 if __name__ == "__main__":
     uvicorn.run("backend.main:app", host="0.0.0.0", port=8080, reload=True)

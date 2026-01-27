@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Settings, Mic, MicOff, Send, Camera, Flame, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, Server, ServerOff, LogOut, Plus, History } from 'lucide-react';
+import { Settings, Mic, MicOff, Send, Camera, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, Server, ServerOff, LogOut, Plus, History } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { useBackendHealth } from './hooks/useBackendHealth';
@@ -7,6 +7,8 @@ import { useAuth } from './hooks/useAuth';
 import { ChatView } from './components/ChatView';
 import { MissionProgress } from './components/MissionProgress';
 import { ApprovalCard } from './components/ApprovalCard';
+import { ApprovalModal, ApprovalModalRequest } from './components/ApprovalModal';
+import { EscalationAlert, EscalationRequest } from './components/EscalationAlert';
 import { LandingPage } from './components/LandingPage';
 import { LoginPage } from './components/LoginPage';
 import { VerificationBadge } from './components/VerificationBadge';
@@ -54,7 +56,8 @@ const App: React.FC = () => {
     activeTool: liveActiveTool,
     micMuted,
     toggleMicMute,
-    clearSession: liveClearSession
+    clearSession: liveClearSession,
+    loadSession: liveLoadSession
   } = useGeminiLive(coreEnabled, audioEnabled, complexity);
 
   // Hook 3: Backend Health Monitoring (only when core is enabled)
@@ -133,7 +136,51 @@ const App: React.FC = () => {
     return goals;
   }, [liveLogs]);
 
-  // Convert pendingAction to ApprovalRequest format
+  // Extract pending escalation from logs
+  const pendingEscalation = useMemo(() => {
+    for (let i = liveLogs.length - 1; i >= 0; i--) {
+      const log = liveLogs[i];
+      if (log.metadata?.escalation) {
+        // Check if there's a subsequent user response
+        const hasResponse = liveLogs.slice(i + 1).some(l => 
+          l.source === MessageSource.USER
+        );
+        if (!hasResponse) {
+          return {
+            id: `esc-${i}`,
+            message: log.metadata.reason,
+            context: log.metadata.missionId,
+            timestamp: log.timestamp
+          };
+        }
+      }
+    }
+    return null;
+  }, [liveLogs]);
+
+  // Extract pending approval from logs (for command guard approvals)
+  const pendingApproval = useMemo(() => {
+    // Find the most recent approval_required log that hasn't been responded to
+    for (let i = liveLogs.length - 1; i >= 0; i--) {
+      const log = liveLogs[i];
+      if (log.metadata?.approvalRequired) {
+        // Check if there's a subsequent user response (yes/no)
+        const hasResponse = liveLogs.slice(i + 1).some(l => 
+          l.source === MessageSource.USER && (l.text.toLowerCase().includes('yes') || l.text.toLowerCase().includes('no'))
+        );
+        if (!hasResponse) {
+          return {
+            command: log.metadata.command,
+            reason: log.metadata.reason,
+            riskLevel: log.metadata.riskLevel || 'moderate'
+          };
+        }
+      }
+    }
+    return null;
+  }, [liveLogs]);
+
+  // Convert pendingAction to ApprovalRequest format (for useProxiBrain approvals)
   const approvalRequest: ApprovalRequest | null = pendingAction ? {
     id: `apr-${Date.now()}`,
     type: 'binary',
@@ -189,16 +236,6 @@ const App: React.FC = () => {
   const clearStagedImage = () => {
     if (stagedImage?.preview) URL.revokeObjectURL(stagedImage.preview);
     setStagedImage(null);
-  };
-
-  const triggerChaos = async () => {
-    try {
-      const res = await fetch('/api/demo/trigger_chaos', { method: 'POST' });
-      if (!res.ok) throw new Error(`Failed: ${res.status}`);
-      sendCommand("System Alert: High CPU detected. Check system health and fix the issue.");
-    } catch (e: any) {
-      logSystemError(`Failed to trigger incident: ${e.message}`);
-    }
   };
 
   // Auth loading state
@@ -264,13 +301,13 @@ const App: React.FC = () => {
               {!coreEnabled 
                 ? 'Core: OFF' 
                 : backendStatus === 'connected' 
-                ? `Core: ${backendMode}` 
+                ? 'Core: ON' 
                 : backendStatus === 'checking' 
                 ? 'Core: ...' 
                 : 'Core: ⚠️'}
             </span>
             <span className="sm:hidden">
-              {!coreEnabled ? 'OFF' : backendStatus === 'connected' ? backendMode : '...'}
+              {!coreEnabled ? 'OFF' : backendStatus === 'connected' ? 'ON' : '...'}
             </span>
           </button>
           
@@ -331,15 +368,6 @@ const App: React.FC = () => {
             title="New Session (clear chat)"
           >
             <Plus className="w-5 h-5" />
-          </button>
-
-          {/* Demo trigger - only show in demo mode */}
-          <button
-            onClick={triggerChaos}
-            className="p-2 text-orange-500/70 hover:text-orange-500 hover:bg-orange-500/10 rounded-lg transition-colors"
-            title="Trigger Demo Incident"
-          >
-            <Flame className="w-5 h-5" />
           </button>
           
           {/* Settings */}
@@ -472,7 +500,7 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {/* Approval Card Overlay */}
+      {/* Approval Card Overlay (for useProxiBrain) */}
       {approvalRequest && (
         <div className="absolute bottom-20 left-4 right-4 z-30">
           <ApprovalCard
@@ -482,6 +510,59 @@ const App: React.FC = () => {
             isListening={liveConnected && !micMuted}
           />
         </div>
+      )}
+
+      {/* Escalation Alert (when agent needs human help) */}
+      {pendingEscalation && (
+        <div className="absolute top-20 left-4 right-4 z-40 max-w-md mx-auto">
+          <EscalationAlert
+            request={pendingEscalation as EscalationRequest}
+            onRespond={(response) => {
+              if (liveConnected) {
+                liveSendCommand(response);
+              } else {
+                sendCommand(response);
+              }
+            }}
+            onDismiss={() => {
+              // User dismissed without responding - send a generic acknowledgment
+              if (liveConnected) {
+                liveSendCommand('Acknowledged, continue with best judgment');
+              } else {
+                sendCommand('Acknowledged, continue with best judgment');
+              }
+            }}
+          />
+        </div>
+      )}
+
+      {/* Command Guard Approval Modal (for useGeminiLive) */}
+      {pendingApproval && (
+        <ApprovalModal
+          request={{
+            id: `cmd-${Date.now()}`,
+            title: 'Command Approval Required',
+            command: pendingApproval.command,
+            riskLevel: pendingApproval.riskLevel as any,
+            reason: pendingApproval.reason,
+            timeoutSeconds: 30
+          }}
+          isOpen={!!pendingApproval}
+          onApprove={() => {
+            if (liveConnected) {
+              liveSendCommand('yes');
+            } else {
+              sendCommand('yes');
+            }
+          }}
+          onDeny={() => {
+            if (liveConnected) {
+              liveSendCommand('no');
+            } else {
+              sendCommand('no');
+            }
+          }}
+        />
       )}
 
       {/* Input Area */}
@@ -611,10 +692,19 @@ const App: React.FC = () => {
       <SessionHistory
         isOpen={showSessionHistory}
         onClose={() => setShowSessionHistory(false)}
-        onSelectSession={(sessionId) => {
-          console.log('Selected session:', sessionId);
+        onSelectSession={async (sessionId) => {
+          try {
+            const res = await fetch(`/api/sessions/${sessionId}`);
+            if (res.ok) {
+              const session = await res.json();
+              if (session.messages && session.messages.length > 0) {
+                liveLoadSession(session.messages);
+              }
+            }
+          } catch (e) {
+            console.error('Failed to load session:', e);
+          }
           setShowSessionHistory(false);
-          // TODO: Load session messages into chat
         }}
       />
     </div>
