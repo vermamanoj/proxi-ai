@@ -24,6 +24,7 @@ backend/static/
 
 # Auth credentials (NEVER commit)
 backend/auth/users.json
+backend/auth/INITIAL_CREDENTIALS.txt
 
 # OS
 .DS_Store
