@@ -300,7 +300,19 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
         callbacks: {
           onopen: () => {
             setConnected(true);
-            addLog(MessageSource.SYSTEM, "Uplink Established.");
+            // Start muted for 2 seconds to let user compose thoughts
+            setMicMuted(true);
+            micMutedRef.current = true;
+            addLog(MessageSource.SYSTEM, "Uplink Established. Listening in 2s...");
+            
+            // Auto-unmute after delay
+            setTimeout(() => {
+              if (connectedRef.current) {
+                setMicMuted(false);
+                micMutedRef.current = false;
+                addLog(MessageSource.SYSTEM, "🎤 Listening...");
+              }
+            }, 2000);
             
             if (!inputContextRef.current) return;
             const source = inputContextRef.current.createMediaStreamSource(stream);
