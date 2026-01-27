@@ -293,3 +293,114 @@
 | Approval button UI (text mode) | ✅ Working |
 | VerificationBadge (text mode) | ✅ Working |
 | VerificationBadge | ⚠️ Only works in text mode, not voice |
+
+---
+
+## 🏗️ Multi-Backend Architecture (Updated 2026-01-27)
+
+### Naming Convention
+
+| Layer | Name | Description |
+|-------|------|-------------|
+| **Frontend** | **Proxi UI** | React web app - user interaction, voice, chat |
+| **Main Backend** | **Proxi Core** | Auth, sessions, registry, LLM orchestration |
+| **Target Systems** | **Proxi Agents** | Execute tasks on Windows/Linux/Mac machines |
+
+### Architecture Diagram
+```
+┌──────────────────────────────────────────────────────────────┐
+│  proxi.orchestra.com (Main Server)                           │
+│  ┌────────────┐   ┌────────────────────────────────────┐    │
+│  │ Proxi UI   │   │  Proxi Core (Container)            │    │
+│  │  (React)   │◄──┤  • User authentication/DB          │    │
+│  │            │   │  • Sessions table (SQLite)         │    │
+│  │            │   │  • Agent registry                  │    │
+│  └────────────┘   │  • LLM orchestration (Gemini)      │    │
+│                   └────────────────────────────────────┘    │
+└──────────────────────────────────────────────────────────────┘
+                              │
+            User picks which agent to connect
+                              ▼
+    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+    │ Proxi Agent │    │ Proxi Agent │    │ Proxi Agent │
+    │  (Windows)  │    │  (Linux)    │    │  (Mac)      │
+    │  Desktop    │    │  Container  │    │  Server     │
+    └─────────────┘    └─────────────┘    └─────────────┘
+```
+
+### Data Ownership Decision
+
+| Data | Location | Rationale |
+|------|----------|-----------|
+| **Sessions** | Proxi Core | User owns session; may span multiple agents |
+| **Goals/Requirements** | Proxi Core | Centralized tracking across agents |
+| **User Auth** | Proxi Core | Single sign-on for all agents |
+| **Agent Registry** | Proxi Core | Core manages which agents are available |
+| **Execution Logs** | Proxi Agent (temp) → Core | Pull results back for permanent storage |
+| **Artifacts (files)** | Proxi Agent | Created on target machine |
+
+---
+
+## 📋 Pending Implementation Tasks (2026-01-27)
+
+### Recently Completed (this session)
+| Task | Status | Notes |
+|------|--------|-------|
+| Session persistence (SQLite) | ✅ Done | `sessions` table + CRUD APIs |
+| Goal extraction from LLM | ✅ Done | PLAN_START/END + GOAL_UPDATE parsing |
+| MissionPlan UI component | ✅ Done | Progress bar + goal status icons |
+| Session History UI | ✅ Done | Slide-out panel, list past sessions |
+| Git push all changes | ✅ Done | Committed to `feature/real-mode-testing` |
+
+### Phase 1: Linux Sandbox (Test Recent Changes Safely)
+| Task | Priority | Effort | Notes |
+|------|----------|--------|-------|
+| Create `requirements-linux.txt` | P0 | 10 min | Remove pywin32, pywinauto, comtypes |
+| Update Dockerfile for Linux | P0 | 15 min | Use linux requirements |
+| Build and run container | P0 | 10 min | `docker-compose up backend` |
+| Test session APIs via curl | P0 | 15 min | Create/list/update sessions |
+| Test goal extraction with terminal cmds | P1 | 30 min | Verify PLAN/GOAL parsing works |
+
+### Phase 2: Wire Up Multi-Backend
+| Task | Priority | Effort | Notes |
+|------|----------|--------|-------|
+| Add `/api/workstations/*` endpoints | P1 | 30 min | Registry exists, just needs routes |
+| Add agent selector dropdown to UI | P1 | 30 min | `useWorkstations` hook ready |
+| Create `LinuxDesktopService` | P1 | 1 hr | Terminal + file ops only |
+| Route `/api/chat` to selected agent | P2 | 1 hr | Proxy requests to agent URL |
+
+### Phase 3: Future Enhancements
+| Task | Priority | Notes |
+|------|----------|-------|
+| Agent registration UI | P3 | Add new backends from UI |
+| Tailscale/VPN integration | P3 | Secure agent connections |
+| Remote agent heartbeat | P3 | Auto-detect offline agents |
+
+### Potential Breaking Changes to Watch
+| Risk | Mitigation |
+|------|------------|
+| Windows deps in Linux container | Use `requirements-linux.txt` |
+| SQLite path in container | Mount volume for `/app/data/` |
+| New session table schema | Test DB init in fresh container |
+| PLAN/GOAL parsing failures | Graceful fallback if format not found |
+
+---
+
+## 🔧 Code Status Summary
+
+### What Exists But NOT Wired Up
+| Component | File | Issue |
+|-----------|------|-------|
+| WorkstationRegistry | `backend/registry/workstation_registry.py` | No API routes in main.py |
+| useWorkstations hook | `frontend/hooks/useWorkstations.ts` | Not used in App.tsx |
+| Agent selector config | `frontend/config/workstations.ts` | Static fallback only |
+
+### Recently Added Code (needs testing)
+| Component | File | Test Method |
+|-----------|------|-------------|
+| Sessions table | `backend/database.py:51-63` | `curl /api/sessions` |
+| Session APIs | `backend/main.py:216-285` | REST calls |
+| sessionService | `frontend/services/sessionService.ts` | Browser test |
+| PLAN parsing | `backend/services/gemini_service.py:615-668` | Chat with complex task |
+| MissionPlan UI | `frontend/components/MissionPlan.tsx` | Visual test |
+| SessionHistory UI | `frontend/components/SessionHistory.tsx` | Click History button |

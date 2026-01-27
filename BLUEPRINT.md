@@ -293,3 +293,25 @@ See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for:
 - Headless operation setup
 - Testing procedures
 - Hackathon submission checklist
+
+
+# architecture plan (updated 27 jan)
+
+┌──────────────────────────────────────────────────────────────┐
+│  proxi.orchestra.com (Main Server)                           │
+│  ┌────────────┐   ┌────────────────────────────────────┐    │
+│  │  Frontend  │   │  Main Backend (Container)          │    │
+│  │  (React)   │◄──┤  • User authentication/DB          │    │
+│  │            │   │  • Registered backends registry    │    │
+│  └────────────┘   │  • Can execute local tasks too     │    │
+│                   └────────────────────────────────────┘    │
+└──────────────────────────────────────────────────────────────┘
+                              │
+            User picks which backend to connect
+                              ▼
+    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+    │ Windows     │    │ Linux       │    │ Mac/Other   │
+    │ Desktop     │    │ Server      │    │ System      │
+    │ (Agent)     │    │ (Agent)     │    │ (Agent)     │
+    └─────────────┘    └─────────────┘    └─────────────┘
+    
