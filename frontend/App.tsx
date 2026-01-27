@@ -88,7 +88,8 @@ const App: React.FC = () => {
     micMuted,
     toggleMicMute,
     clearSession: liveClearSession,
-    loadSession: liveLoadSession
+    loadSession: liveLoadSession,
+    markActiveGoalFailed
   } = useGeminiLive(coreEnabled, audioEnabled, complexity);
 
   // Hook 3: Backend Health Monitoring (only when core is enabled)
@@ -634,7 +635,10 @@ const App: React.FC = () => {
           <ApprovalCard
             request={approvalRequest}
             onApprove={() => confirmAction()}
-            onDeny={() => cancelAction()}
+            onDeny={() => {
+              markActiveGoalFailed('User denied approval');
+              cancelAction();
+            }}
             isListening={liveConnected && !micMuted}
           />
         </div>
@@ -684,6 +688,8 @@ const App: React.FC = () => {
             }
           }}
           onDeny={() => {
+            // Mark the active goal as failed/cancelled
+            markActiveGoalFailed('User denied approval');
             if (liveConnected) {
               liveSendCommand('no');
             } else {

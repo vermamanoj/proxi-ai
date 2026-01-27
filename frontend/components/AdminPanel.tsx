@@ -183,12 +183,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                     <select
                       value={newLink.role}
                       onChange={(e) => setNewLink({ ...newLink, role: e.target.value })}
-                      className="w-full px-3 py-2 bg-gray-900 border border-gray-700 rounded text-sm"
+                      className={`w-full px-3 py-2 bg-gray-900 border rounded text-sm ${
+                        newLink.role === 'admin' ? 'border-red-500 text-red-400' : 'border-gray-700'
+                      }`}
                     >
-                      <option value="user">User</option>
-                      <option value="judge">Judge</option>
-                      <option value="admin">Admin</option>
+                      <option value="user">User (read-only)</option>
+                      <option value="judge">Judge (recommended)</option>
+                      <option value="admin">⚠️ Admin (full access)</option>
                     </select>
+                    {newLink.role === 'admin' && (
+                      <p className="text-xs text-red-400 mt-1">⚠️ Admin can create/revoke magic links!</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">Expires (hours)</label>
