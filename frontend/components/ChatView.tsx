@@ -118,6 +118,17 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
         const step = group.items[0];
         const isUser = step.step_type === 'user_input';
         const isThought = step.step_type === 'llm_thought';
+        
+        // Filter out plan/goal metadata from thought content for cleaner display
+        const filterPlanText = (text: string): string => {
+          // Remove PLAN_START...PLAN_END blocks
+          let filtered = text.replace(/PLAN_START[\s\S]*?PLAN_END/g, '');
+          // Remove GOAL_UPDATE lines
+          filtered = filtered.replace(/GOAL_UPDATE:\s*\S+\s+(ACTIVE|COMPLETE|FAILED)[^\n]*/g, '');
+          // Clean up extra whitespace
+          filtered = filtered.replace(/\n{3,}/g, '\n\n').trim();
+          return filtered;
+        };
         const isResponse = step.step_type === 'final_response';
         const isVerification = step.step_type === 'verification';
         const isScreenshot = step.step_type === 'status_change' && step.metadata?.screenshot;
@@ -177,7 +188,9 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
               
               {/* Content */}
               <div className={`text-sm leading-relaxed ${isThought ? 'italic' : ''}`}>
-                {typeof step.content === 'string' ? step.content : JSON.stringify(step.content)}
+                {typeof step.content === 'string' 
+                  ? (isThought ? filterPlanText(step.content) : step.content)
+                  : JSON.stringify(step.content)}
               </div>
             </div>
           </div>

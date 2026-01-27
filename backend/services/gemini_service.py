@@ -654,18 +654,35 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                         try:
                             plan_match = text_content.split("PLAN_START")[1].split("PLAN_END")[0]
                             goals = []
+                            goal_counter = 0
+                            step_counter = 0
+                            current_goal_num = 0
                             for line in plan_match.strip().split("\n"):
                                 line = line.strip()
                                 if line.startswith("G") and ":" in line:
+                                    # Main goal: G1 -> 1, G2 -> 2
+                                    goal_counter += 1
+                                    current_goal_num = goal_counter
+                                    step_counter = 0
                                     parts = line.split(":", 1)
-                                    goal_id = parts[0].strip()
+                                    original_id = parts[0].strip()  # e.g., "G1"
                                     goal_text = parts[1].strip() if len(parts) > 1 else ""
-                                    # Split title and description
                                     if " - " in goal_text:
                                         title, desc = goal_text.split(" - ", 1)
                                     else:
                                         title, desc = goal_text, ""
-                                    goals.append({"id": goal_id, "title": title.strip(), "description": desc.strip(), "status": "pending"})
+                                    goals.append({"id": str(goal_counter), "original_id": original_id, "title": title.strip(), "description": desc.strip(), "status": "pending"})
+                                elif line.startswith("S") and ":" in line:
+                                    # Sub-step: S1 -> 1.1, S2 -> 1.2
+                                    step_counter += 1
+                                    parts = line.split(":", 1)
+                                    original_id = parts[0].strip()  # e.g., "S1"
+                                    step_text = parts[1].strip() if len(parts) > 1 else ""
+                                    if " - " in step_text:
+                                        title, desc = step_text.split(" - ", 1)
+                                    else:
+                                        title, desc = step_text, ""
+                                    goals.append({"id": f"{current_goal_num}.{step_counter}", "original_id": original_id, "title": title.strip(), "description": desc.strip(), "status": "pending", "is_step": True})
                             if goals:
                                 yield json.dumps({"type": "plan", "goals": goals}) + "\n"
                                 log_system(f"Plan extracted: {len(goals)} goals", "PLAN")
@@ -673,6 +690,7 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                             log_system(f"Failed to parse plan: {e}", "PLAN")
                     
                     # Parse GOAL_UPDATE for progress tracking
+                    # Convert G1->1, G2->2, S1->x.1 format
                     if "GOAL_UPDATE:" in text_content:
                         try:
                             for line in text_content.split("\n"):
@@ -680,8 +698,18 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                                     update_part = line.split("GOAL_UPDATE:")[1].strip()
                                     # Format: G1 COMPLETE - result or G2 ACTIVE
                                     parts = update_part.split(" ", 1)
-                                    goal_id = parts[0]
+                                    original_id = parts[0]  # e.g., "G1" or "S2"
                                     rest = parts[1] if len(parts) > 1 else ""
+                                    
+                                    # Convert G1->1, G2->2 (simple numeric extraction)
+                                    if original_id.startswith("G"):
+                                        goal_id = original_id[1:]  # G1 -> 1
+                                    elif original_id.startswith("S"):
+                                        # For steps, we need context - for now keep as-is
+                                        goal_id = original_id
+                                    else:
+                                        goal_id = original_id
+                                    
                                     if "COMPLETE" in rest:
                                         status = "complete"
                                         result = rest.replace("COMPLETE", "").replace("-", "").strip()
@@ -695,7 +723,7 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                                         status = "active"
                                         result = rest
                                     yield json.dumps({"type": "goal_update", "goal_id": goal_id, "status": status, "result": result}) + "\n"
-                                    log_system(f"Goal update: {goal_id} -> {status}", "PLAN")
+                                    log_system(f"Goal update: {original_id} -> {goal_id} ({status})", "PLAN")
                         except Exception as e:
                             log_system(f"Failed to parse goal update: {e}", "PLAN")
 
