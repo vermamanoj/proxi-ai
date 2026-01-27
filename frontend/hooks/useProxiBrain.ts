@@ -129,6 +129,8 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
       setSessionId(currentSessionId);
       // Clear trace for new conversation (prevents stale data confusion)
       setLastTrace([]);
+      // Create session in backend
+      createSession(currentSessionId, message.substring(0, 50));
     }
     // Always update timestamp to keep session alive during active use
     setSessionTimestamp(now);
