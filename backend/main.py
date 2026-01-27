@@ -467,12 +467,26 @@ async def activate_workstation(workstation_id: str):
     """
     Set a workstation as the active agent for tool execution.
     All subsequent tool calls will be proxied to this agent.
+    Validates agent is reachable before activating.
     """
     ws = get_workstation(workstation_id)
     if not ws:
         raise HTTPException(status_code=404, detail="Workstation not found")
     
     agent_url = f"http://{ws['host']}:{ws['port']}"
+    
+    # Check if agent is reachable before activating
+    import aiohttp
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+            async with session.get(f"{agent_url}/health") as response:
+                if response.status != 200:
+                    raise HTTPException(status_code=503, detail=f"Agent '{ws['name']}' is not responding (status {response.status})")
+    except aiohttp.ClientConnectorError:
+        raise HTTPException(status_code=503, detail=f"Agent '{ws['name']}' is offline - cannot connect to {agent_url}")
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Agent '{ws['name']}' health check failed: {str(e)}")
+    
     set_active_agent(agent_url)
     return {
         "status": "activated",

@@ -119,21 +119,36 @@ export function useWorkstations(): UseWorkstationsResult {
   }, [workstations, activeWorkstationId]);
 
   const setActiveWorkstation = useCallback(async (id: string) => {
+    // Check if agent is online before activating
+    const ws = workstations.find(w => w.id === id);
+    if (ws && ws.status === 'offline') {
+      setError(`Cannot select "${ws.name}" - agent is offline`);
+      console.warn(`Attempted to select offline agent: ${id}`);
+      return;
+    }
+    
     setActiveWorkstationId(id);
+    setError(null);
     
     // Notify backend to activate this agent for proxied tool execution
     if (backendAvailable) {
       try {
-        await fetch(`${API_BASE}/api/workstations/${id}/activate`, {
+        const response = await fetch(`${API_BASE}/api/workstations/${id}/activate`, {
           method: 'POST',
           credentials: 'include',
         });
+        if (!response.ok) {
+          const data = await response.json();
+          setError(data.detail || 'Failed to activate agent');
+          return;
+        }
         console.log(`Activated agent: ${id}`);
       } catch (err) {
         console.warn('Failed to activate agent on backend:', err);
+        setError('Failed to connect to agent');
       }
     }
-  }, [backendAvailable]);
+  }, [backendAvailable, workstations]);
 
   const activeWorkstation = workstations.find(w => w.id === activeWorkstationId) || null;
 
