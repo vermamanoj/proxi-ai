@@ -7,57 +7,74 @@
 
 ## 1. ARCHITECTURE OVERVIEW
 
-### 1.1 Multi-Tier Deployment
+### 1.1 Core/Agent Split Architecture
+
+Proxi uses a security-focused split architecture where sensitive data (API keys, user DB) stays in Core while tool execution happens in isolated Agents.
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         PROXI PRODUCTION ARCHITECTURE                       │
+│                         PROXI SPLIT ARCHITECTURE                            │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   ┌──────────────┐                                                          │
-│   │  User's      │         HTTPS                                            │
-│   │  Mobile      │─────────────────────┐                                    │
-│   │  Browser     │                     │                                    │
-│   └──────────────┘                     ▼                                    │
-│                            ┌─────────────────────────────────────┐          │
-│                            │  FRONTEND + LINUX BACKEND (Always On)│         │
-│                            │  proxi.audista.com                  │          │
-│                            │  Oracle Cloud - Ubuntu A1.Flex      │          │
-│                            │                                     │          │
-│                            │  • Nginx (Reverse Proxy + SSL)      │          │
-│                            │  • React Static Build               │          │
-│                            │  • Authentication Gateway           │          │
-│                            │  • Workstation Registry API         │          │
-│                            │  • Linux Agent Container (Docker)   │          │
-│                            └───────────────┬─────────────────────┘          │
-│                                            │                                │
-│                              Tailscale / Private Network                    │
-│                                            │                                │
-│                            ┌───────────────▼─────────────────────┐          │
-│                            │  WINDOWS BACKEND (On-Demand)        │          │
-│                            │  Windows Server 2022                │          │
-│                            │  GCP/Azure                          │          │
-│                            │                                     │          │
-│                            │  • Python FastAPI (Port 8080)       │          │
-│                            │  • Gemini API Integration           │          │
-│                            │  • Desktop Automation Tools         │          │
-│                            │  • Mock Applications Server         │          │
-│                            │  • Virtual Display Driver           │          │
-│                            └─────────────────────────────────────┘          │
+│   ┌──────────────┐         HTTPS              ┌─────────────────────────┐  │
+│   │  User's      │───────────────────────────▶│  FRONTEND (Port 4002)   │  │
+│   │  Mobile      │                            │  React + Vite           │  │
+│   │  Browser     │                            │  Agent Selector UI      │  │
+│   └──────────────┘                            └───────────┬─────────────┘  │
+│                                                           │                │
+│                                                           ▼                │
+│                                               ┌─────────────────────────┐  │
+│                                               │  PROXI CORE (Port 4000) │  │
+│                                               │  ✓ GEMINI_API_KEY       │  │
+│                                               │  ✓ User Database        │  │
+│                                               │  ✓ Session Management   │  │
+│                                               │  ✓ LLM Orchestration    │  │
+│                                               │  ✓ Agent Proxy Router   │  │
+│                                               └───────────┬─────────────┘  │
+│                                                           │                │
+│                              HTTP /execute                │                │
+│                    ┌──────────────────────────────────────┤                │
+│                    ▼                                      ▼                │
+│        ┌─────────────────────────┐          ┌─────────────────────────┐    │
+│        │  PROXI AGENT (4001)     │          │  WINDOWS AGENT (Remote) │    │
+│        │  Linux Container        │          │  Windows Server         │    │
+│        │  ✗ No API Keys          │          │  ✗ No API Keys          │    │
+│        │  ✗ No User Data         │          │  ✗ No User Data         │    │
+│        │  ✓ Tool Execution Only  │          │  ✓ Desktop Automation   │    │
+│        └─────────────────────────┘          └─────────────────────────┘    │
+│              BLAST RADIUS                         BLAST RADIUS             │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+**Security Benefit:** If LLM tool execution is compromised, only the Agent container is affected. Core (with API keys, user data) remains isolated.
+
 ### 1.2 Component Responsibilities
 
-| Component | Location | Purpose | Always On? |
-|-----------|----------|---------|------------|
-| **Landing Page** | Oracle Cloud Ubuntu | Public marketing page | Yes |
-| **Frontend App** | Oracle Cloud Ubuntu | React app (behind auth) | Yes |
-| **Auth Gateway** | Oracle Cloud Ubuntu | Session management, cookies | Yes |
-| **Workstation Registry** | Oracle Cloud Ubuntu | Track registered backends | Yes |
-| **Linux Agent Container** | Oracle Cloud Ubuntu | Docker container for Linux automation | Yes |
-| **Windows Backend** | Windows VM (GCP/Azure) | Desktop automation, GUI tools | On-demand |
-| **Mock Apps Server** | Windows VM | CRM, Pricing Tool, etc. | With Windows |
+| Component | Port | Purpose | Has API Keys? |
+|-----------|------|---------|---------------|
+| **Frontend** | 4002 | React UI, Agent Selector | No |
+| **Proxi Core** | 4000 | LLM orchestration, Auth, Sessions | **Yes** |
+| **Proxi Agent** | 4001 | Isolated tool execution (Linux) | No |
+| **Windows Agent** | 8081 | Remote desktop automation | No |
+
+### 1.3 Docker Services
+
+```bash
+# Quick Start
+docker-compose up -d
+
+# Services started:
+# - proxi-ai-core-1      Port 4000  (needs GEMINI_API_KEY in .env)
+# - proxi-ai-agent-1     Port 4001  (no keys needed)
+# - proxi-ai-frontend-1  Port 4002
+```
+
+| Service | Image | Dockerfile | Description |
+|---------|-------|------------|-------------|
+| `core` | proxi-core | `backend/Dockerfile` | Full backend with DB, Auth, LLM |
+| `agent` | proxi-agent | `backend/Dockerfile.agent` | Minimal, tools only |
+| `frontend` | proxi-frontend | `frontend/Dockerfile` | React static build |
 
 ---
 
@@ -780,10 +797,10 @@ location /api/linux {
 
 **`deploy.sh`** - Docker Compose Deployment
 ```bash
-# Purpose: Build and run frontend + backend via docker-compose
-# Prerequisites: Docker, .env file with API keys
+# Purpose: Build and run Core + Agent + Frontend via docker-compose
+# Prerequisites: Docker, .env file with GEMINI_API_KEY
 # Run as: ./deploy.sh
-# Output: Containers running on ports 4000 (backend), 4001 (frontend)
+# Output: Containers running on ports 4000 (Core), 4001 (Agent), 4002 (Frontend)
 ```
 
 #### Production Scripts (`scripts/`)
