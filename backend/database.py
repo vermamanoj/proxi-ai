@@ -48,6 +48,20 @@ def init_db():
         )
     ''')
     
+    # Sessions Table - For chat history and goal tracking
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS sessions (
+            id TEXT PRIMARY KEY,
+            title TEXT,
+            created_at TIMESTAMP,
+            updated_at TIMESTAMP,
+            status TEXT DEFAULT 'active',
+            requirements TEXT,
+            goals TEXT,
+            messages TEXT
+        )
+    ''')
+    
     conn.commit()
     conn.close()
     log_system("Memory DB Initialized (Verifiable Agent Schema)", "DB")
@@ -122,3 +136,105 @@ def update_item_status_record(item_id: int, status: str):
     c.execute("UPDATE work_items SET status = ? WHERE id = ?", (status, item_id))
     conn.commit()
     conn.close()
+
+# ============== SESSION MANAGEMENT ==============
+
+def create_session(session_id: str, title: str = None):
+    """Create a new session."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    now = datetime.datetime.now()
+    c.execute(
+        "INSERT INTO sessions (id, title, created_at, updated_at, status, requirements, goals, messages) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (session_id, title or "New Session", now, now, "active", "[]", "[]", "[]")
+    )
+    conn.commit()
+    conn.close()
+    return session_id
+
+def get_session(session_id: str):
+    """Get a session by ID."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM sessions WHERE id = ?", (session_id,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        d = dict(row)
+        d['requirements'] = json.loads(d['requirements'] or '[]')
+        d['goals'] = json.loads(d['goals'] or '[]')
+        d['messages'] = json.loads(d['messages'] or '[]')
+        return d
+    return None
+
+def update_session(session_id: str, title: str = None, requirements: list = None, goals: list = None, messages: list = None, status: str = None):
+    """Update session data."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    updates = ["updated_at = ?"]
+    values = [datetime.datetime.now()]
+    
+    if title is not None:
+        updates.append("title = ?")
+        values.append(title)
+    if requirements is not None:
+        updates.append("requirements = ?")
+        values.append(json.dumps(requirements))
+    if goals is not None:
+        updates.append("goals = ?")
+        values.append(json.dumps(goals))
+    if messages is not None:
+        updates.append("messages = ?")
+        values.append(json.dumps(messages))
+    if status is not None:
+        updates.append("status = ?")
+        values.append(status)
+    
+    values.append(session_id)
+    c.execute(f"UPDATE sessions SET {', '.join(updates)} WHERE id = ?", values)
+    conn.commit()
+    conn.close()
+
+def append_session_message(session_id: str, message: dict):
+    """Append a message to session history."""
+    session = get_session(session_id)
+    if session:
+        messages = session['messages']
+        messages.append(message)
+        update_session(session_id, messages=messages)
+
+def append_session_goal(session_id: str, goal: dict):
+    """Append a goal to session."""
+    session = get_session(session_id)
+    if session:
+        goals = session['goals']
+        goals.append(goal)
+        update_session(session_id, goals=goals)
+
+def update_session_goal(session_id: str, goal_id: str, status: str, result: str = None):
+    """Update a goal's status."""
+    session = get_session(session_id)
+    if session:
+        goals = session['goals']
+        for g in goals:
+            if g.get('id') == goal_id:
+                g['status'] = status
+                if result:
+                    g['result'] = result
+                break
+        update_session(session_id, goals=goals)
+
+def get_sessions_list(limit: int = 20):
+    """Get recent sessions."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT id, title, created_at, updated_at, status FROM sessions ORDER BY updated_at DESC LIMIT ?", (limit,))
+    rows = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return rows
+
+def close_session(session_id: str):
+    """Mark session as closed."""
+    update_session(session_id, status="closed")

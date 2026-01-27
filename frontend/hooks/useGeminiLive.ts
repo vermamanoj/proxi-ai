@@ -4,6 +4,7 @@ import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { LogEntry, MessageSource, ActiveToolState } from '../types';
 import { SYSTEM_INSTRUCTION_RELAY, SYSTEM_INSTRUCTION_CHAT, TOOLS } from '../constants';
 import { blobToBase64, createPcmBlob, decodeAudioData, encodePcm } from '../utils/audio';
+import { createSession, updateSession, closeSession as closeSessionApi } from '../services/sessionService';
 
 export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled: boolean = true, complexity: 'fast' | 'deep' = 'fast') => {
   const [connected, setConnected] = useState(false);
@@ -442,14 +443,40 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     });
   }, []);
 
-  // Clear logs and start fresh session
-  const clearSession = useCallback(() => {
+  // Save current session and start fresh
+  const clearSession = useCallback(async () => {
+    // Save current session if it has content
+    if (backendSessionRef.current && logs.length > 1) {
+      const sessionId = backendSessionRef.current;
+      // Generate title from first user message
+      const firstUserMsg = logs.find(l => l.source === MessageSource.USER);
+      const title = firstUserMsg?.text?.substring(0, 50) || "Session";
+      
+      // Save session to backend
+      try {
+        await createSession(sessionId, title);
+        await updateSession(sessionId, {
+          messages: logs.map(l => ({
+            id: l.id,
+            timestamp: l.timestamp.toISOString(),
+            source: l.source,
+            text: l.text,
+            metadata: l.metadata
+          }))
+        } as any);
+        await closeSessionApi(sessionId);
+      } catch (e) {
+        console.warn('[Session] Failed to save session:', e);
+      }
+    }
+    
+    // Clear and start fresh
     setLogs([]);
     backendSessionRef.current = null;
     backendSessionTimestampRef.current = 0;
     taskInProgressRef.current = false;
     addLog(MessageSource.SYSTEM, "New session started.");
-  }, [addLog]);
+  }, [addLog, logs]);
 
   return { connected, connect, disconnect, sendCommand, volume, logs, activeTool, micMuted, toggleMicMute, clearSession };
 };

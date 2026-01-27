@@ -1,6 +1,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { LogEntry, MessageSource, Complexity, AgentStatus, PendingAction, TraceStep, MissionState } from '../types';
+import { createSession, updateSession, closeSession as closeSessionApi } from '../services/sessionService';
 
 export const useProxiBrain = (audioEnabled: boolean = true) => {
   const [status, setStatus] = useState<AgentStatus>('idle');
@@ -421,7 +422,31 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
   };
   const toggleComplexity = () => setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
   const logSystemError = (msg: string) => addLog(MessageSource.SYSTEM, msg);
-  const clearSession = () => { 
+  
+  // Save current session and start fresh
+  const clearSession = async () => { 
+    // Save current session if it has content
+    if (sessionId && logs.length > 1) {
+      const firstUserMsg = logs.find(l => l.source === MessageSource.USER);
+      const title = firstUserMsg?.text?.substring(0, 50) || "Session";
+      
+      try {
+        await createSession(sessionId, title);
+        await updateSession(sessionId, {
+          messages: logs.map(l => ({
+            id: l.id,
+            timestamp: l.timestamp.toISOString(),
+            source: l.source,
+            text: l.text,
+            metadata: l.metadata
+          }))
+        } as any);
+        await closeSessionApi(sessionId);
+      } catch (e) {
+        console.warn('[Session] Failed to save session:', e);
+      }
+    }
+    
     setSessionId(null); 
     setSessionTimestamp(0); 
     setLastTrace([]); 

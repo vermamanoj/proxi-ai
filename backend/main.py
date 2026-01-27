@@ -16,7 +16,11 @@ class HealthCheckFilter(logging.Filter):
 logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 from backend.models.api_models import ChatRequest, ChatResponse, ActionConfirmation
 from backend.services.gemini_service import GeminiService
-from backend.database import get_missions_list, get_mission_items_list, update_item_status_record
+from backend.database import (
+    get_missions_list, get_mission_items_list, update_item_status_record,
+    create_session, get_session, update_session, get_sessions_list, close_session,
+    append_session_message, append_session_goal, update_session_goal
+)
 from backend.services.desktop.factory import get_desktop_service
 
 app = FastAPI(
@@ -212,6 +216,73 @@ async def update_item_status(item_id: int, status_update: dict = Body(...)):
 @app.post("/api/desktop/execute")
 async def execute_desktop_action():
     return {"status": "executed", "result": "Atomic Mode"}
+
+# --- SESSION MANAGEMENT ---
+
+@app.get("/api/sessions")
+async def list_sessions(limit: int = 20):
+    """Get list of recent sessions."""
+    return get_sessions_list(limit)
+
+@app.post("/api/sessions")
+async def create_new_session(request: Request):
+    """Create a new session."""
+    data = await request.json()
+    session_id = data.get("session_id")
+    title = data.get("title")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id required")
+    create_session(session_id, title)
+    return {"session_id": session_id, "status": "created"}
+
+@app.get("/api/sessions/{session_id}")
+async def get_session_details(session_id: str):
+    """Get a session by ID with full history."""
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+@app.put("/api/sessions/{session_id}")
+async def update_session_data(session_id: str, request: Request):
+    """Update session data (title, goals, messages)."""
+    data = await request.json()
+    update_session(
+        session_id,
+        title=data.get("title"),
+        requirements=data.get("requirements"),
+        goals=data.get("goals"),
+        messages=data.get("messages"),
+        status=data.get("status")
+    )
+    return {"session_id": session_id, "status": "updated"}
+
+@app.post("/api/sessions/{session_id}/messages")
+async def add_session_message(session_id: str, request: Request):
+    """Append a message to session history."""
+    message = await request.json()
+    append_session_message(session_id, message)
+    return {"status": "added"}
+
+@app.post("/api/sessions/{session_id}/goals")
+async def add_session_goal(session_id: str, request: Request):
+    """Append a goal to session."""
+    goal = await request.json()
+    append_session_goal(session_id, goal)
+    return {"status": "added"}
+
+@app.put("/api/sessions/{session_id}/goals/{goal_id}")
+async def update_goal_status(session_id: str, goal_id: str, request: Request):
+    """Update a goal's status."""
+    data = await request.json()
+    update_session_goal(session_id, goal_id, data.get("status"), data.get("result"))
+    return {"status": "updated"}
+
+@app.post("/api/sessions/{session_id}/close")
+async def close_session_endpoint(session_id: str):
+    """Close a session (archive it)."""
+    close_session(session_id)
+    return {"session_id": session_id, "status": "closed"}
 
 # --- DEMO / JUDGE TOOLS ---
 
