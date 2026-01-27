@@ -1,0 +1,10 @@
+# Proxi Agent - Minimal dependencies
+# NO gemini, NO database, NO auth
+
+fastapi==0.109.0
+uvicorn==0.27.0
+pydantic==2.6.0
+psutil==5.9.8
+
+# Note: This is intentionally minimal for security isolation
+# Agent only needs to execute desktop commands and report health

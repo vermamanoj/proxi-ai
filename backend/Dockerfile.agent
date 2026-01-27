@@ -1,0 +1,31 @@
+# Proxi Agent - Lightweight isolated desktop automation
+# NO access to user DB, sessions, or API keys
+
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Minimal system tools
+RUN apt-get update && apt-get install -y \
+    procps \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Agent-only requirements (minimal)
+COPY requirements-agent.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Copy only desktop services (no auth, no database, no gemini)
+COPY services/desktop /app/backend/services/desktop
+
+# Copy agent server
+COPY agent_server.py /app/backend/agent_server.py
+
+# Create empty __init__.py files for imports
+RUN mkdir -p /app/backend/services && \
+    touch /app/backend/__init__.py && \
+    touch /app/backend/services/__init__.py
+
+EXPOSE 8081
+
+CMD ["python", "-m", "uvicorn", "backend.agent_server:app", "--host", "0.0.0.0", "--port", "8081"]

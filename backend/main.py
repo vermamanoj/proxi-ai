@@ -46,13 +46,13 @@ app.add_middleware(
 
 @app.get("/")
 async def root():
-    mode = os.getenv("RUNTIME_MODE", "DEMO")
-    return {"message": "Proxi Backend is running", "status": "online", "mode": mode}
+    import platform
+    return {"message": "Proxi Backend is running", "status": "online", "platform": platform.system()}
 
 @app.get("/api/health")
 async def health_check():
-    mode = os.getenv("RUNTIME_MODE", "DEMO")
-    return {"message": "Proxi System Online", "status": "operational", "mode": mode}
+    import platform
+    return {"message": "Proxi System Online", "status": "operational", "platform": platform.system()}
 
 # Authentication endpoints
 @app.post("/api/auth/login")
@@ -352,7 +352,7 @@ async def trigger_chaos():
     if hasattr(ds, 'trigger_incident'):
         ds.trigger_incident()
         return {"status": "chaos_triggered", "message": "Simulated incident started. CPU at 99%."}
-    return {"status": "ignored", "message": "Not in DEMO mode."}
+    return {"status": "ignored", "message": "Service doesn't support simulated incidents."}
 
 @app.post("/api/demo/reset")
 async def reset_demo():
