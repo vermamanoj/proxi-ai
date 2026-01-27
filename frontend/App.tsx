@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Settings, Mic, MicOff, Send, Camera, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, LogOut, Plus, History, MessageSquare, Monitor, ChevronDown, ChevronUp, Trash2, Info } from 'lucide-react';
+import { Settings, Mic, MicOff, Send, Camera, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, LogOut, Plus, History, MessageSquare, Monitor, ChevronDown, ChevronUp, Trash2, Info, Link2 } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { useBackendHealth } from './hooks/useBackendHealth';
@@ -15,6 +15,7 @@ import { VerificationBadge } from './components/VerificationBadge';
 import { MissionPlan, Goal } from './components/MissionPlan';
 import { SessionHistory } from './components/SessionHistory';
 import { AgentSelector } from './components/AgentSelector';
+import { AdminPanel } from './components/AdminPanel';
 import { ApprovalRequest, TraceStep, MessageSource } from './types';
 
 const App: React.FC = () => {
@@ -50,6 +51,7 @@ const App: React.FC = () => {
   // Collapsible panels
   const [missionExpanded, setMissionExpanded] = useState(true);
   const [showDebugLogs, setShowDebugLogs] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
 
   // Hook 1: Text & Vision (REST API)
   const { 
@@ -499,6 +501,26 @@ const App: React.FC = () => {
                 </button>
               </div>
 
+              {/* Admin Panel - Only for admins */}
+              {user?.role === 'admin' && (
+                <div>
+                  <label className="text-xs text-gray-500 uppercase tracking-wider">Admin</label>
+                  <button
+                    onClick={() => {
+                      setShowAdminPanel(true);
+                      setShowSettings(false);
+                    }}
+                    className="mt-2 w-full flex items-center justify-between p-3 rounded-lg border border-proxi-accent/30 bg-proxi-accent/10 text-proxi-accent hover:bg-proxi-accent/20 transition-all"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Link2 className="w-4 h-4" />
+                      Magic Links
+                    </span>
+                    <span className="text-xs opacity-50">Manage</span>
+                  </button>
+                </div>
+              )}
+
               {/* Clear Chat History */}
               <div>
                 <label className="text-xs text-gray-500 uppercase tracking-wider">Actions</label>
@@ -805,6 +827,11 @@ const App: React.FC = () => {
           setShowSessionHistory(false);
         }}
       />
+
+      {/* Admin Panel */}
+      {showAdminPanel && (
+        <AdminPanel onClose={() => setShowAdminPanel(false)} />
+      )}
     </div>
   );
 };
