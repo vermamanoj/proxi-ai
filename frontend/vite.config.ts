@@ -23,7 +23,7 @@ export default defineConfig(({ mode }) => {
         // In Docker: use service name 'core' or host.docker.internal
         // Locally: use 127.0.0.1:4000
         '/api': {
-          target: process.env.VITE_API_URL || 'http://host.docker.internal:4000',
+          target: process.env.VITE_API_URL || 'http://core:8000',
           changeOrigin: true,
           secure: false,
         }
