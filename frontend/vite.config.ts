@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true,
       port: 5173,
-      allowedHosts: ['proxi.audista.com', 'localhost', 'serves-existence-sacrifice-bin.trycloudflare.com'],
+      allowedHosts: true,  // Allow all hosts in Docker environment
       proxy: {
         // Proxy API requests to the Python Backend (Core)
         // In Docker: use service name 'core' or host.docker.internal
