@@ -403,6 +403,22 @@ This ensures the user can SEE what you're doing. Never interact with background 
 CRITICAL RULE - THINK BEFORE YOU ACT:
 Before EVERY tool call, explain: WHAT you're doing, WHY, and WHAT you expect.
 
+=== MISSION PLANNING ===
+For COMPLEX REQUESTS (multiple steps/tools), output a PLAN block FIRST:
+
+PLAN_START
+G1: [First goal title] - [brief description]
+G2: [Second goal title] - [brief description]
+G3: [Third goal title] - [brief description]
+PLAN_END
+
+Then as you complete each goal, output:
+GOAL_UPDATE: G1 COMPLETE - [result summary]
+GOAL_UPDATE: G2 ACTIVE
+GOAL_UPDATE: G2 COMPLETE - [result summary]
+
+This helps the user track progress. For simple single-step requests, skip the plan.
+
 === VERIFIABLE AGENT PROTOCOL ===
 Use Triple Handshake ONLY for STATE-CHANGING ACTIONS that can be verified:
 
@@ -600,6 +616,56 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                     msg_type = "llm_thought" if function_calls else "response"
                     log_system(f"LLM: {text_content[:100]}...", "THOUGHT" if function_calls else "RESPONSE")
                     yield json.dumps({"type": msg_type, "content": text_content}) + "\n"
+                    
+                    # Parse PLAN blocks for goal tracking
+                    if "PLAN_START" in text_content and "PLAN_END" in text_content:
+                        try:
+                            plan_match = text_content.split("PLAN_START")[1].split("PLAN_END")[0]
+                            goals = []
+                            for line in plan_match.strip().split("\n"):
+                                line = line.strip()
+                                if line.startswith("G") and ":" in line:
+                                    parts = line.split(":", 1)
+                                    goal_id = parts[0].strip()
+                                    goal_text = parts[1].strip() if len(parts) > 1 else ""
+                                    # Split title and description
+                                    if " - " in goal_text:
+                                        title, desc = goal_text.split(" - ", 1)
+                                    else:
+                                        title, desc = goal_text, ""
+                                    goals.append({"id": goal_id, "title": title.strip(), "description": desc.strip(), "status": "pending"})
+                            if goals:
+                                yield json.dumps({"type": "plan", "goals": goals}) + "\n"
+                                log_system(f"Plan extracted: {len(goals)} goals", "PLAN")
+                        except Exception as e:
+                            log_system(f"Failed to parse plan: {e}", "PLAN")
+                    
+                    # Parse GOAL_UPDATE for progress tracking
+                    if "GOAL_UPDATE:" in text_content:
+                        try:
+                            for line in text_content.split("\n"):
+                                if "GOAL_UPDATE:" in line:
+                                    update_part = line.split("GOAL_UPDATE:")[1].strip()
+                                    # Format: G1 COMPLETE - result or G2 ACTIVE
+                                    parts = update_part.split(" ", 1)
+                                    goal_id = parts[0]
+                                    rest = parts[1] if len(parts) > 1 else ""
+                                    if "COMPLETE" in rest:
+                                        status = "complete"
+                                        result = rest.replace("COMPLETE", "").replace("-", "").strip()
+                                    elif "ACTIVE" in rest:
+                                        status = "active"
+                                        result = ""
+                                    elif "FAILED" in rest:
+                                        status = "failed"
+                                        result = rest.replace("FAILED", "").replace("-", "").strip()
+                                    else:
+                                        status = "active"
+                                        result = rest
+                                    yield json.dumps({"type": "goal_update", "goal_id": goal_id, "status": status, "result": result}) + "\n"
+                                    log_system(f"Goal update: {goal_id} -> {status}", "PLAN")
+                        except Exception as e:
+                            log_system(f"Failed to parse goal update: {e}", "PLAN")
 
                 # No tools = done - save model response to session
                 if not function_calls:
