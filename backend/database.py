@@ -52,6 +52,7 @@ def init_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS sessions (
             id TEXT PRIMARY KEY,
+            user_id TEXT,
             title TEXT,
             created_at TIMESTAMP,
             updated_at TIMESTAMP,
@@ -61,6 +62,11 @@ def init_db():
             messages TEXT
         )
     ''')
+    
+    # Migration: Add user_id column if missing
+    try:
+        c.execute("ALTER TABLE sessions ADD COLUMN user_id TEXT")
+    except sqlite3.OperationalError: pass
     
     conn.commit()
     conn.close()
@@ -139,14 +145,14 @@ def update_item_status_record(item_id: int, status: str):
 
 # ============== SESSION MANAGEMENT ==============
 
-def create_session(session_id: str, title: str = None):
-    """Create a new session."""
+def create_session(session_id: str, title: str = None, user_id: str = None):
+    """Create a new session with optional user association."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     now = datetime.datetime.now()
     c.execute(
-        "INSERT INTO sessions (id, title, created_at, updated_at, status, requirements, goals, messages) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (session_id, title or "New Session", now, now, "active", "[]", "[]", "[]")
+        "INSERT INTO sessions (id, user_id, title, created_at, updated_at, status, requirements, goals, messages) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (session_id, user_id, title or "New Session", now, now, "active", "[]", "[]", "[]")
     )
     conn.commit()
     conn.close()
@@ -225,12 +231,15 @@ def update_session_goal(session_id: str, goal_id: str, status: str, result: str 
                 break
         update_session(session_id, goals=goals)
 
-def get_sessions_list(limit: int = 20):
-    """Get recent sessions."""
+def get_sessions_list(limit: int = 20, user_id: str = None):
+    """Get recent sessions, optionally filtered by user."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT id, title, created_at, updated_at, status FROM sessions ORDER BY updated_at DESC LIMIT ?", (limit,))
+    if user_id:
+        c.execute("SELECT id, user_id, title, created_at, updated_at, status FROM sessions WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?", (user_id, limit))
+    else:
+        c.execute("SELECT id, user_id, title, created_at, updated_at, status FROM sessions ORDER BY updated_at DESC LIMIT ?", (limit,))
     rows = [dict(row) for row in c.fetchall()]
     conn.close()
     return rows

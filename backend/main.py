@@ -17,10 +17,14 @@ logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 from backend.models.api_models import ChatRequest, ChatResponse, ActionConfirmation
 from backend.services.gemini_service import GeminiService
 from backend.database import (
+    init_db,
     get_missions_list, get_mission_items_list, update_item_status_record,
     create_session, get_session, update_session, get_sessions_list, close_session,
     append_session_message, append_session_goal, update_session_goal
 )
+
+# Initialize database on startup
+init_db()
 from backend.services.desktop.factory import get_desktop_service, set_active_agent, clear_active_agent
 from backend.registry.workstation_registry import (
     get_registry, list_workstations, get_workstation, get_workstation_status
@@ -223,20 +227,35 @@ async def execute_desktop_action():
 # --- SESSION MANAGEMENT ---
 
 @app.get("/api/sessions")
-async def list_sessions(limit: int = 20):
-    """Get list of recent sessions."""
-    return get_sessions_list(limit)
+async def list_sessions(request: Request, limit: int = 20):
+    """Get list of recent sessions, filtered by user if logged in."""
+    user_id = None
+    session_cookie = request.cookies.get("session_id")
+    if session_cookie:
+        user = auth_service.get_user_for_session(session_cookie)
+        if user:
+            user_id = user.username
+    return get_sessions_list(limit, user_id=user_id)
 
 @app.post("/api/sessions")
 async def create_new_session(request: Request):
-    """Create a new session."""
+    """Create a new session with user association if logged in."""
     data = await request.json()
     session_id = data.get("session_id")
     title = data.get("title")
     if not session_id:
         raise HTTPException(status_code=400, detail="session_id required")
-    create_session(session_id, title)
-    return {"session_id": session_id, "status": "created"}
+    
+    # Get user_id from auth cookie if present
+    user_id = None
+    session_cookie = request.cookies.get("session_id")
+    if session_cookie:
+        user = auth_service.get_user_for_session(session_cookie)
+        if user:
+            user_id = user.username
+    
+    create_session(session_id, title, user_id=user_id)
+    return {"session_id": session_id, "user_id": user_id, "status": "created"}
 
 @app.get("/api/sessions/{session_id}")
 async def get_session_details(session_id: str):
