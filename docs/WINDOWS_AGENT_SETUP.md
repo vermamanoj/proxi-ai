@@ -30,8 +30,8 @@ cd proxi-ai
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 
-# Install Windows-specific requirements
-pip install -r backend/requirements.txt
+# Install agent-only requirements (minimal, no Gemini/DB)
+pip install -r backend/requirements-agent.txt
 ```
 
 ### 3. Configure the Agent
@@ -41,7 +41,7 @@ Create a `.env` file in the project root:
 ```env
 # Agent Configuration
 AGENT_NAME=my-windows-pc
-CORE_URL=http://your-core-server:4000
+CORE_URL=http://localhost:4000
 
 # Optional: For GUI automation
 ENABLE_GUI_AUTOMATION=true
@@ -50,7 +50,13 @@ ENABLE_GUI_AUTOMATION=true
 ### 4. Start the Agent
 
 ```powershell
-python -m backend.agent.run_agent
+# Run the agent server on port 8081
+python -m uvicorn backend.agent_server:app --host 0.0.0.0 --port 8081
+```
+
+Or use the batch file:
+```powershell
+.\run_agent.bat
 ```
 
 ---
