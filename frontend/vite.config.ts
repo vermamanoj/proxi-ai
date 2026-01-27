@@ -19,9 +19,11 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       allowedHosts: ['proxi.audista.com', 'localhost', 'serves-existence-sacrifice-bin.trycloudflare.com'],
       proxy: {
-        // CRITICAL: Proxy API requests to the Python Backend running on port 8080
+        // Proxy API requests to the Python Backend (Core)
+        // In Docker: use service name 'core' or host.docker.internal
+        // Locally: use 127.0.0.1:4000
         '/api': {
-          target: 'http://127.0.0.1:8080',
+          target: process.env.VITE_API_URL || 'http://host.docker.internal:4000',
           changeOrigin: true,
           secure: false,
         }
