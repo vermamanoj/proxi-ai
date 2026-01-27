@@ -163,7 +163,6 @@ Proxi never blindly trusts its own output. State-changing actions go through:
 - Access via any browser
 - Voice commands (Gemini Live)
 - Real-time status streaming
-- Works over Cloudflare Tunnel
 - Session persistence (5-minute TTL for follow-ups)
 - **Chat/Remote mode toggle** - Chat (voice only) vs Remote (desktop control)
 - Mic and Speaker controls (separate toggles)

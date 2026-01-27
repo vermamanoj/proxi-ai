@@ -48,7 +48,7 @@ Proxi is a **Headless OS-Level AI Agent** that lets you work while on the move. 
 
 ### Infrastructure
 - **Linux Server:** Docker Compose + Nginx
-- **Windows Server:** Native Python + Cloudflare Tunnel
+- **Windows Server:** Native Python + Tailspin Tunnel
 - **Production URL:** https://proxi.audista.com
 
 ---

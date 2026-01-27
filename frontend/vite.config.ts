@@ -20,10 +20,10 @@ export default defineConfig(({ mode }) => {
       allowedHosts: true,  // Allow all hosts in Docker environment
       proxy: {
         // Proxy API requests to the Python Backend (Core)
-        // In Docker: use service name 'core' or host.docker.internal
-        // Locally: use 127.0.0.1:4000
+        // Native (default): use localhost:4000
+        // Docker: set VITE_API_URL=http://core:8000
         '/api': {
-          target: process.env.VITE_API_URL || 'http://core:8000',
+          target: process.env.VITE_API_URL || 'http://localhost:4000',
           changeOrigin: true,
           secure: false,
         }

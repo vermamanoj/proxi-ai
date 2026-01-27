@@ -348,7 +348,7 @@ If your phone and computer are on the same network:
 1. Find your computer's IP: `ipconfig` (Windows) or `ip addr` (Linux)
 2. Open on phone: `http://192.168.x.x:5173`
 
-### Option 2: Cloudflare Tunnel (Recommended)
+### Option 2: Cloudflare Tunnel (for testing
 
 For access from anywhere:
 
