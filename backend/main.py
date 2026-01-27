@@ -410,7 +410,10 @@ async def close_session_endpoint(session_id: str):
 
 @app.get("/api/workstations")
 async def get_workstations():
-    """List all registered Proxi Agents (workstations)."""
+    """List all registered Proxi Agents (workstations) with live health status."""
+    registry = get_registry()
+    # Check health of all workstations before returning
+    await registry.check_all_health()
     return {"workstations": list_workstations()}
 
 @app.get("/api/workstations/{workstation_id}")

@@ -79,30 +79,41 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({ className = '' }) 
               <span className="text-xs text-gray-500 uppercase tracking-wider">Proxi Agents</span>
             </div>
             <div className="max-h-64 overflow-y-auto">
-              {workstations.map((ws) => (
-                <button
-                  key={ws.id}
-                  onClick={() => {
-                    setActiveWorkstation(ws.id);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 p-3 hover:bg-gray-800 transition-colors ${
-                    activeWorkstation?.id === ws.id ? 'bg-gray-800/50' : ''
-                  }`}
-                >
-                  {/* OS Icon */}
-                  <span className="text-lg">{getOsIcon(ws)}</span>
-                  {/* Status dot */}
-                  <div className={`w-2 h-2 rounded-full ${ws.status === 'online' ? 'bg-green-400' : 'bg-gray-500'}`} />
-                  <div className="flex-1 text-left min-w-0">
-                    <div className="text-sm text-gray-200 truncate">{ws.name}</div>
-                    <div className="text-xs text-gray-500 truncate">{ws.description}</div>
-                  </div>
-                  {activeWorkstation?.id === ws.id && (
-                    <Check className="w-4 h-4 text-green-400 shrink-0" />
-                  )}
-                </button>
-              ))}
+              {workstations.map((ws) => {
+                const isOffline = ws.status === 'offline';
+                const isActive = activeWorkstation?.id === ws.id;
+                return (
+                  <button
+                    key={ws.id}
+                    onClick={() => {
+                      if (!isOffline) {
+                        setActiveWorkstation(ws.id);
+                        setIsOpen(false);
+                      }
+                    }}
+                    disabled={isOffline}
+                    className={`w-full flex items-center gap-3 p-3 transition-colors ${
+                      isOffline 
+                        ? 'opacity-50 cursor-not-allowed bg-gray-900' 
+                        : 'hover:bg-gray-800 cursor-pointer'
+                    } ${isActive ? 'bg-gray-800/50' : ''}`}
+                  >
+                    {/* OS Icon */}
+                    <span className={`text-lg ${isOffline ? 'grayscale' : ''}`}>{getOsIcon(ws)}</span>
+                    {/* Status dot */}
+                    <div className={`w-2 h-2 rounded-full ${ws.status === 'online' ? 'bg-green-400' : 'bg-gray-500'}`} />
+                    <div className="flex-1 text-left min-w-0">
+                      <div className={`text-sm truncate ${isOffline ? 'text-gray-500' : 'text-gray-200'}`}>{ws.name}</div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {isOffline ? 'Offline - unavailable' : ws.description}
+                      </div>
+                    </div>
+                    {isActive && (
+                      <Check className="w-4 h-4 text-green-400 shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
             </div>
             {workstations.length === 0 && (
               <div className="p-4 text-center text-gray-500 text-sm">
