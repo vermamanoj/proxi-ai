@@ -62,7 +62,7 @@ class Workstation:
     
     @property
     def health_url(self) -> str:
-        return f"{self.api_url}/api/health"
+        return f"{self.api_url}/health"
 
 
 class WorkstationRegistry:

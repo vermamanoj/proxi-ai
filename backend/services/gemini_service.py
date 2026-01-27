@@ -17,8 +17,9 @@ from google.generativeai import protos
 from google.generativeai.types import FunctionDeclaration, Tool
 
 # Internal Imports
-from backend.services.desktop.factory import get_desktop_service
+from backend.services.desktop.factory import get_desktop_service, _active_agent_url
 from backend.utils.logger import log_system
+from backend.registry.workstation_registry import get_registry
 from backend.database import init_db
 from backend.services.orchestrator import (
     assign_mission, 
@@ -157,6 +158,30 @@ class GeminiService:
         }
         
         log_system(f"Gemini Service Initialized with {len(self.tools_map)} tools.", "INIT")
+
+    def _get_active_agent_os(self) -> tuple[str, str]:
+        """Get the active agent's OS type and shell commands."""
+        from backend.services.desktop.factory import _active_agent_url
+        
+        if _active_agent_url:
+            # Find the workstation by URL
+            registry = get_registry()
+            for ws in registry.workstations.values():
+                if ws.api_url == _active_agent_url:
+                    ws_type = ws.workstation_type.lower()
+                    if ws_type == "windows":
+                        return ("Windows", "PowerShell (use `;` not `&&`)")
+                    elif ws_type in ["linux", "container"]:
+                        return ("Linux", "bash (use `&&` for chaining)")
+                    else:
+                        return (ws_type.title(), "appropriate shell")
+        
+        # Default: check local OS
+        import platform
+        local_os = platform.system()
+        if local_os == "Windows":
+            return ("Windows", "PowerShell (use `;` not `&&`)")
+        return ("Linux", "bash (use `&&` for chaining)")
 
     # --- DESKTOP WRAPPERS (names must match tools_map keys for SDK inference) ---
     def get_system_health(self): 
@@ -374,8 +399,14 @@ class GeminiService:
         model_name = self.SMART_TEXT_MODEL if complexity_request == "deep" else self.FAST_TEXT_MODEL
         log_system(f"Using model: {model_name} (complexity: {complexity_request})", "ROUTER")
 
-        # System instruction for transparency
-        system_instruction = """You are Proxi, a Headless Operator with FULL OS-level access on this Windows computer.
+        # Get active agent's OS context
+        agent_os, shell_type = self._get_active_agent_os()
+        log_system(f"Active agent OS: {agent_os}, Shell: {shell_type}", "ROUTER")
+
+        # System instruction for transparency - dynamic OS context
+        system_instruction = f"""You are Proxi, a Headless Operator with FULL OS-level access on this {agent_os} computer.
+
+IMPORTANT: You are connected to a {agent_os} system. Use {shell_type} for commands.
 
 YOU HAVE ACCESS TO THESE CAPABILITIES - USE THEM:
 - run_terminal_command: Execute PowerShell commands (dir, ls, Get-Process, etc.)
