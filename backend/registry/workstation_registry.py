@@ -109,8 +109,8 @@ class WorkstationRegistry:
                 name="Linux Agent (Always On)",
                 description="Docker container on Oracle Ubuntu - terminal, git, python automation",
                 workstation_type=WorkstationType.CONTAINER.value,
-                host="127.0.0.1",  # Local container on same server
-                port=8081,
+                host="host.docker.internal",  # Docker Desktop: reach host from container
+                port=4001,  # Host-mapped port (4001 -> agent:8081)
                 capabilities=[
                     "terminal",
                     "git",
