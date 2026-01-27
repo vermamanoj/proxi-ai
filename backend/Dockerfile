@@ -5,13 +5,18 @@ WORKDIR /app
 # Install system utilities
 RUN apt-get update && apt-get install -y \
     gcc \
+    procps \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements from the build context
-COPY requirements.txt /app/requirements.txt
+# Copy Linux-specific requirements (no Windows deps)
+COPY requirements-linux.txt /app/requirements.txt
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Create data directory for SQLite
+RUN mkdir -p /app/data
 
 # Copy the application code into /app/backend to maintain import structure
 COPY . /app/backend

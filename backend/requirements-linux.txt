@@ -1,0 +1,25 @@
+# Proxi Backend - Linux/Container Dependencies
+# Use this for Linux containers (no Windows-specific packages)
+
+fastapi==0.109.0
+uvicorn==0.27.0
+gunicorn==21.2.0
+pydantic==2.6.0
+python-dotenv==1.0.1
+google-generativeai>=0.8.0
+python-multipart==0.0.9
+PyGithub==2.1.1
+psutil==5.9.8
+pillow==10.2.0
+numpy==1.26.4
+requests==2.31.0
+aiohttp==3.9.1
+
+# Note: The following are EXCLUDED for Linux:
+# - pyautogui (requires display)
+# - easyocr (heavy, not needed for terminal-only agent)
+# - opencv-python-headless (not needed for terminal-only agent)
+# - pywinauto (Windows only)
+# - comtypes (Windows only)
+# - pywin32 (Windows only)
+# - pyperclip (clipboard - optional)
