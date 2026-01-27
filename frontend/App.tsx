@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Settings, Mic, MicOff, Send, Camera, Flame, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, Server, ServerOff, LogOut, Plus } from 'lucide-react';
+import { Settings, Mic, MicOff, Send, Camera, Flame, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, Server, ServerOff, LogOut, Plus, History } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { useBackendHealth } from './hooks/useBackendHealth';
@@ -11,6 +11,7 @@ import { LandingPage } from './components/LandingPage';
 import { LoginPage } from './components/LoginPage';
 import { VerificationBadge } from './components/VerificationBadge';
 import { MissionPlan, Goal } from './components/MissionPlan';
+import { SessionHistory } from './components/SessionHistory';
 import { ApprovalRequest, TraceStep, MessageSource } from './types';
 
 const App: React.FC = () => {
@@ -60,6 +61,7 @@ const App: React.FC = () => {
 
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
+  const [showSessionHistory, setShowSessionHistory] = useState(false);
   const [viewMode, setViewMode] = useState<'summary' | 'timeline' | 'full'>('timeline');
   const [animTick, setAnimTick] = useState(0);
   const [stagedImage, setStagedImage] = useState<{ file: File; preview: string } | null>(null);
@@ -304,6 +306,15 @@ const App: React.FC = () => {
             {isSpeaking && (
               <span className="absolute inset-0 rounded-lg border-2 border-blue-400 animate-ping opacity-75" />
             )}
+          </button>
+
+          {/* Session History Button */}
+          <button
+            onClick={() => setShowSessionHistory(true)}
+            className="p-2 text-gray-500 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-colors"
+            title="Session History"
+          >
+            <History className="w-5 h-5" />
           </button>
 
           {/* New Session Button */}
@@ -591,6 +602,17 @@ const App: React.FC = () => {
         </form>
       </footer>
       </div>{/* End centered container */}
+
+      {/* Session History Panel */}
+      <SessionHistory
+        isOpen={showSessionHistory}
+        onClose={() => setShowSessionHistory(false)}
+        onSelectSession={(sessionId) => {
+          console.log('Selected session:', sessionId);
+          setShowSessionHistory(false);
+          // TODO: Load session messages into chat
+        }}
+      />
     </div>
   );
 };
