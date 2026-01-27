@@ -165,9 +165,11 @@ Proxi never blindly trusts its own output. State-changing actions go through:
 - Real-time status streaming
 - Works over Cloudflare Tunnel
 - Session persistence (5-minute TTL for follow-ups)
-- Core toggle (enable/disable backend)
-- Mic mute with visual feedback
-- Approval buttons for destructive actions
+- **Chat/Remote mode toggle** - Chat (voice only) vs Remote (desktop control)
+- Mic and Speaker controls (separate toggles)
+- Collapsible Mission panel with goal progress
+- Collapsible tool outputs in chat
+- Approval modal for destructive commands
 
 ### 📊 PowerPoint Automation
 - Get/set active presentation
