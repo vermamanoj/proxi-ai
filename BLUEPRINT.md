@@ -300,14 +300,14 @@ See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for:
 ┌──────────────────────────────────────────────────────────────┐
 │  proxi.orchestra.com (Main Server)                           │
 │  ┌────────────┐   ┌────────────────────────────────────┐    │
-│  │  Frontend  │   │  Main Backend (Container)          │    │
+│  │  Frontend  │   │  Proxi Core (Container)          │    │
 │  │  (React)   │◄──┤  • User authentication/DB          │    │
-│  │            │   │  • Registered backends registry    │    │
+│  │  Proxi UI│   │  • Registered backends registry    │    │
 │  └────────────┘   │  • Can execute local tasks too     │    │
 │                   └────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────────┘
                               │
-            User picks which backend to connect
+            User picks which "Proxi agents" to connect
                               ▼
     ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
     │ Windows     │    │ Linux       │    │ Mac/Other   │
@@ -315,3 +315,62 @@ See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for:
     │ (Agent)     │    │ (Agent)     │    │ (Agent)     │
     └─────────────┘    └─────────────┘    └─────────────┘
     
+
+
+## Split Architecture (Security Isolation)
+
+**Deployed on:** proxi.audista.com (Linux server)
+
+**Why Split:** If LLM tool execution is compromised (prompt injection), blast radius is limited to agent only. Core (with user DB, API keys) stays safe.
+
+```
+┌─────────────────────┐         ┌─────────────────────┐
+│     PROXI CORE      │         │    PROXI AGENT      │
+│   (Orchestrator)    │────────▶│    (Isolated)       │
+├─────────────────────┤  HTTP   ├─────────────────────┤
+│ ✓ Auth/Sessions     │ /execute│ ✓ DesktopService    │
+│ ✓ Workstation Reg.  │         │ ✓ Tool execution    │
+│ ✓ Gemini LLM        │         │ ✓ Health endpoint   │
+│ ✓ Proxy to Agents   │         │ ✗ No DB access      │
+│ ✓ User DB (SQLite)  │         │ ✗ No API keys       │
+│ ✓ API Keys          │         │ ✗ No user data      │
+└─────────────────────┘         └─────────────────────┘
+      Port 4000                       Port 4001
+      SAFE ZONE                   BLAST RADIUS LIMITED
+```
+
+### Docker Services
+
+| Service | Image | Port | Purpose |
+|---------|-------|------|---------|
+| `core` | `proxi-core` | 4000:8000 | Orchestration, LLM, Auth |
+| `agent` | `proxi-agent` | 4001:8081 | Isolated tool execution |
+| `frontend` | `proxi-frontend` | 4002:5173 | React UI |
+
+### Key Files
+
+| Component | File | Description |
+|-----------|------|-------------|
+| Core Server | `backend/main.py` | FastAPI with all endpoints |
+| Agent Server | `backend/agent_server.py` | Lightweight, tools only |
+| Core Dockerfile | `backend/Dockerfile` | Full deps + DB |
+| Agent Dockerfile | `backend/Dockerfile.agent` | Minimal deps |
+| Proxy Adapter | `backend/services/desktop/proxy_adapter.py` | Routes calls to agents |
+| Factory | `backend/services/desktop/factory.py` | Selects local vs proxy |
+
+### API Flow
+
+```
+1. User selects agent in UI
+   └─▶ POST /api/workstations/{id}/activate
+       └─▶ set_active_agent(url)
+
+2. User sends chat message
+   └─▶ POST /api/chat
+       └─▶ GeminiService.process_message()
+           └─▶ LLM decides to call tool (e.g., run_terminal_command)
+               └─▶ get_desktop_service() returns ProxyDesktopService
+                   └─▶ HTTP POST to agent /execute
+                       └─▶ Agent executes tool
+                           └─▶ Result returned to Core
+                               └─▶ LLM continues with result
