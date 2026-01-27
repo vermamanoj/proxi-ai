@@ -87,5 +87,24 @@
     "created_at": "2026-01-27T15:04:49.894540",
     "owner": "",
     "tags": []
+  },
+  "Win11": {
+    "id": "Win11",
+    "name": "Windows Agent (Win11)",
+    "description": "Windows desktop automation agent",
+    "workstation_type": "windows",
+    "host": "host.docker.internal",
+    "port": 8081,
+    "capabilities": [
+      "terminal",
+      "screenshot",
+      "desktop",
+      "file_operations"
+    ],
+    "status": "unknown",
+    "last_seen": "",
+    "created_at": "2026-01-27T16:34:30.417379",
+    "owner": "",
+    "tags": []
   }
 }
