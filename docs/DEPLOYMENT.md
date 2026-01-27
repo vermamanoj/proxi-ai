@@ -178,6 +178,73 @@ Remove-Item -Recurse -Force data\*
 
 ---
 
+## Docker Networking (Important!)
+
+Understanding Docker port mapping prevents deployment issues.
+
+### Port Mapping Table
+
+| Service | Internal Port | Host Port | Container Name |
+|---------|--------------|-----------|----------------|
+| Core | 8000 | 4000 | `core` |
+| Frontend | 5173 | 4002 | `frontend` |
+| Agent (Docker) | 8081 | 4001 | `agent` |
+| Agent (Windows) | 8081 | 8081 | N/A (native) |
+
+### Communication Rules
+
+**Container → Container** (inside Docker network):
+```
+# Use service name + INTERNAL port
+http://core:8000        ✅ Correct
+http://core:4000        ❌ Wrong (4000 is host port)
+http://localhost:4000   ❌ Wrong (localhost = same container)
+```
+
+**Host/Browser → Container** (from outside Docker):
+```
+# Use localhost + HOST port
+http://localhost:4000   ✅ Correct (reaches Core)
+http://localhost:4002   ✅ Correct (reaches Frontend)
+```
+
+**Core → Windows Agent** (Docker to host machine):
+```
+# Use host.docker.internal + agent's native port
+http://host.docker.internal:8081   ✅ Correct
+```
+
+### Why This Matters
+
+The `docker-compose.yml` maps ports like this:
+```yaml
+core:
+  ports:
+    - "4000:8000"  # host:container
+```
+
+- Port `8000` is what Core listens on **inside** the container
+- Port `4000` is what the **host** exposes to the outside world
+- Other containers must use `core:8000`, not `core:4000`
+
+### Verification Commands
+
+```powershell
+# Check all containers are running
+docker compose ps
+
+# Test Core from host
+Invoke-WebRequest http://localhost:4000/api/health
+
+# Test Core from inside frontend container
+docker exec proxi-ai-frontend-1 wget -qO- http://core:8000/api/health
+
+# Check frontend proxy is working
+Invoke-WebRequest http://localhost:4002/api/health
+```
+
+---
+
 ## Environment Configurations
 
 ### Development (Local)
