@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Settings, Mic, MicOff, Send, Camera, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, LogOut, Plus, History, MessageSquare, Monitor, ChevronDown, ChevronUp, Trash2, Info, Link2 } from 'lucide-react';
+import { Settings, Mic, MicOff, Send, Camera, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, LogOut, Plus, History, MessageSquare, Monitor, ChevronDown, ChevronUp, Trash2, Info, Link2, Menu } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { useBackendHealth } from './hooks/useBackendHealth';
@@ -17,6 +17,7 @@ import { MissionPanelCollapsible } from './components/MissionPanelCollapsible';
 import { SessionHistory } from './components/SessionHistory';
 import { AgentSelector } from './components/AgentSelector';
 import { AdminPanel } from './components/AdminPanel';
+import { MobileMenu } from './components/MobileMenu';
 import { ApprovalRequest, TraceStep, MessageSource } from './types';
 import { useWorkstations } from './hooks/useWorkstations';
 
@@ -57,6 +58,7 @@ const App: React.FC = () => {
   const [missionExpanded, setMissionExpanded] = useState(true);
   const [showDebugLogs, setShowDebugLogs] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Hook 1: Text & Vision (REST API)
   const { 
@@ -364,143 +366,132 @@ const App: React.FC = () => {
       {/* Mobile Safe Area Spacer - minimal, let CSS env() handle notch */}
       <div className="h-0 sm:h-0 shrink-0" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }} />
       
-      {/* Minimal Header */}
-      <header className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 border-b border-gray-800 bg-gray-900 shrink-0 z-20 min-h-[48px]">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className={`w-2.5 h-2.5 rounded-full ${statusColor} ${isProcessing ? 'animate-pulse' : ''}`} />
-          <h1 className="text-base sm:text-lg font-bold tracking-wider">
+      {/* Minimal Header - Mobile optimized */}
+      <header className="flex items-center justify-between px-3 py-2 border-b border-gray-800 bg-gray-900 shrink-0 z-20">
+        {/* Left: Mode Toggle */}
+        <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+          <button
+            onClick={() => {
+              setMode('chat');
+              if (liveConnected) {
+                liveDisconnect();
+                setTimeout(() => liveConnect(), 500);
+              }
+            }}
+            className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs transition-all ${
+              mode === 'chat'
+                ? 'bg-blue-500/20 text-blue-400'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline">Chat</span>
+          </button>
+          <button
+            onClick={() => {
+              setMode('remote');
+              if (liveConnected) {
+                liveDisconnect();
+                setTimeout(() => liveConnect(), 500);
+              }
+            }}
+            className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs transition-all ${
+              mode === 'remote'
+                ? backendStatus === 'connected'
+                  ? 'bg-green-500/20 text-green-400'
+                  : 'bg-yellow-500/20 text-yellow-400'
+                : 'text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            <Monitor className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline">Remote</span>
+            {mode === 'remote' && backendStatus !== 'connected' && (
+              <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse ml-1" />
+            )}
+          </button>
+        </div>
+
+        {/* Center: Title + Status */}
+        <div className="flex items-center gap-2">
+          <div className={`w-2 h-2 rounded-full ${statusColor} ${isProcessing ? 'animate-pulse' : ''}`} />
+          <h1 className="text-sm font-bold tracking-wider">
             PROXI<span className="text-proxi-accent">.OS</span>
           </h1>
-          {/* Mode Toggle: Chat ↔ Remote */}
-          <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
+        </div>
+
+        {/* Right: Desktop buttons + Hamburger menu (mobile) */}
+        <div className="flex items-center gap-1">
+          {/* Desktop only buttons */}
+          <div className="hidden sm:flex items-center gap-1">
             <button
               onClick={() => {
-                setMode('chat');
-                if (liveConnected) {
-                  liveDisconnect();
-                  setTimeout(() => liveConnect(), 500);
-                }
+                const newState = !audioEnabled;
+                setAudioEnabled(newState);
+                if (!newState) window.speechSynthesis.cancel();
               }}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-all ${
-                mode === 'chat'
-                  ? 'bg-blue-500/20 text-blue-400'
-                  : 'text-gray-500 hover:text-gray-300'
+              className={`p-2 rounded-lg transition-all relative ${
+                audioEnabled ? 'text-blue-400 hover:bg-blue-500/10' : 'text-gray-500 hover:bg-gray-800'
               }`}
-              title="Chat mode - Voice assistant only"
+              title={audioEnabled ? 'Mute Audio' : 'Enable Audio'}
             >
-              <MessageSquare className="w-3 h-3" />
-              <span className="hidden sm:inline">Chat</span>
+              {audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              {isSpeaking && <span className="absolute inset-0 rounded-lg border-2 border-blue-400 animate-ping opacity-75" />}
             </button>
-            <button
-              onClick={() => {
-                setMode('remote');
-                if (liveConnected) {
-                  liveDisconnect();
-                  setTimeout(() => liveConnect(), 500);
-                }
-              }}
-              className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-all ${
-                mode === 'remote'
-                  ? backendStatus === 'connected'
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'bg-yellow-500/20 text-yellow-400'
-                  : 'text-gray-500 hover:text-gray-300'
-              }`}
-              title="Remote mode - Desktop control via agents"
-            >
-              <Monitor className="w-3 h-3" />
-              <span className="hidden sm:inline">Remote</span>
-              {mode === 'remote' && backendStatus !== 'connected' && (
-                <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse" />
-              )}
+            <button onClick={() => setShowSessionHistory(true)} className="p-2 text-gray-500 hover:text-purple-400 rounded-lg" title="History">
+              <History className="w-4 h-4" />
+            </button>
+            <button onClick={() => { liveClearSession(); brainClearSession(); }} className="p-2 text-gray-500 hover:text-green-400 rounded-lg" title="New">
+              <Plus className="w-4 h-4" />
+            </button>
+            <button onClick={() => setShowSettings(!showSettings)} className="p-2 text-gray-500 hover:text-gray-300 rounded-lg">
+              <Settings className="w-4 h-4" />
+            </button>
+            <button onClick={logout} className="p-2 text-gray-500 hover:text-red-400 rounded-lg" title="Logout">
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
           
-          {/* Triple Handshake Badge - hidden for now (obsolete UI)
-          {missionState.active && (
-            <VerificationBadge
-              phase={missionState.phase as any}
-              goal={missionState.goal}
-              verificationStatus={missionState.verification?.status as any}
-            />
-          )}
-          */}
-        </div>
-        
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* Audio Toggle with speaking indicator */}
+          {/* Mobile: Hamburger Menu */}
           <button
-            onClick={() => {
-              const newState = !audioEnabled;
-              setAudioEnabled(newState);
-              // Immediately cancel any ongoing speech when muting
-              if (!newState) {
-                window.speechSynthesis.cancel();
-              }
-            }}
-            className={`p-2 rounded-lg transition-all relative ${
-              audioEnabled 
-                ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-500/10' 
-                : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
-            }`}
-            title={audioEnabled ? 'Mute Audio' : 'Enable Audio'}
+            onClick={() => setShowMobileMenu(true)}
+            className="sm:hidden p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800"
           >
-            {audioEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-            {/* Speaking indicator - animated ring */}
-            {isSpeaking && (
-              <span className="absolute inset-0 rounded-lg border-2 border-blue-400 animate-ping opacity-75" />
-            )}
-          </button>
-
-          {/* Agent Selector - only in Remote mode */}
-          {mode === 'remote' && (
-            <AgentSelector 
-              workstations={workstations}
-              activeWorkstation={activeWorkstation}
-              setActiveWorkstation={setActiveWorkstation}
-              isLoading={workstationsLoading}
-            />
-          )}
-
-          {/* Session History Button */}
-          <button
-            onClick={() => setShowSessionHistory(true)}
-            className="p-2 text-gray-500 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition-colors"
-            title="Session History"
-          >
-            <History className="w-5 h-5" />
-          </button>
-
-          {/* New Session Button */}
-          <button
-            onClick={() => {
-              liveClearSession();
-              brainClearSession();
-            }}
-            className="p-2 text-gray-500 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
-            title="New Session (clear chat)"
-          >
-            <Plus className="w-5 h-5" />
-          </button>
-          
-          {/* Settings */}
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="p-2 text-gray-500 hover:text-gray-300 hover:bg-gray-800 rounded-lg transition-colors"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-
-          {/* Logout */}
-          <button
-            onClick={logout}
-            className="p-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-            title={`Logout ${user?.displayName || ''}`}
-          >
-            <LogOut className="w-5 h-5" />
+            <Menu className="w-5 h-5" />
           </button>
         </div>
       </header>
+
+      {/* Agent Selector Banner - only in Remote mode */}
+      {mode === 'remote' && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-gray-900/50 border-b border-gray-800 shrink-0">
+          <Monitor className="w-4 h-4 text-gray-500" />
+          <AgentSelector 
+            workstations={workstations}
+            activeWorkstation={activeWorkstation}
+            setActiveWorkstation={setActiveWorkstation}
+            isLoading={workstationsLoading}
+          />
+        </div>
+      )}
+
+      {/* Mobile Menu */}
+      <MobileMenu
+        isOpen={showMobileMenu}
+        onClose={() => setShowMobileMenu(false)}
+        audioEnabled={audioEnabled}
+        onToggleAudio={() => {
+          const newState = !audioEnabled;
+          setAudioEnabled(newState);
+          if (!newState) window.speechSynthesis.cancel();
+        }}
+        onShowHistory={() => setShowSessionHistory(true)}
+        onNewSession={() => { liveClearSession(); brainClearSession(); }}
+        onShowSettings={() => setShowSettings(true)}
+        onLogout={logout}
+        onShowAdmin={() => setShowAdminPanel(true)}
+        isAdmin={user?.role === 'admin'}
+        userName={user?.displayName}
+      />
 
       {/* Settings Drawer */}
       {showSettings && (

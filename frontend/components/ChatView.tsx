@@ -10,11 +10,24 @@ interface ChatViewProps {
 
 export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false }) => {
   const endRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [expandedTools, setExpandedTools] = useState<Set<number>>(new Set());
+  const [userScrolledUp, setUserScrolledUp] = useState(false);
 
+  // Track if user has scrolled up (away from bottom)
+  const handleScroll = () => {
+    if (!containerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    setUserScrolledUp(!isNearBottom);
+  };
+
+  // Only auto-scroll if user hasn't scrolled up
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [trace]);
+    if (!userScrolledUp) {
+      endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [trace, userScrolledUp]);
 
   const toggleToolExpand = (idx: number) => {
     setExpandedTools(prev => {
@@ -63,7 +76,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-4">
+    <div ref={containerRef} onScroll={handleScroll} className="h-full overflow-y-auto p-4 space-y-4">
       {groupedTrace.map((group, groupIdx) => {
         if (group.type === 'tool_group') {
           // Render collapsed tool group
