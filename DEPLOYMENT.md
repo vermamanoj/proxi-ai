@@ -17,14 +17,25 @@
 git clone https://github.com/vermamanoj/proxi-ai.git
 cd proxi-ai
 cp .env.example .env
-# Edit .env with your GEMINI_API_KEY
+# Edit .env with your GEMINI_API_KEY and PROXI_AGENT_KEY
 
-# Start all services
-docker-compose up -d
+# Run the full deployment script
+./deploy.sh
 
-# Verify
-docker-compose ps
+# Check service status
+./deploy.sh --status
 ```
+
+### Common Operations
+
+| Task | Command |
+|------|---------|
+| Full deploy (pull + docker + nginx) | `./deploy.sh` |
+| Rebuild Docker only | `./deploy.sh --docker` |
+| Update nginx config | `./deploy.sh --nginx` |
+| View logs | `./deploy.sh --logs` |
+| Check status | `./deploy.sh --status` |
+| Restart containers | `./deploy.sh --restart` |
 
 For detailed deployment instructions, see [docs/DEPLOY_OPS.md](./docs/DEPLOY_OPS.md).
 

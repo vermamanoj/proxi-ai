@@ -5,23 +5,40 @@
 
 ---
 
-## 1. Quick Start (Docker Compose)
+## 1. Quick Start (Production Deployment Script)
 
 ```bash
 # Clone and configure
 git clone https://github.com/vermamanoj/proxi-ai.git
 cd proxi-ai
 cp .env.example .env
-# Edit .env with your GEMINI_API_KEY
+# Edit .env with your GEMINI_API_KEY and PROXI_AGENT_KEY
 
-# Start all services
-docker-compose up -d
+# Run the full deployment script
+./deploy.sh
 
-# Verify
-docker-compose ps
+# Check service status
+./deploy.sh --status
+
+# View logs
+./deploy.sh --logs
 ```
 
-**Services Started:**
+### Deploy Script Options
+
+| Command | Description |
+|---------|-------------|
+| `./deploy.sh` | Full deployment (pull + docker + nginx) |
+| `./deploy.sh --docker` | Rebuild and restart Docker containers only |
+| `./deploy.sh --nginx` | Update nginx config and reload |
+| `./deploy.sh --pull` | Git pull latest code |
+| `./deploy.sh --logs` | View container logs (follow mode) |
+| `./deploy.sh --status` | Check all service status |
+| `./deploy.sh --restart` | Restart containers without rebuild |
+| `./deploy.sh --help` | Show all options |
+
+### Services Started
+
 | Service | Port | Purpose |
 |---------|------|---------|
 | `core` | 4000 | Orchestration, LLM, Auth |
