@@ -136,6 +136,19 @@ Simply type what you want Proxi to do. Be specific about:
 - **Where** it should happen
 - **How** to verify success
 
+### Direct Shell Commands
+
+For quick shell/terminal commands, prefix with `!`:
+
+```
+!ls -la                    # List files
+!ps aux | head -10         # Show processes
+!df -h                     # Disk usage
+!Get-Process | head        # PowerShell (Windows)
+```
+
+**Why `!` prefix?** Prevents accidental execution when voice recognition mishears words (e.g., "less" heard as "ls").
+
 ### Command Examples
 
 #### System Monitoring

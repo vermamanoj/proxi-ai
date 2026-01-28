@@ -61,12 +61,14 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Core/Agent security split | ✅ | API keys isolated in Core |
+| Agent API Key auth | ✅ | X-Agent-Key header for Core↔Agent |
 | Session-based authentication | ✅ | 6hr timeout, 24hr remember-me |
 | Command guardrails | ✅ | Blocked + approval patterns |
+| Direct command execution | ✅ | `!` prefix for shell commands |
 | Magic links for judges | ✅ | Role-based temporary access |
 | User roles (demo/judge/admin) | ✅ | Stored but not enforced |
 | **Role-based access control** | 📋 | Enforce role permissions |
-| **2FA for remote connect** | 📋 | Extra verification for agents |
+| **2FA for Windows agents** | 📋 | Admin can grant exemptions |
 | **Per-agent user permissions** | 📋 | Which users can access which agents |
 
 ---
