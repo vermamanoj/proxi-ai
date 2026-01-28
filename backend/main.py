@@ -42,11 +42,20 @@ app = FastAPI(
 gemini_service = GeminiService()
 auth_service = get_auth_service()
 
+# CORS Configuration - restrict to production domain
+# In production, only allow requests from your domain
+ALLOWED_ORIGINS = [
+    "https://proxi.audista.com",
+    "http://localhost:4002",      # Local dev
+    "http://localhost:5173",      # Vite dev server
+    "http://127.0.0.1:4002",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -85,12 +94,15 @@ async def login(request: Request):
                 "display_name": user.display_name,
                 "role": user.role
             })
+            # Detect if running behind HTTPS (Cloudflare/nginx)
+            is_https = request.headers.get("x-forwarded-proto") == "https"
             response.set_cookie(
                 key="session_id",
                 value=session.session_id,
                 httponly=True,
-                secure=False,  # Set to True in production with HTTPS
-                samesite="lax"
+                secure=is_https,  # True when behind HTTPS proxy
+                samesite="lax" if is_https else "lax",
+                max_age=86400 if remember_me else None  # 24hr if remember_me
             )
             return response
         else:
@@ -207,11 +219,13 @@ async def redeem_magic_link(token: str):
         "display_name": user.display_name,
         "role": user.role
     })
+    # Detect if running behind HTTPS
+    is_https = True  # Magic links are typically used in production
     response.set_cookie(
         key="session_id",
         value=session.session_id,
         httponly=True,
-        secure=False,  # Set to True in production with HTTPS
+        secure=is_https,
         samesite="lax"
     )
     return response

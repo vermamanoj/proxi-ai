@@ -16,8 +16,14 @@
 | **Authorization** | User roles | demo/judge/admin stored |
 | **Command Safety** | Guardrails | Blocked + approval patterns |
 | **Data** | SQLite WAL | Concurrent access, no corruption |
+| **Network** | Cloudflare proxy | DDoS, WAF, SSL termination |
+| **CORS** | Domain whitelist | Only proxi.audista.com + localhost |
+| **Cookies** | Secure flag | Auto-enabled behind HTTPS proxy |
+| **Rate Limiting** | Nginx + Cloudflare | Login: 5/min, API: 30/sec |
+| **Headers** | Security headers | X-Frame-Options, CSP, XSS protection |
+| **Docs** | /docs blocked | 404 in production nginx |
 
-### ⚠️ Gaps to Address
+### ⚠️ Gaps to Address (Post-Hackathon)
 
 | Risk | Current State | Remediation |
 |------|---------------|-------------|
@@ -25,7 +31,6 @@
 | No 2FA | Single-factor login | Add TOTP/WebAuthn |
 | Agent access open | Any user can use any agent | Per-agent permissions |
 | No audit logging | Actions not recorded | Add audit trail |
-| HTTP in dev | No encryption | Force HTTPS |
 
 ---
 
@@ -72,11 +77,12 @@
 
 | Task | Effort | Status |
 |------|--------|--------|
-| Enable HTTPS on production | 2hr | 📋 Planned |
-| Rate limiting on login | 1hr | 📋 Planned |
-| Secure cookie flags (HttpOnly, Secure, SameSite) | 30min | 🔄 Partial |
-| Remove debug endpoints | 30min | 📋 Planned |
-| Validate CORS origins | 30min | 📋 Planned |
+| Enable HTTPS on production | 2hr | ✅ Done (Cloudflare) |
+| Rate limiting on login | 1hr | ✅ Done (nginx + Cloudflare) |
+| Secure cookie flags (HttpOnly, Secure, SameSite) | 30min | ✅ Done |
+| Remove debug endpoints | 30min | ✅ Done (/docs blocked) |
+| Validate CORS origins | 30min | ✅ Done |
+| Security headers (X-Frame, XSS, etc.) | 30min | ✅ Done |
 
 ### Phase 2: Production Ready (Post-Hackathon)
 
