@@ -357,12 +357,12 @@ const App: React.FC = () => {
 
   // Authenticated - show main app
   return (
-    <div className="h-screen bg-proxi-black text-gray-200 flex flex-col font-mono overflow-hidden">
+    <div className="h-[100dvh] bg-proxi-black text-gray-200 flex flex-col font-mono overflow-hidden">
       {/* Centered container for desktop - full width on mobile, max-width on larger screens */}
-      <div className="h-full flex flex-col w-full max-w-2xl mx-auto lg:border-x lg:border-gray-800">
+      <div className="h-full flex flex-col w-full max-w-2xl mx-auto lg:border-x lg:border-gray-800 overflow-hidden">
       
-      {/* Mobile Safe Area Spacer - accounts for notch/status bar */}
-      <div className="h-10 sm:h-0 bg-gray-900 shrink-0" />
+      {/* Mobile Safe Area Spacer - minimal, let CSS env() handle notch */}
+      <div className="h-0 sm:h-0 shrink-0" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }} />
       
       {/* Minimal Header */}
       <header className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 border-b border-gray-800 bg-gray-900 shrink-0 z-20 min-h-[48px]">
@@ -735,7 +735,7 @@ const App: React.FC = () => {
       )}
 
       {/* Input Area - ChatGPT style: mic+voice when empty, mic+send when typing */}
-      <footer className="border-t border-gray-800 bg-proxi-dark p-3 pb-safe">
+      <footer className="border-t border-gray-800 bg-proxi-dark p-3 shrink-0" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           {/* File Upload */}
           <input
