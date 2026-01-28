@@ -8,9 +8,13 @@ agent is selected.
 
 import aiohttp
 import asyncio
+import os
 from typing import Any, Optional
 from backend.services.desktop.interface import DesktopInterface
 from backend.utils.logger import log_system
+
+# Agent API Key for Core <-> Agent authentication
+AGENT_API_KEY = os.environ.get("PROXI_AGENT_KEY", "")
 
 
 class ProxyDesktopService(DesktopInterface):
@@ -32,10 +36,11 @@ class ProxyDesktopService(DesktopInterface):
         async def _call():
             url = f"{self.agent_url}/execute"
             payload = {"tool_name": tool_name, "parameters": parameters or {}}
+            headers = {"X-Agent-Key": AGENT_API_KEY} if AGENT_API_KEY else {}
             
             try:
                 async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                    async with session.post(url, json=payload) as response:
+                    async with session.post(url, json=payload, headers=headers) as response:
                         if response.status == 200:
                             data = await response.json()
                             if data.get("success"):
