@@ -270,8 +270,16 @@ pip install -r backend/requirements.txt
 
 ## Documentation
 
-- [BLUEPRINT.md](./BLUEPRINT.md) - System architecture deep dive
-- [USER_GUIDE.md](./USER_GUIDE.md) - Comprehensive usage guide
+| Document | Description |
+|----------|-------------|
+| [Architecture](./docs/ARCHITECTURE.md) | System design, security split, API contracts |
+| [Deployment](./docs/DEPLOY_OPS.md) | Docker, Tailscale, production setup |
+| [Features](./docs/FEATURES.md) | Implementation status tracker |
+| [Security](./docs/SECURITY_ROADMAP.md) | Security roadmap and hardening |
+| [Hackathon](./docs/HACKATHON_CHECKLIST.md) | Submission checklist |
+| [User Guide](./USER_GUIDE.md) | Usage instructions |
+| [Demo Script](./DEMO_SCRIPT.md) | Hackathon demo scenario |
+| [Changelog](./CHANGELOG.md) | Version history |
 
 ---
 

@@ -1,36 +1,11 @@
-# Proxi Deployment Guide
-
-> **Note:** This document has been restructured. See the new documentation:
-> - [docs/DEPLOY_OPS.md](./docs/DEPLOY_OPS.md) - Deployment & Operations
-> - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) - System Architecture
-> - [docs/SECURITY_ROADMAP.md](./docs/SECURITY_ROADMAP.md) - Security Roadmap
-> - [docs/FEATURES.md](./docs/FEATURES.md) - Feature Tracker
->
-> The original content is archived in `docs/archive/DEPLOYMENT.md`.
+# PROXI: DEPLOYMENT & OPERATIONS GUIDE
+**Version:** v3.0.0  
+**Target:** Google Gemini Hackathon (Judging: Feb 10-27, 2026)  
+**Last Updated:** January 2026
 
 ---
 
-## Quick Start
-
-```bash
-# Clone and configure
-git clone https://github.com/vermamanoj/proxi-ai.git
-cd proxi-ai
-cp .env.example .env
-# Edit .env with your GEMINI_API_KEY
-
-# Start all services
-docker-compose up -d
-
-# Verify
-docker-compose ps
-```
-
-For detailed deployment instructions, see [docs/DEPLOY_OPS.md](./docs/DEPLOY_OPS.md).
-
----
-
-## 1. ARCHITECTURE OVERVIEW (Legacy - See docs/ARCHITECTURE.md)
+## 1. ARCHITECTURE OVERVIEW
 
 ### 1.1 Core/Agent Split Architecture
 
