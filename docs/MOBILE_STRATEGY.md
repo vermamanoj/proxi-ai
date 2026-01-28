@@ -1,247 +1,333 @@
-# Proxi Mobile App Strategy
+# Proxi Mobile Strategy
 
-**Last Updated:** January 28, 2026  
-**Priority:** Post-Hackathon (P1)
-
----
-
-## 1. Current State
-
-### Web-Based Mobile Access
-- ✅ Responsive React UI works on mobile browsers
-- ✅ Gemini Live voice I/O functional
-- ✅ Touch-friendly interface
-- ⚠️ No push notifications
-- ⚠️ Voice requires browser tab active
-- ⚠️ No offline capability
-
-### Limitations of PWA Approach
-| Issue | Impact |
-|-------|--------|
-| Background audio | Voice stops when app backgrounded |
-| Push notifications | Requires service worker setup |
-| Camera access | Inconsistent across browsers |
-| Always-on connection | Battery drain concerns |
+**Last Updated:** January 29, 2026  
+**Status:** Approved for Immediate Execution  
+**Priority:** P0 (ASAP)  
+**Tech Stack:** React (Vite) + Capacitor  
+**Target:** iOS & Android
 
 ---
 
-## 2. Native App Recommendation
+## 1. Executive Summary
 
-### Technology Choice: React Native
+Proxi will use a **"Web-First Native Wrapper"** approach using Capacitor to wrap the existing React + Vite codebase in a native container.
 
-| Option | Pros | Cons |
-|--------|------|------|
-| **React Native** | Code reuse with web, fast dev | Bridge overhead |
-| Flutter | Great performance | New language (Dart) |
-| Native (Swift/Kotlin) | Best performance | 2x development effort |
+### Benefits
+- **Zero Logic Rewrite** - 100% code reuse of existing UI and business logic
+- **Speed to Build** - Functional APK/IPA in 24-48 hours
+- **Single Codebase** - Web + iOS + Android from one repo
 
-**Recommendation:** React Native with Expo for rapid development.
+### ⚠️ Critical Risk: Voice/WebRTC
+WebRTC in mobile WebViews has known limitations:
+- **Android WebView** - Generally works, but inconsistent on older devices
+- **iOS WKWebView** - `getUserMedia` works but Gemini Live SDK may have issues
 
-### Why React Native?
-1. **Code sharing** - 60-70% shared with web frontend
-2. **Team expertise** - Already using React/TypeScript
-3. **Expo** - Simplified build/deploy, OTA updates
-4. **Community** - Large ecosystem, proven at scale
+**Mitigation:** Test on physical device in Phase 1. If fails, implement backend audio relay.
 
 ---
 
-## 3. Mobile App Features
-
-### Phase 1: MVP (4-6 weeks)
-
-| Feature | Priority | Effort |
-|---------|----------|--------|
-| Login/auth | P0 | 1 week |
-| Chat interface | P0 | 1 week |
-| Voice commands | P0 | 2 weeks |
-| Agent selector | P1 | 3 days |
-| Push notifications | P1 | 1 week |
-| Session persistence | P1 | 3 days |
-
-### Phase 2: Enhanced (4 weeks)
-
-| Feature | Priority | Effort |
-|---------|----------|--------|
-| Background voice | P1 | 1 week |
-| Screenshot viewing | P1 | 3 days |
-| Image upload (camera) | P1 | 1 week |
-| Biometric login | P2 | 3 days |
-| Offline queue | P2 | 1 week |
-| Widgets (iOS/Android) | P3 | 1 week |
-
-### Phase 3: Advanced (Ongoing)
-
-| Feature | Priority | Notes |
-|---------|----------|-------|
-| Apple Watch / Wear OS | P3 | Quick commands |
-| Siri / Google Assistant | P3 | Native voice triggers |
-| CarPlay / Android Auto | P4 | Hands-free driving |
-
----
-
-## 4. Architecture
+## 2. Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     MOBILE APP ARCHITECTURE                      │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  REACT NATIVE APP                                        │   │
-│  │  ├── Auth (biometric + session)                         │   │
-│  │  ├── Chat UI (shared components)                        │   │
-│  │  ├── Voice (expo-av + Gemini Live)                      │   │
-│  │  ├── Push (expo-notifications)                          │   │
-│  │  └── State (Zustand or Redux)                           │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                            │                                    │
-│                      HTTPS + WebSocket                          │
-│                            │                                    │
-│  ┌─────────────────────────▼───────────────────────────────┐   │
-│  │  PROXI CORE (Existing Backend)                          │   │
-│  │  ├── /api/auth/* (existing)                             │   │
-│  │  ├── /api/chat (existing)                               │   │
-│  │  ├── /api/push/register (NEW)                           │   │
-│  │  └── /api/push/send (NEW)                               │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    MOBILE APP ARCHITECTURE                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  CAPACITOR NATIVE SHELL                              │   │
+│  │  ├── Android (Kotlin) / iOS (Swift)                 │   │
+│  │  ├── Native Plugins (Camera, Mic, Secure Storage)   │   │
+│  │  └── System WebView (Chrome/Safari engine)          │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                            │                                │
+│  ┌─────────────────────────▼───────────────────────────┐   │
+│  │  PROXI REACT APP (Bundled Local Files)              │   │
+│  │  ├── App.tsx (existing UI)                          │   │
+│  │  ├── useGeminiLive.ts (voice)                       │   │
+│  │  └── useProxiBrain.ts (chat)                        │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                            │                                │
+│                      HTTPS / WSS                            │
+│                            │                                │
+│  ┌─────────────────────────▼───────────────────────────┐   │
+│  │  PROXI CORE BACKEND (Cloud)                         │   │
+│  │  ├── /api/auth/* (login, sessions)                  │   │
+│  │  ├── /api/chat (LLM orchestration)                  │   │
+│  │  ├── /api/push/register (NEW - for notifications)   │   │
+│  │  └── /api/voice/relay (NEW - fallback for WebRTC)   │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+### Core Components
+
+| Layer | Technology | Notes |
+|-------|------------|-------|
+| **UI** | React + Tailwind CSS | No changes required |
+| **Native Shell** | Capacitor 5.x | Android + iOS platforms |
+| **Voice** | WebRTC via WebView | Test first, fallback to relay |
+| **Storage** | @capacitor/preferences | Secure storage for tokens |
 
 ---
 
-## 5. Voice Implementation
+## 3. Required Code Changes
 
-### Challenge
-Gemini Live uses WebRTC which has limited React Native support.
+### 3.1 Backend URL Configuration
 
-### Options
+Current code uses relative paths (`/api/chat`). Mobile needs absolute URLs.
 
-| Approach | Complexity | Quality |
-|----------|------------|---------|
-| **WebView for voice** | Low | Medium - may have latency |
-| **Native WebRTC** | High | High - best performance |
-| **Gemini REST + TTS** | Medium | Medium - no streaming |
-| **expo-av recording** | Medium | Good - send audio chunks |
-
-### Recommended: Hybrid Approach
-
-1. Use `expo-av` for audio recording
-2. Stream audio chunks to backend
-3. Backend forwards to Gemini Live
-4. Return audio response
-5. Play via `expo-av`
-
+**Add to `frontend/vite.config.ts`:**
 ```typescript
-// Simplified flow
-const startVoice = async () => {
-  const recording = await Audio.Recording.createAsync();
-  // Stream chunks to /api/voice/stream
-  // Receive audio response
-  // Play via Audio.Sound
+define: {
+  'import.meta.env.VITE_API_BASE_URL': JSON.stringify(
+    process.env.VITE_API_BASE_URL || ''
+  )
+}
+```
+
+**Update API calls to use:**
+```typescript
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+fetch(`${API_BASE}/api/chat`, ...)
+```
+
+### 3.2 API Key Security (CRITICAL)
+
+**Problem:** `VITE_GEMINI_API_KEY` is bundled into APK - extractable by anyone.
+
+**Solution:** Backend voice relay endpoint:
+```python
+# backend/main.py - NEW ENDPOINT
+@app.post("/api/voice/session")
+async def create_voice_session(user: User = Depends(get_current_user)):
+    # Returns short-lived token for Gemini Live
+    # Or proxies audio through backend
+```
+
+**For hackathon:** Acceptable risk. **For production:** Must fix.
+
+### 3.3 Capacitor Configuration
+
+**Create `capacitor.config.ts`:**
+```typescript
+import { CapacitorConfig } from '@capacitor/cli';
+
+const config: CapacitorConfig = {
+  appId: 'com.audista.proxi',
+  appName: 'Proxi',
+  webDir: 'dist',
+  server: {
+    // Production: use your deployed backend
+    url: 'https://api.proxi.audista.com',
+    cleartext: false  // HTTPS only
+  },
+  plugins: {
+    SplashScreen: {
+      launchAutoHide: false
+    }
+  },
+  android: {
+    allowMixedContent: false  // Security: no HTTP
+  },
+  ios: {
+    contentInset: 'always'  // Safe area handling
+  }
 };
+
+export default config;
 ```
 
 ---
 
-## 6. Push Notifications
+## 4. Security Strategy
 
-### Backend Additions
+### A. Secure Token Storage
+
+| Risk | Solution |
+|------|----------|
+| localStorage dump on rooted device | Use `@capacitor/preferences` with encryption |
+| API key in bundle | Move to backend proxy (post-hackathon) |
+
+### B. Network Security
+
+- **HTTPS only** - Set `cleartext: false` in Capacitor config
+- **Domain whitelist** - Only allow `*.audista.com` in `allowNavigation`
+- **Certificate pinning** - Add for production (post-hackathon)
+
+### C. Permission Minimization
+
+| Permission | When to Request |
+|------------|-----------------|
+| Microphone | On "Start Voice" button tap |
+| Camera | On image upload tap |
+| Push Notifications | After first successful login |
+
+### D. Code Obfuscation
+
+Vite production build already minifies. For extra security:
+```typescript
+// vite.config.ts
+build: {
+  minify: 'terser',
+  terserOptions: {
+    mangle: true,
+    compress: { drop_console: true }
+  }
+}
+```
+
+---
+
+## 5. Implementation Plan
+
+### Phase 0: WebRTC Validation (Hours 0-2) ⚠️ CRITICAL
+
+**Before any development**, test if Gemini Live works in mobile WebView:
+
+1. Open `https://proxi.audista.com` on Android Chrome
+2. Click microphone button
+3. Speak and verify voice recognition works
+4. Check for WebRTC errors in `chrome://inspect`
+
+**If it fails:** Implement `/api/voice/relay` endpoint first.
+
+### Phase 1: Capacitor Setup (Hours 2-4)
+
+```bash
+cd frontend
+npm install @capacitor/core @capacitor/cli
+npx cap init Proxi com.audista.proxi --web-dir dist
+
+# Add platforms
+npm install @capacitor/android @capacitor/ios
+npx cap add android
+npx cap add ios
+```
+
+### Phase 2: Build Configuration (Hours 4-6)
+
+1. Update `vite.config.ts` with `base: './'`
+2. Add `VITE_API_BASE_URL` to build
+3. Build: `npm run build`
+4. Sync: `npx cap sync`
+
+### Phase 3: Native Permissions (Hours 6-8)
+
+**Android (`android/app/src/main/AndroidManifest.xml`):**
+```xml
+<uses-permission android:name="android.permission.RECORD_AUDIO"/>
+<uses-permission android:name="android.permission.CAMERA"/>
+<uses-permission android:name="android.permission.INTERNET"/>
+```
+
+**iOS (`ios/App/App/Info.plist`):**
+```xml
+<key>NSMicrophoneUsageDescription</key>
+<string>Proxi needs microphone access for voice commands</string>
+<key>NSCameraUsageDescription</key>
+<string>Proxi needs camera access to capture screenshots</string>
+```
+
+### Phase 4: Build & Sign (Hours 8-12)
+
+**Android:**
+```bash
+cd android
+./gradlew assembleRelease
+# Sign with keystore
+```
+
+**iOS:**
+- Open `ios/App/App.xcworkspace` in Xcode
+- Set Team ID
+- Archive → Distribute
+
+### Phase 5: Testing (Hours 12-24)
+
+| Test Case | Expected |
+|-----------|----------|
+| Login flow | Works with existing credentials |
+| Text chat | Messages send/receive |
+| Voice chat | Mic activates, Gemini responds |
+| Image upload | Camera captures, sends to backend |
+| Session persistence | Survives app restart |
+
+---
+
+## 6. Fallback: Backend Voice Relay
+
+If WebRTC fails in WebView, implement this:
 
 ```python
-# backend/push/push_service.py
+# backend/services/voice_relay.py
+import asyncio
+from google import genai
 
-class PushService:
-    async def register_device(self, user_id: str, push_token: str):
-        # Store token in DB
-        pass
+class VoiceRelayService:
+    async def create_session(self, user_id: str):
+        """Create Gemini Live session on backend"""
+        client = genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
+        session = await client.aio.live.connect(model='gemini-2.0-flash')
+        return session_id
     
-    async def send_notification(self, user_id: str, title: str, body: str):
-        # Send via Expo Push API or FCM/APNs
-        pass
+    async def send_audio(self, session_id: str, audio_chunk: bytes):
+        """Forward audio chunk to Gemini"""
+        session = self.sessions[session_id]
+        await session.send(audio_chunk)
+    
+    async def receive_audio(self, session_id: str) -> bytes:
+        """Get audio response from Gemini"""
+        session = self.sessions[session_id]
+        return await session.receive()
 ```
 
-### Notification Types
+**Mobile app would:**
+1. Record audio using Capacitor native plugin
+2. POST chunks to `/api/voice/send`
+3. GET responses from `/api/voice/receive`
+4. Play audio using native player
+
+---
+
+## 7. Push Notifications (Post-MVP)
+
+Essential for mobile UX:
 
 | Event | Notification |
 |-------|--------------|
-| Agent needs approval | "Proxi needs your approval to delete file.txt" |
-| Task completed | "✅ CPU spike resolved - 15.4% now" |
-| Escalation | "⚠️ Proxi needs help with multiple files found" |
-| Agent offline | "🔴 Windows Desktop went offline" |
+| Approval needed | "Proxi needs approval to delete file.txt" |
+| Task completed | "✅ Backup completed successfully" |
+| Agent offline | "🔴 Windows Desktop disconnected" |
+
+**Implementation:** Firebase Cloud Messaging (Android) + APNs (iOS)
 
 ---
 
-## 7. Development Timeline
+## 8. Checklist
 
-### Hackathon Priority: LOW
-Focus on web demo for hackathon. Mobile app is post-competition.
+### Pre-Development
+- [ ] Test WebRTC on physical Android device via Chrome
+- [ ] Test WebRTC on physical iOS device via Safari
+- [ ] Generate Android keystore
+- [ ] Get Apple Developer Team ID
 
-### Post-Hackathon Timeline
+### Development
+- [ ] `npm install @capacitor/core @capacitor/cli`
+- [ ] Update `vite.config.ts` with `base: './'`
+- [ ] Add `VITE_API_BASE_URL` configuration
+- [ ] Create `capacitor.config.ts`
+- [ ] Add Android/iOS platforms
+- [ ] Configure permissions in manifests
+- [ ] Build and test on physical devices
 
-| Week | Milestone |
-|------|-----------|
-| 1-2 | Expo setup, navigation, auth |
-| 3-4 | Chat UI, API integration |
-| 5-6 | Voice recording + playback |
-| 7 | Push notifications |
-| 8 | Testing, polish, beta release |
-
-### Team Requirements
-- 1 React Native developer (can be existing React dev)
-- Backend support for push endpoints
-- Design support for mobile-specific UI
-
----
-
-## 8. App Store Considerations
-
-### iOS App Store
-- Requires Apple Developer account ($99/year)
-- Review process: 1-2 weeks first time
-- Guidelines: No remote code execution concerns (we're just a client)
-
-### Google Play Store
-- Requires Google Play Console ($25 one-time)
-- Review process: 1-3 days
-- Less restrictive than iOS
-
-### Beta Testing
-- iOS: TestFlight (up to 10,000 testers)
-- Android: Internal/Closed testing tracks
+### Post-Hackathon
+- [ ] Move Gemini API key to backend proxy
+- [ ] Implement push notifications
+- [ ] Add certificate pinning
+- [ ] App Store / Play Store submission
 
 ---
 
-## 9. Competitive Advantage
-
-### Why Mobile Matters
-1. **"Always in your pocket"** - Desktop control from anywhere
-2. **Push notifications** - Instant alerts for approvals
-3. **Voice-first** - Natural interaction while multitasking
-4. **Enterprise appeal** - IT admins, sales reps, executives
-
-### Differentiation
-- Most AI assistants are text-first
-- Proxi mobile = voice-first OS control
-- "Siri for your entire desktop, not just your phone"
-
----
-
-## 10. Decision Points
-
-### Build Now or Later?
-**Later** - Focus on hackathon, then build mobile Q1 2026.
-
-### Native or PWA?
-**Native (React Native)** - Better voice, push, background support.
-
-### iOS First or Android First?
-**Both via React Native** - Single codebase, simultaneous release.
-
-### Internal or Outsource?
-**Internal** - Leverage existing React expertise, maintain quality.
-
----
-
-*For current feature status, see [FEATURES.md](./FEATURES.md)*  
-*For architecture details, see [ARCHITECTURE.md](./ARCHITECTURE.md)*
+*For architecture details, see [ARCHITECTURE.md](./ARCHITECTURE.md)*  
+*For deployment guide, see [DEPLOY_OPS.md](./DEPLOY_OPS.md)*
