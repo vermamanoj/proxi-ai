@@ -11,11 +11,16 @@ Run: uvicorn backend.agent_server:app --host 0.0.0.0 --port 8081
 
 import uvicorn
 import platform
-from fastapi import FastAPI, HTTPException
+import os
+from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Any
 from backend.services.desktop.factory import get_desktop_service
+
+# Agent API Key for Core <-> Agent authentication
+# Set via PROXI_AGENT_KEY env var or pass at startup
+AGENT_API_KEY = os.environ.get("PROXI_AGENT_KEY", "")
 
 app = FastAPI(
     title="Proxi Agent",
@@ -66,8 +71,15 @@ async def health():
 
 # --- Tool Execution ---
 
+async def verify_agent_key(x_agent_key: Optional[str] = Header(None)):
+    """Verify the agent API key if one is configured."""
+    if AGENT_API_KEY and x_agent_key != AGENT_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing agent key")
+    return True
+
+
 @app.post("/execute", response_model=ToolResult)
-async def execute_tool(call: ToolCall):
+async def execute_tool(call: ToolCall, _: bool = Depends(verify_agent_key)):
     """
     Execute a desktop tool. Called by Proxi Core.
     

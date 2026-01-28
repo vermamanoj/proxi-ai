@@ -7,9 +7,13 @@ execution to isolated Proxi Agents via HTTP. This provides security isolation.
 
 import aiohttp
 import asyncio
+import os
 from typing import Optional, Any
 from backend.registry.workstation_registry import get_registry, get_workstation
 from backend.utils.logger import log_system
+
+# Agent API Key for Core <-> Agent authentication
+AGENT_API_KEY = os.environ.get("PROXI_AGENT_KEY", "")
 
 
 class AgentProxy:
@@ -70,9 +74,13 @@ class AgentProxy:
             "parameters": parameters or {}
         }
         
+        headers = {}
+        if AGENT_API_KEY:
+            headers["X-Agent-Key"] = AGENT_API_KEY
+        
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.post(url, json=payload) as response:
+                async with session.post(url, json=payload, headers=headers) as response:
                     if response.status == 200:
                         data = await response.json()
                         log_system(f"Tool executed via agent: {tool_name}", "PROXY")
@@ -98,9 +106,11 @@ class AgentProxy:
         if not base_url:
             return {"status": "error", "error": "No agent available"}
         
+        headers = {"X-Agent-Key": AGENT_API_KEY} if AGENT_API_KEY else {}
+        
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(f"{base_url}/health") as response:
+                async with session.get(f"{base_url}/health", headers=headers) as response:
                     if response.status == 200:
                         return await response.json()
                     return {"status": "error", "error": f"Agent returned {response.status}"}
@@ -113,9 +123,11 @@ class AgentProxy:
         if not base_url:
             return {"capabilities": [], "error": "No agent available"}
         
+        headers = {"X-Agent-Key": AGENT_API_KEY} if AGENT_API_KEY else {}
+        
         try:
             async with aiohttp.ClientSession(timeout=self.timeout) as session:
-                async with session.get(f"{base_url}/capabilities") as response:
+                async with session.get(f"{base_url}/capabilities", headers=headers) as response:
                     if response.status == 200:
                         return await response.json()
                     return {"capabilities": [], "error": f"Agent returned {response.status}"}

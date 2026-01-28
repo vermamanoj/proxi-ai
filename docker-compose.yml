@@ -26,6 +26,8 @@ services:
     image: proxi-agent:latest
     ports:
       - "4001:8081"
+    environment:
+      - PROXI_AGENT_KEY=${PROXI_AGENT_KEY}  # Shared secret for Core auth
     restart: unless-stopped
 
   # Frontend UI
