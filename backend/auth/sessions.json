@@ -6,5 +6,13 @@
     "expires_at": "2026-01-28T06:33:14.348049",
     "ip_address": "",
     "user_agent": ""
+  },
+  "db9dc21625b76b806a015a1d41546e0dcf3216c1b35ec6cf2ead088a66aa9f70": {
+    "session_id": "db9dc21625b76b806a015a1d41546e0dcf3216c1b35ec6cf2ead088a66aa9f70",
+    "username": "demo",
+    "created_at": "2026-01-28T05:54:13.369328",
+    "expires_at": "2026-01-28T06:54:13.369328",
+    "ip_address": "",
+    "user_agent": ""
   }
 }

@@ -60,22 +60,24 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
   };
 
   return (
-    <div className="bg-gray-900/95 backdrop-blur-sm border border-yellow-500/30 rounded-2xl overflow-hidden shadow-2xl shadow-black/50 animate-in slide-in-from-bottom-4">
+    <div className="bg-gray-900/95 backdrop-blur-sm border border-yellow-500/30 rounded-2xl overflow-hidden shadow-2xl shadow-black/50 animate-in slide-in-from-bottom-4 max-w-lg mx-auto">
       {/* Header */}
-      <div className="bg-yellow-500/10 px-5 py-4 flex items-start gap-4 border-b border-yellow-500/20">
-        <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center shrink-0">
-          <AlertTriangle className="w-6 h-6 text-yellow-400" />
+      <div className="bg-yellow-500/10 px-4 py-3 flex items-center gap-3 border-b border-yellow-500/20">
+        <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center shrink-0">
+          <AlertTriangle className="w-5 h-5 text-yellow-400" />
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="text-base font-bold text-yellow-400">{request.title}</h3>
-          <p className="text-sm text-gray-300 mt-1 leading-relaxed">{request.description}</p>
-        </div>
+        <h3 className="text-sm font-bold text-yellow-400 flex-1">{request.title}</h3>
         <button
           onClick={onDeny}
-          className="p-2 text-gray-500 hover:text-gray-300 transition-colors rounded-lg hover:bg-gray-800"
+          className="p-1.5 text-gray-500 hover:text-gray-300 transition-colors rounded-lg hover:bg-gray-800"
         >
-          <X className="w-5 h-5" />
+          <X className="w-4 h-4" />
         </button>
+      </div>
+      
+      {/* Description - scrollable if long */}
+      <div className="px-4 py-3 max-h-32 overflow-y-auto border-b border-gray-800">
+        <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap break-words">{request.description}</p>
       </div>
 
       {/* Screenshot preview (if applicable) */}
@@ -149,41 +151,21 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
       )}
 
       {/* Action buttons */}
-      <div className="px-5 py-4 flex gap-3 bg-gray-900/50">
-        {request.type === 'binary' || request.type === 'confirm_screenshot' ? (
-          <>
-            <button
-              onClick={onDeny}
-              className="flex-1 py-3 px-6 border border-gray-600 text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-800 hover:border-gray-500 transition-all"
-            >
-              Deny
-            </button>
-            <button
-              onClick={handleApprove}
-              className="flex-1 py-3 px-6 bg-green-500 text-white rounded-xl text-sm font-bold hover:bg-green-400 transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              Approve
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={onDeny}
-              className="py-3 px-6 border border-gray-600 text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-800 transition-all"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleApprove}
-              disabled={!canSubmit()}
-              className="flex-1 py-3 px-6 bg-green-500 text-white rounded-xl text-sm font-bold hover:bg-green-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
-            >
-              <span>Submit</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </>
-        )}
+      <div className="px-4 py-3 flex gap-2 bg-gray-900/50">
+        <button
+          onClick={onDeny}
+          className="flex-1 py-2.5 px-4 border border-gray-600 text-gray-300 rounded-lg text-sm font-medium hover:bg-gray-800 hover:border-gray-500 transition-all"
+        >
+          Deny
+        </button>
+        <button
+          onClick={handleApprove}
+          disabled={!canSubmit()}
+          className="flex-1 py-2.5 px-4 bg-green-500 text-white rounded-lg text-sm font-bold hover:bg-green-400 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          <CheckCircle2 className="w-4 h-4" />
+          Approve
+        </button>
       </div>
 
       {/* Voice hint */}

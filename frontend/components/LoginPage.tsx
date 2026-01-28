@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { Zap, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 
 interface LoginPageProps {
-  onLogin: (username: string, password: string) => Promise<boolean>;
+  onLogin: (username: string, password: string, rememberMe?: boolean) => Promise<boolean>;
   onBack: () => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -19,7 +20,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
     setIsLoading(true);
 
     try {
-      const success = await onLogin(username, password);
+      const success = await onLogin(username, password, rememberMe);
       if (!success) {
         setError('Invalid username or password');
       }
@@ -98,6 +99,20 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
+          </div>
+
+          {/* Remember Me */}
+          <div className="flex items-center">
+            <input
+              id="remember-me"
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-900 text-proxi-accent focus:ring-proxi-accent/50"
+            />
+            <label htmlFor="remember-me" className="ml-2 text-sm text-gray-400">
+              Remember me for 24 hours
+            </label>
           </div>
 
           {/* Submit Button */}

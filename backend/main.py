@@ -75,9 +75,11 @@ async def login(request: Request):
                 status_code=400
             )
         
+        remember_me = data.get("remember_me", False)
+        
         user = auth_service.authenticate(username, password)
         if user:
-            session = auth_service.create_session(username)
+            session = auth_service.create_session(username, remember_me=remember_me)
             response = JSONResponse({
                 "username": user.username,
                 "display_name": user.display_name,

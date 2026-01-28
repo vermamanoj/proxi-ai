@@ -82,7 +82,12 @@ export function useWorkstations(): UseWorkstationsResult {
       const backendWorkstations = await fetchFromBackend();
       
       if (backendWorkstations) {
-        setWorkstations(backendWorkstations);
+        // Map snake_case from backend to camelCase for frontend
+        const mappedWorkstations = backendWorkstations.map((ws: any) => ({
+          ...ws,
+          isDefault: ws.is_default || ws.isDefault || false,
+        }));
+        setWorkstations(mappedWorkstations);
       } else {
         // Use static config with health checks
         const updatedWorkstations = await Promise.all(

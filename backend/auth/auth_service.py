@@ -60,7 +60,7 @@ class AuthService:
     Simple authentication service with local user storage.
     """
     
-    def __init__(self, users_file: str = None, session_timeout_minutes: int = 60):
+    def __init__(self, users_file: str = None, session_timeout_minutes: int = 360):
         self.users_file = users_file or self._default_users_file()
         self.session_timeout = timedelta(minutes=session_timeout_minutes)
         self.sessions: Dict[str, Session] = {}
@@ -264,16 +264,17 @@ class AuthService:
         
         return user
     
-    def create_session(self, username: str, ip_address: str = "", user_agent: str = "") -> Session:
-        """Create a new session for a user."""
+    def create_session(self, username: str, ip_address: str = "", user_agent: str = "", remember_me: bool = False) -> Session:
+        """Create a new session for a user. If remember_me is True, session lasts 24 hours."""
         session_id = self._generate_session_id()
         now = datetime.utcnow()
+        timeout = timedelta(hours=24) if remember_me else self.session_timeout
         
         session = Session(
             session_id=session_id,
             username=username,
             created_at=now,
-            expires_at=now + self.session_timeout,
+            expires_at=now + timeout,
             ip_address=ip_address,
             user_agent=user_agent
         )

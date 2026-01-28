@@ -54,13 +54,20 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     }
   }, [audioOutputEnabled]);
   
-  // Initialize logs from localStorage
+  // Initialize logs from localStorage - but clear if stale (> 1 hour old)
   const [logs, setLogs] = useState<LogEntry[]>(() => {
     try {
       const saved = localStorage.getItem('proxi_session_logs');
-      if (saved) {
+      const savedAt = localStorage.getItem('proxi_session_timestamp');
+      if (saved && savedAt) {
+        const age = Date.now() - parseInt(savedAt);
+        // Clear stale sessions (> 1 hour)
+        if (age > 60 * 60 * 1000) {
+          localStorage.removeItem('proxi_session_logs');
+          localStorage.removeItem('proxi_session_timestamp');
+          return [];
+        }
         const parsed = JSON.parse(saved);
-        // Restore Date objects
         return parsed.map((log: any) => ({ ...log, timestamp: new Date(log.timestamp) }));
       }
     } catch (e) { console.warn('Failed to restore session logs:', e); }
@@ -68,10 +75,11 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
   });
   const [volume, setVolume] = useState(0);
   
-  // Persist logs to localStorage
+  // Persist logs to localStorage with timestamp
   useEffect(() => {
     try {
       localStorage.setItem('proxi_session_logs', JSON.stringify(logs));
+      localStorage.setItem('proxi_session_timestamp', Date.now().toString());
     } catch (e) { console.warn('Failed to save session logs:', e); }
   }, [logs]);
   const [activeTool, setActiveTool] = useState<ActiveToolState | null>(null);
