@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Volume2, VolumeX, History, Plus, Settings, LogOut, Shield } from 'lucide-react';
+import { X, Volume2, VolumeX, History, Settings, LogOut, Shield } from 'lucide-react';
 
 interface MobileMenuProps {
   isOpen: boolean;
@@ -7,7 +7,6 @@ interface MobileMenuProps {
   audioEnabled: boolean;
   onToggleAudio: () => void;
   onShowHistory: () => void;
-  onNewSession: () => void;
   onShowSettings: () => void;
   onLogout: () => void;
   onShowAdmin?: () => void;
@@ -21,7 +20,6 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
   audioEnabled,
   onToggleAudio,
   onShowHistory,
-  onNewSession,
   onShowSettings,
   onLogout,
   onShowAdmin,
@@ -44,12 +42,6 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
       onClick: () => { onShowHistory(); onClose(); },
     },
     {
-      icon: Plus,
-      label: 'New Session',
-      onClick: () => { onNewSession(); onClose(); },
-      activeColor: 'text-green-400',
-    },
-    {
       icon: Settings,
       label: 'Settings',
       onClick: () => { onShowSettings(); onClose(); },
@@ -62,7 +54,6 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({
       icon: Shield,
       label: 'Admin Panel',
       onClick: () => { onShowAdmin(); onClose(); },
-      activeColor: 'text-purple-400',
     });
   }
 

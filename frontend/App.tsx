@@ -368,50 +368,7 @@ const App: React.FC = () => {
       
       {/* Minimal Header - Mobile optimized */}
       <header className="flex items-center justify-between px-3 py-2 border-b border-gray-800 bg-gray-900 shrink-0 z-20">
-        {/* Left: Mode Toggle */}
-        <div className="flex items-center bg-gray-800 rounded-lg p-0.5">
-          <button
-            onClick={() => {
-              setMode('chat');
-              if (liveConnected) {
-                liveDisconnect();
-                setTimeout(() => liveConnect(), 500);
-              }
-            }}
-            className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs transition-all ${
-              mode === 'chat'
-                ? 'bg-blue-500/20 text-blue-400'
-                : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">Chat</span>
-          </button>
-          <button
-            onClick={() => {
-              setMode('remote');
-              if (liveConnected) {
-                liveDisconnect();
-                setTimeout(() => liveConnect(), 500);
-              }
-            }}
-            className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs transition-all ${
-              mode === 'remote'
-                ? backendStatus === 'connected'
-                  ? 'bg-green-500/20 text-green-400'
-                  : 'bg-yellow-500/20 text-yellow-400'
-                : 'text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            <Monitor className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">Remote</span>
-            {mode === 'remote' && backendStatus !== 'connected' && (
-              <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse ml-1" />
-            )}
-          </button>
-        </div>
-
-        {/* Center: Title + Status */}
+        {/* Left: Title + Status */}
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${statusColor} ${isProcessing ? 'animate-pulse' : ''}`} />
           <h1 className="text-sm font-bold tracking-wider">
@@ -419,8 +376,28 @@ const App: React.FC = () => {
           </h1>
         </div>
 
-        {/* Right: Desktop buttons + Hamburger menu (mobile) */}
+        {/* Center: Agent Selector */}
+        <div className="flex items-center gap-2">
+          <Monitor className="w-4 h-4 text-gray-500" />
+          <AgentSelector 
+            workstations={workstations}
+            activeWorkstation={activeWorkstation}
+            setActiveWorkstation={setActiveWorkstation}
+            isLoading={workstationsLoading}
+          />
+        </div>
+
+        {/* Right: New Session + Menu */}
         <div className="flex items-center gap-1">
+          {/* New Session - always visible */}
+          <button 
+            onClick={() => { liveClearSession(); brainClearSession(); }} 
+            className="p-2 text-gray-500 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors" 
+            title="New Session"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+          
           {/* Desktop only buttons */}
           <div className="hidden sm:flex items-center gap-1">
             <button
@@ -440,9 +417,6 @@ const App: React.FC = () => {
             <button onClick={() => setShowSessionHistory(true)} className="p-2 text-gray-500 hover:text-purple-400 rounded-lg" title="History">
               <History className="w-4 h-4" />
             </button>
-            <button onClick={() => { liveClearSession(); brainClearSession(); }} className="p-2 text-gray-500 hover:text-green-400 rounded-lg" title="New">
-              <Plus className="w-4 h-4" />
-            </button>
             <button onClick={() => setShowSettings(!showSettings)} className="p-2 text-gray-500 hover:text-gray-300 rounded-lg">
               <Settings className="w-4 h-4" />
             </button>
@@ -461,18 +435,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Agent Selector Banner - only in Remote mode */}
-      {mode === 'remote' && (
-        <div className="flex items-center gap-2 px-3 py-2 bg-gray-900/50 border-b border-gray-800 shrink-0">
-          <Monitor className="w-4 h-4 text-gray-500" />
-          <AgentSelector 
-            workstations={workstations}
-            activeWorkstation={activeWorkstation}
-            setActiveWorkstation={setActiveWorkstation}
-            isLoading={workstationsLoading}
-          />
-        </div>
-      )}
 
       {/* Mobile Menu */}
       <MobileMenu
@@ -485,7 +447,6 @@ const App: React.FC = () => {
           if (!newState) window.speechSynthesis.cancel();
         }}
         onShowHistory={() => setShowSessionHistory(true)}
-        onNewSession={() => { liveClearSession(); brainClearSession(); }}
         onShowSettings={() => setShowSettings(true)}
         onLogout={logout}
         onShowAdmin={() => setShowAdminPanel(true)}
@@ -584,27 +545,8 @@ const App: React.FC = () => {
                 </button>
               </div>
 
-              {/* Current Mode Info */}
-              <div className="pt-4 border-t border-gray-700">
-                <div className="text-xs text-gray-500 mb-2">Current Mode</div>
-                <div className={`p-3 rounded-lg border ${
-                  mode === 'chat' 
-                    ? 'border-blue-500/30 bg-blue-500/10' 
-                    : 'border-green-500/30 bg-green-500/10'
-                }`}>
-                  <div className={`text-sm font-semibold ${mode === 'chat' ? 'text-blue-400' : 'text-green-400'}`}>
-                    {mode === 'chat' ? '💬 Chat Mode' : '🖥️ Remote Control'}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">
-                    {mode === 'chat' 
-                      ? 'Voice assistant only. No desktop access.' 
-                      : 'Full desktop control via connected agents.'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Mission Status - only in Remote mode */}
-              {mode === 'remote' && missionState && missionState.active && (
+              {/* Mission Status */}
+              {missionState && missionState.active && (
                 <div>
                   <label className="text-xs text-gray-500 uppercase tracking-wider">Current Mission</label>
                   <div className="mt-2 p-3 rounded-lg border border-gray-700 bg-gray-800/50">
@@ -623,19 +565,10 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Chat Mode Banner */}
-      {mode === 'chat' && (
-        <div className="bg-blue-500/10 border-b border-blue-500/20 px-4 py-2 text-center">
-          <p className="text-xs text-blue-400">
-            💬 Chat Mode — Voice assistant only. Switch to <span className="font-semibold">Remote</span> for desktop control.
-          </p>
-        </div>
-      )}
-
       {/* Main Chat Area */}
       <main className="flex-1 overflow-hidden flex flex-col">
-        {/* Collapsible Mission Panel - only in Remote mode when goals exist */}
-        {mode === 'remote' && missionGoals.length > 0 && (
+        {/* Collapsible Mission Panel - when goals exist */}
+        {missionGoals.length > 0 && (
           <div className="shrink-0 mx-2 mt-2">
             <MissionPanelCollapsible goals={missionGoals} />
           </div>
@@ -728,13 +661,14 @@ const App: React.FC = () => {
       {/* Input Area - ChatGPT style: mic+voice when empty, mic+send when typing */}
       <footer className="border-t border-gray-800 bg-proxi-dark p-3 shrink-0" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          {/* File Upload */}
+          {/* Camera/Image Upload - capture="environment" enables camera on mobile */}
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileSelect}
             className="hidden"
             accept="image/*"
+            capture="environment"
           />
           <button
             type="button"
