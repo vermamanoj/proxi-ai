@@ -20,7 +20,8 @@ from backend.database import (
     init_db,
     get_missions_list, get_mission_items_list, update_item_status_record,
     create_session, get_session, update_session, get_sessions_list, close_session,
-    append_session_message, append_session_goal, update_session_goal
+    append_session_message, append_session_goal, update_session_goal,
+    save_session_image, get_session_images, get_image_by_id
 )
 
 # Initialize database on startup
@@ -405,6 +406,68 @@ async def close_session_endpoint(session_id: str):
     """Close a session (archive it)."""
     close_session(session_id)
     return {"session_id": session_id, "status": "closed"}
+
+# --- IMAGE STORAGE ---
+
+IMAGES_DIR = Path("/app/data/images") if Path("/app/data").exists() else Path("images")
+IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+
+@app.post("/api/sessions/{session_id}/images")
+async def upload_session_image(session_id: str, request: Request):
+    """Upload an image for a session (base64 or multipart)."""
+    import base64
+    import uuid
+    
+    content_type = request.headers.get("content-type", "")
+    
+    if "application/json" in content_type:
+        # Base64 upload
+        data = await request.json()
+        image_data = data.get("image")  # base64 string
+        filename = data.get("filename", "image.png")
+        source = data.get("source", "user")  # user, screenshot, agent
+        metadata = data.get("metadata", {})
+        
+        if not image_data:
+            raise HTTPException(status_code=400, detail="image (base64) required")
+        
+        # Remove data URL prefix if present
+        if "," in image_data:
+            image_data = image_data.split(",")[1]
+        
+        image_id = f"img_{uuid.uuid4().hex[:12]}"
+        file_path = IMAGES_DIR / f"{image_id}.png"
+        
+        with open(file_path, "wb") as f:
+            f.write(base64.b64decode(image_data))
+        
+        save_session_image(session_id, image_id, filename, "image/png", source, metadata)
+        return {"image_id": image_id, "url": f"/api/images/{image_id}"}
+    else:
+        raise HTTPException(status_code=400, detail="JSON with base64 image required")
+
+@app.get("/api/sessions/{session_id}/images")
+async def list_session_images(session_id: str):
+    """Get all images for a session."""
+    images = get_session_images(session_id)
+    for img in images:
+        img["url"] = f"/api/images/{img['image_id']}"
+    return {"images": images}
+
+@app.get("/api/images/{image_id}")
+async def get_image(image_id: str):
+    """Get an image by ID."""
+    from fastapi.responses import FileResponse
+    
+    img_meta = get_image_by_id(image_id)
+    if not img_meta:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    file_path = IMAGES_DIR / f"{image_id}.png"
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Image file not found")
+    
+    return FileResponse(file_path, media_type=img_meta.get("content_type", "image/png"))
 
 # --- WORKSTATION / AGENT MANAGEMENT ---
 

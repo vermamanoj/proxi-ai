@@ -68,6 +68,21 @@ def init_db():
         c.execute("ALTER TABLE sessions ADD COLUMN user_id TEXT")
     except sqlite3.OperationalError: pass
     
+    # Session Images Table - For storing screenshots and user photos
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS session_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT,
+            image_id TEXT UNIQUE,
+            filename TEXT,
+            content_type TEXT,
+            source TEXT,
+            created_at TIMESTAMP,
+            metadata TEXT,
+            FOREIGN KEY(session_id) REFERENCES sessions(id)
+        )
+    ''')
+    
     conn.commit()
     conn.close()
     log_system("Memory DB Initialized (Verifiable Agent Schema)", "DB")
@@ -247,3 +262,53 @@ def get_sessions_list(limit: int = 20, user_id: str = None):
 def close_session(session_id: str):
     """Mark session as closed."""
     update_session(session_id, status="closed")
+
+# ============== IMAGE STORAGE ==============
+
+def save_session_image(session_id: str, image_id: str, filename: str, content_type: str, source: str = "user", metadata: dict = None):
+    """Save image metadata to database. Actual file stored on disk."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    meta_json = json.dumps(metadata) if metadata else "{}"
+    c.execute("""
+        INSERT OR REPLACE INTO session_images 
+        (session_id, image_id, filename, content_type, source, created_at, metadata)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (session_id, image_id, filename, content_type, source, datetime.datetime.now(), meta_json))
+    conn.commit()
+    conn.close()
+    return image_id
+
+def get_session_images(session_id: str):
+    """Get all images for a session."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM session_images WHERE session_id = ? ORDER BY created_at", (session_id,))
+    rows = []
+    for row in c.fetchall():
+        d = dict(row)
+        try:
+            d['metadata'] = json.loads(d['metadata']) if d['metadata'] else {}
+        except:
+            d['metadata'] = {}
+        rows.append(d)
+    conn.close()
+    return rows
+
+def get_image_by_id(image_id: str):
+    """Get image metadata by ID."""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM session_images WHERE image_id = ?", (image_id,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        d = dict(row)
+        try:
+            d['metadata'] = json.loads(d['metadata']) if d['metadata'] else {}
+        except:
+            d['metadata'] = {}
+        return d
+    return None

@@ -13,6 +13,7 @@ import { LandingPage } from './components/LandingPage';
 import { LoginPage } from './components/LoginPage';
 import { VerificationBadge } from './components/VerificationBadge';
 import { MissionPlan, Goal } from './components/MissionPlan';
+import { MissionPanelCollapsible } from './components/MissionPanelCollapsible';
 import { SessionHistory } from './components/SessionHistory';
 import { AgentSelector } from './components/AgentSelector';
 import { AdminPanel } from './components/AdminPanel';
@@ -607,21 +608,8 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-hidden flex flex-col">
         {/* Collapsible Mission Panel - only in Remote mode when goals exist */}
         {mode === 'remote' && missionGoals.length > 0 && (
-          <div className="shrink-0 border-b border-gray-800">
-            <button
-              onClick={() => setMissionExpanded(!missionExpanded)}
-              className="w-full flex items-center justify-between px-4 py-2 bg-gray-900/50 hover:bg-gray-800/50 transition-colors"
-            >
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                📋 Mission ({missionGoals.filter(g => g.status === 'complete').length}/{missionGoals.length})
-              </span>
-              {missionExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
-            </button>
-            {missionExpanded && (
-              <div className="px-3 pb-2">
-                <MissionPlan goals={missionGoals} />
-              </div>
-            )}
+          <div className="shrink-0 mx-2 mt-2">
+            <MissionPanelCollapsible goals={missionGoals} />
           </div>
         )}
         
