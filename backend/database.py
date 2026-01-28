@@ -6,9 +6,16 @@ from backend.utils.logger import log_system
 
 DB_PATH = Path("/app/data/proxi_memory.db") if Path("/app/data").exists() else Path("proxi_memory.db")
 
+def get_connection():
+    """Get a database connection with WAL mode for concurrent access."""
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+    return conn
+
 def init_db():
     """Initialize the SQLite database with missions and work_items tables."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     c = conn.cursor()
     
     # Missions Table - NOW WITH VERIFICATION COLUMNS
@@ -88,7 +95,7 @@ def init_db():
     log_system("Memory DB Initialized (Verifiable Agent Schema)", "DB")
 
 def create_mission_record(mission_id: str, goal: str, criteria: dict = None):
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     c = conn.cursor()
     criteria_json = json.dumps(criteria) if criteria else "{}"
     c.execute("INSERT INTO missions (id, goal, status, created_at, verification_criteria, verification_status) VALUES (?, ?, ?, ?, ?, ?)",
@@ -97,7 +104,7 @@ def create_mission_record(mission_id: str, goal: str, criteria: dict = None):
     conn.close()
 
 def update_mission_verification(mission_id: str, status: str, summary: str = None):
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     c = conn.cursor()
     if summary:
         c.execute("UPDATE missions SET verification_status = ?, logs_summary = ? WHERE id = ?", (status, summary, mission_id))
@@ -107,7 +114,7 @@ def update_mission_verification(mission_id: str, status: str, summary: str = Non
     conn.close()
 
 def get_mission_record(mission_id: str):
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM missions WHERE id = ?", (mission_id,))
@@ -116,7 +123,7 @@ def get_mission_record(mission_id: str):
     return dict(row) if row else None
 
 def add_work_item_record(mission_id: str, item_type: str, source: str, attributes: dict):
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     c = conn.cursor()
     attr_json = json.dumps(attributes)
     c.execute("INSERT INTO work_items (mission_id, type, source, status, attributes) VALUES (?, ?, ?, ?, ?)",
@@ -127,7 +134,7 @@ def add_work_item_record(mission_id: str, item_type: str, source: str, attribute
     return item_id
 
 def get_missions_list():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM missions ORDER BY created_at DESC")
@@ -136,7 +143,7 @@ def get_missions_list():
     return rows
 
 def get_mission_items_list(mission_id: str):
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM work_items WHERE mission_id = ?", (mission_id,))
@@ -152,7 +159,7 @@ def get_mission_items_list(mission_id: str):
     return rows
 
 def update_item_status_record(item_id: int, status: str):
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     c = conn.cursor()
     c.execute("UPDATE work_items SET status = ? WHERE id = ?", (status, item_id))
     conn.commit()
@@ -162,7 +169,7 @@ def update_item_status_record(item_id: int, status: str):
 
 def create_session(session_id: str, title: str = None, user_id: str = None):
     """Create a new session with optional user association."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     c = conn.cursor()
     now = datetime.datetime.now()
     c.execute(
@@ -175,7 +182,7 @@ def create_session(session_id: str, title: str = None, user_id: str = None):
 
 def get_session(session_id: str):
     """Get a session by ID."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM sessions WHERE id = ?", (session_id,))
@@ -191,7 +198,7 @@ def get_session(session_id: str):
 
 def update_session(session_id: str, title: str = None, requirements: list = None, goals: list = None, messages: list = None, status: str = None):
     """Update session data."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     c = conn.cursor()
     updates = ["updated_at = ?"]
     values = [datetime.datetime.now()]
@@ -248,7 +255,7 @@ def update_session_goal(session_id: str, goal_id: str, status: str, result: str 
 
 def get_sessions_list(limit: int = 20, user_id: str = None):
     """Get recent sessions, optionally filtered by user."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     if user_id:
@@ -267,7 +274,7 @@ def close_session(session_id: str):
 
 def save_session_image(session_id: str, image_id: str, filename: str, content_type: str, source: str = "user", metadata: dict = None):
     """Save image metadata to database. Actual file stored on disk."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     c = conn.cursor()
     meta_json = json.dumps(metadata) if metadata else "{}"
     c.execute("""
@@ -281,7 +288,7 @@ def save_session_image(session_id: str, image_id: str, filename: str, content_ty
 
 def get_session_images(session_id: str):
     """Get all images for a session."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM session_images WHERE session_id = ? ORDER BY created_at", (session_id,))
@@ -298,7 +305,7 @@ def get_session_images(session_id: str):
 
 def get_image_by_id(image_id: str):
     """Get image metadata by ID."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_connection()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute("SELECT * FROM session_images WHERE image_id = ?", (image_id,))

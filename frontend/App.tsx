@@ -84,7 +84,8 @@ const App: React.FC = () => {
     disconnect: liveDisconnect, 
     sendCommand: liveSendCommand,
     volume: liveVolume, 
-    logs: liveLogs, 
+    logs: liveLogs,  // Full logs for mission panel extraction
+    chatLogs: liveChatLogs,  // Filtered logs for chat display
     activeTool: liveActiveTool,
     micMuted,
     toggleMicMute,
@@ -116,19 +117,18 @@ const App: React.FC = () => {
     liveConnect();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Convert liveLogs to trace format for display when using voice
+  // Convert liveChatLogs to trace format for display when using voice
   const liveTrace: TraceStep[] = useMemo(() => {
-    return liveLogs.map(log => ({
+    return liveChatLogs.map(log => ({
       step_type: (log.source === MessageSource.USER ? 'user_input' 
                : log.metadata?.screenshot ? 'status_change'  // Screenshots need status_change for proper rendering
                : log.metadata?.completed ? 'tool_result'  // Completed tools get tool_result type
-               : log.source === MessageSource.AGENT ? 'final_response'
-               : log.source === MessageSource.TOOL ? 'tool_call'
-               : 'status_change') as TraceStep['step_type'],
+               : log.source === MessageSource.SYSTEM ? 'status_change' 
+               : 'llm_thought'),
       content: log.text,
       metadata: log.metadata
     }));
-  }, [liveLogs]);
+  }, [liveChatLogs]);
 
   // Use liveTrace when voice connected, otherwise use lastTrace
   const displayTrace: TraceStep[] = liveConnected ? liveTrace : lastTrace;

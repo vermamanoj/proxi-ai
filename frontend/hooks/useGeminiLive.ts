@@ -598,7 +598,7 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     return () => clearInterval(saveInterval);
   }, [logs]);
   
-  return { connected, connectionStatus, connect, disconnect, sendCommand, volume, logs: chatLogs, activeTool, micMuted, toggleMicMute, clearSession, loadSession, markActiveGoalFailed };
+  return { connected, connectionStatus, connect, disconnect, sendCommand, volume, logs, chatLogs, activeTool, micMuted, toggleMicMute, clearSession, loadSession, markActiveGoalFailed };
 };
 
 function decodeAtob(base64: string) {
