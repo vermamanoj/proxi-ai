@@ -509,3 +509,35 @@ To reset: Delete `backend/auth/users.json` and restart.
 - `frontend/components/MissionPanelCollapsible.tsx` - New component
 - `frontend/hooks/useGeminiLive.ts` - Stale session cleanup
 - `frontend/hooks/useWorkstations.ts` - isDefault mapping fix
+
+### 2026-01-28 Session 6 (Bug Fixes & Stability)
+
+**Database Stability:**
+| Change | Details |
+|--------|---------|
+| SQLite WAL mode | Added `get_connection()` with WAL mode and 30s timeout for concurrent access |
+| Session UNIQUE fix | Changed to `INSERT OR IGNORE` to prevent duplicate session errors |
+| Connection pooling | All DB functions now use centralized `get_connection()` |
+
+**UI Improvements:**
+| Component | Fix |
+|-----------|-----|
+| Multiline input | Changed to textarea with Shift+Enter for newlines, Enter to submit |
+| Default agent | Improved selection priority: online default > default > online > first |
+| Mission panel | Returns full logs (not filtered) for goal extraction |
+
+**Architecture Clarifications:**
+- Command Guard triggers on **Core** (gemini_service.py), not Agent
+- Voice mode requires `VITE_GEMINI_API_KEY` in root `.env` (passed via docker-compose build args)
+- Approval asked twice = LLM retry on connection error (expected behavior)
+
+**Known Issues / Future Work:**
+- Mission panel tracking depends on LLM outputting structured PLAN: blocks
+- Consider simpler Activity Log approach instead of goal completion tracking
+- Add structured goals/steps prompt to Gemini system instruction
+
+**Files Modified:**
+- `backend/database.py` - WAL mode, INSERT OR IGNORE
+- `frontend/App.tsx` - Textarea input, proper log extraction
+- `frontend/hooks/useWorkstations.ts` - Improved default selection
+- `frontend/hooks/useGeminiLive.ts` - Return both logs and chatLogs

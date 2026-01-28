@@ -2,6 +2,22 @@
 
 All notable changes to Proxi are documented in this file.
 
+## [2.4.0] - January 28, 2026
+
+### Added
+- **Multiline Input**: Textarea with Shift+Enter for newlines, Enter to submit
+- **SQLite WAL Mode**: Concurrent database access with 30s timeout
+
+### Changed
+- **Default Agent Selection**: Improved priority (online default > default > online > first)
+- **Session Creation**: Uses INSERT OR IGNORE to prevent UNIQUE constraint errors
+
+### Fixed
+- **Database Locked**: WAL mode + centralized `get_connection()` prevents concurrent access errors
+- **Mission Panel**: Now receives full logs (not filtered) for proper goal extraction
+
+---
+
 ## [2.3.0] - January 28, 2026
 
 ### Added
