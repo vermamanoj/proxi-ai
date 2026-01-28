@@ -88,6 +88,42 @@ ls -la .env
 
 ---
 
+## 2.1 User Credentials
+
+On first run, Proxi generates random passwords for default users (`demo`, `judge`, `admin`). These are saved to:
+- `backend/auth/users.json` (hashed passwords)
+- `backend/auth/INITIAL_CREDENTIALS.txt` (plaintext, delete after noting)
+
+### Setting Custom Passwords
+
+Run from project root on the **host machine** (not inside Docker):
+
+```bash
+# Set password for each user
+python3 scripts/set_password.py demo YourDemoPassword
+python3 scripts/set_password.py admin YourAdminPassword
+python3 scripts/set_password.py judge YourJudgePassword
+
+# Restart core for changes to take effect
+docker compose restart core
+```
+
+**Mobile-friendly password tips:**
+- Use 8+ characters
+- Avoid symbols that require keyboard switching (e.g., `@#$%`)
+- Good: `ProxiDemo2026`, `JudgeAccess42`
+
+### Resetting All Credentials
+
+```bash
+# Delete users file and restart - new random passwords will be generated
+rm backend/auth/users.json
+docker compose restart core
+docker logs proxi-ai-core-1 | head -30  # View new passwords
+```
+
+---
+
 ## 3. Docker Commands
 
 ```powershell

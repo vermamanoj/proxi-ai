@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """
 Set custom passwords for Proxi users.
-Run: python set_password.py <username> <new_password>
+
+Run from project root (host machine, NOT inside Docker):
+  python scripts/set_password.py <username> <new_password>
 
 Examples:
-  python set_password.py demo MyDemo2026!
-  python set_password.py admin SecureAdmin#99
-  python set_password.py judge JudgePass$42
+  python scripts/set_password.py demo ProxiDemo2026
+  python scripts/set_password.py admin SecureAdmin99
+  python scripts/set_password.py judge JudgeAccess42
+
+Password is saved to: backend/auth/users.json
+(This file is volume-mounted into the core container)
 """
 
 import sys
@@ -20,9 +25,16 @@ def hash_password(password: str) -> str:
     salt = "proxi_hackathon_salt_2026"
     return hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
 
+def find_users_file() -> Path:
+    """Find users.json relative to script location."""
+    script_dir = Path(__file__).parent
+    # Script is in /scripts, users.json is in /backend/auth
+    project_root = script_dir.parent
+    return project_root / "backend" / "auth" / "users.json"
+
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python set_password.py <username> <new_password>")
+        print("Usage: python scripts/set_password.py <username> <new_password>")
         print("\nAvailable users: demo, judge, admin")
         print("\nTip: Use passwords that are:")
         print("  - 8+ characters")
@@ -34,12 +46,12 @@ def main():
     new_password = sys.argv[2]
     
     # Find users.json
-    script_dir = Path(__file__).parent
-    users_file = script_dir / "users.json"
+    users_file = find_users_file()
     
     if not users_file.exists():
         print(f"Error: {users_file} not found")
-        print("Run the backend once first to create default users")
+        print("Run the backend once first to create default users:")
+        print("  docker compose up core -d")
         sys.exit(1)
     
     # Load users
