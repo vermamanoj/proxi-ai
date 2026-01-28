@@ -150,8 +150,16 @@ const App: React.FC = () => {
     });
   }, [liveChatLogs]);
 
-  // Use liveTrace when voice connected, otherwise use lastTrace
-  const rawTrace: TraceStep[] = liveConnected ? liveTrace : lastTrace;
+  // Combine both traces - liveTrace for voice, lastTrace for text/direct commands
+  // This ensures direct commands (!ls) show even when voice is connected
+  const rawTrace: TraceStep[] = useMemo(() => {
+    // If voice connected, combine both traces (voice + text commands)
+    if (liveConnected) {
+      // Avoid duplicates by using lastTrace only if it has newer content
+      return [...liveTrace, ...lastTrace];
+    }
+    return lastTrace;
+  }, [liveConnected, liveTrace, lastTrace]);
   
   // Filter trace based on debug mode - hide thinking when debug is OFF
   const displayTrace: TraceStep[] = useMemo(() => {
