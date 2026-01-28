@@ -23,6 +23,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
     switch (status) {
       case 'online': return 'text-green-400';
       case 'offline': return 'text-red-400';
+      case 'error': return 'text-red-400';
       case 'starting': return 'text-yellow-400';
       default: return 'text-gray-400';
     }
@@ -89,7 +90,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
             </div>
             <div className="max-h-64 overflow-y-auto">
               {workstations.map((ws) => {
-                const isOffline = ws.status === 'offline';
+                const isOffline = ws.status === 'offline' || ws.status === 'error';
                 const isActive = activeWorkstation?.id === ws.id;
                 return (
                   <button
@@ -110,7 +111,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
                     {/* OS Icon */}
                     <span className={`text-lg ${isOffline ? 'grayscale' : ''}`}>{getOsIcon(ws)}</span>
                     {/* Status dot */}
-                    <div className={`w-2 h-2 rounded-full ${ws.status === 'online' ? 'bg-green-400' : 'bg-gray-500'}`} />
+                    <div className={`w-2 h-2 rounded-full ${ws.status === 'online' ? 'bg-green-400' : isOffline ? 'bg-red-400' : 'bg-gray-500'}`} />
                     <div className="flex-1 text-left min-w-0">
                       <div className={`text-sm truncate ${isOffline ? 'text-gray-500' : 'text-gray-200'}`}>{ws.name}</div>
                       <div className="text-xs text-gray-500 truncate">

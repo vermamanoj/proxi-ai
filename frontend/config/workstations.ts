@@ -7,7 +7,7 @@
  */
 
 export type WorkstationType = 'container' | 'vm' | 'physical' | 'mock';
-export type WorkstationStatus = 'online' | 'offline' | 'starting' | 'unknown';
+export type WorkstationStatus = 'online' | 'offline' | 'starting' | 'unknown' | 'error';
 
 export interface Workstation {
   id: string;

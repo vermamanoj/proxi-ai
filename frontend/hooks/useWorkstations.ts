@@ -115,24 +115,11 @@ export function useWorkstations(): UseWorkstationsResult {
     return () => clearInterval(interval);
   }, [refreshWorkstations]);
 
-  // Set default active workstation - prioritize online default, then any online, then first
-  useEffect(() => {
-    if (!activeWorkstationId && workstations.length > 0 && !isLoading) {
-      // Priority: online default > any default > first online > first
-      const onlineDefault = workstations.find(w => w.isDefault && w.status === 'online');
-      const anyDefault = workstations.find(w => w.isDefault);
-      const firstOnline = workstations.find(w => w.status === 'online');
-      const defaultWs = onlineDefault || anyDefault || firstOnline || workstations[0];
-      console.log('[Workstations] Auto-selecting:', defaultWs.id, defaultWs.name);
-      setActiveWorkstationId(defaultWs.id);
-    }
-  }, [workstations, activeWorkstationId, isLoading]);
-
   const setActiveWorkstation = useCallback(async (id: string) => {
     // Check if agent is online before activating
     const ws = workstations.find(w => w.id === id);
-    if (ws && ws.status === 'offline') {
-      setError(`Cannot select "${ws.name}" - agent is offline`);
+    if (ws && (ws.status === 'offline' || ws.status === 'error')) {
+      setError(`Cannot select "${ws.name}" - agent is ${ws.status}`);
       console.warn(`Attempted to select offline agent: ${id}`);
       return;
     }
@@ -159,6 +146,24 @@ export function useWorkstations(): UseWorkstationsResult {
       }
     }
   }, [backendAvailable, workstations]);
+
+  // Set default active workstation - prioritize online default, then any online, then first
+  useEffect(() => {
+    if (!activeWorkstationId && workstations.length > 0 && !isLoading) {
+      // Priority: online default > any default > first online > first
+      const onlineDefault = workstations.find(w => w.isDefault && w.status === 'online');
+      const firstOnline = workstations.find(w => w.status === 'online');
+      const anyDefault = workstations.find(w => w.isDefault);
+      const defaultWs = onlineDefault || firstOnline || anyDefault || workstations[0];
+      console.log('[Workstations] Auto-selecting:', defaultWs.id, defaultWs.name);
+      if (defaultWs.status !== 'online') {
+        setActiveWorkstationId(defaultWs.id);
+        return;
+      }
+
+      setActiveWorkstation(defaultWs.id);
+    }
+  }, [workstations, activeWorkstationId, isLoading, setActiveWorkstation]);
 
   const activeWorkstation = workstations.find(w => w.id === activeWorkstationId) || null;
 

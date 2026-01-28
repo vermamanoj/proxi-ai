@@ -165,7 +165,12 @@ class WorkstationRegistry:
     
     def register_workstation(self, workstation: Workstation) -> Workstation:
         """Register a new workstation."""
-        workstation.created_at = datetime.utcnow().isoformat()
+        existing = self.workstations.get(workstation.id)
+        if existing:
+            workstation.is_default = existing.is_default
+            workstation.created_at = existing.created_at
+        else:
+            workstation.created_at = datetime.utcnow().isoformat()
         workstation.status = WorkstationStatus.UNKNOWN.value
         self.workstations[workstation.id] = workstation
         self._save_workstations()
@@ -204,20 +209,16 @@ class WorkstationRegistry:
                     if response.status == 200:
                         ws.status = WorkstationStatus.ONLINE.value
                         ws.last_seen = datetime.utcnow().isoformat()
-                        self._save_workstations()
                         return WorkstationStatus.ONLINE
                     else:
                         ws.status = WorkstationStatus.ERROR.value
-                        self._save_workstations()
                         return WorkstationStatus.ERROR
         except asyncio.TimeoutError:
             ws.status = WorkstationStatus.OFFLINE.value
-            self._save_workstations()
             return WorkstationStatus.OFFLINE
         except Exception as e:
             print(f"[REGISTRY] Health check failed for {workstation_id}: {e}")
             ws.status = WorkstationStatus.ERROR.value
-            self._save_workstations()
             return WorkstationStatus.ERROR
     
     async def check_all_health(self) -> Dict[str, WorkstationStatus]:
