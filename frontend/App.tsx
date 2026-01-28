@@ -648,16 +648,6 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Agent Selection Prompt - when Remote mode but no agent selected */}
-      {mode === 'remote' && !activeWorkstation && (
-        <div className="border-t border-yellow-500/30 bg-yellow-500/10 px-4 py-2 flex items-center gap-2">
-          <Info className="w-4 h-4 text-yellow-400 shrink-0" />
-          <span className="text-sm text-yellow-300">
-            Select an agent from the dropdown above to execute remote commands
-          </span>
-        </div>
-      )}
-
       {/* Input Area - ChatGPT style: mic+voice when empty, mic+send when typing */}
       <footer className="border-t border-gray-800 bg-proxi-dark p-3 shrink-0" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
