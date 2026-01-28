@@ -59,6 +59,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- AUTH HELPER ---
+async def require_auth(request: Request, require_admin: bool = False) -> dict:
+    """Helper to require authentication. Returns user dict or raises 401/403."""
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    user = auth_service.get_user_for_session(session_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    
+    if require_admin and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return {"username": user.username, "role": user.role, "display_name": user.display_name}
+
 @app.get("/")
 async def root():
     import platform
@@ -259,8 +275,9 @@ async def revoke_magic_link(token: str, request: Request):
     return JSONResponse({"error": "Link not found"}, status_code=404)
 
 @app.post("/api/chat")
-async def chat(request: ChatRequest):
-    """Streaming Endpoint for Agent Thoughts"""
+async def chat(request: ChatRequest, http_request: Request):
+    """Streaming Endpoint for Agent Thoughts. Requires auth."""
+    await require_auth(http_request)
     try:
         return StreamingResponse(
             gemini_service.route_and_execute_stream(
@@ -275,9 +292,12 @@ async def chat(request: ChatRequest):
 
 @app.post("/api/vision", response_model=ChatResponse)
 async def vision_analysis(
+    request: Request,
     file: UploadFile = File(...),
     prompt: str = Form("Analyze this architecture diagram")
 ):
+    """Vision analysis. Requires auth."""
+    await require_auth(request)
     try:
         contents = await file.read()
         response_text = await gemini_service.process_vision_command(contents, prompt)
@@ -293,11 +313,13 @@ async def vision_analysis(
 
 @app.post("/api/vision-action")
 async def vision_with_action(
+    request: Request,
     file: UploadFile = File(...),
     prompt: str = Form("Analyze this image"),
     complexity: str = Form("deep")
 ):
-    """Process image with full agent pipeline - can execute actions based on image content"""
+    """Process image with full agent pipeline. Requires auth."""
+    await require_auth(request)
     import base64
     try:
         contents = await file.read()
@@ -320,18 +342,21 @@ IMAGE_DATA:{mime_type};base64,{image_base64}"""
 # --- MEMORY / MISSION API ENDPOINTS ---
 
 @app.get("/api/missions")
-async def get_missions():
-    """List all active research missions"""
+async def get_missions(request: Request):
+    """List all active research missions. Requires auth."""
+    await require_auth(request)
     return get_missions_list()
 
 @app.get("/api/missions/{mission_id}/items")
-async def get_mission_items(mission_id: str):
-    """Get all found items (leads, bugs) for a mission"""
+async def get_mission_items(mission_id: str, request: Request):
+    """Get all found items. Requires auth."""
+    await require_auth(request)
     return get_mission_items_list(mission_id)
 
 @app.post("/api/items/{item_id}/status")
-async def update_item_status(item_id: int, status_update: dict = Body(...)):
-    """Update item status (e.g. APPROVED, REJECTED)"""
+async def update_item_status(item_id: int, request: Request, status_update: dict = Body(...)):
+    """Update item status. Requires auth."""
+    await require_auth(request)
     new_status = status_update.get("status")
     if not new_status:
         raise HTTPException(status_code=400, detail="Status required")
@@ -339,45 +364,37 @@ async def update_item_status(item_id: int, status_update: dict = Body(...)):
     return {"id": item_id, "status": new_status}
 
 @app.post("/api/desktop/execute")
-async def execute_desktop_action():
+async def execute_desktop_action(request: Request):
+    """Execute desktop action. Requires auth."""
+    await require_auth(request)
     return {"status": "executed", "result": "Atomic Mode"}
 
 # --- SESSION MANAGEMENT ---
 
 @app.get("/api/sessions")
 async def list_sessions(request: Request, limit: int = 20):
-    """Get list of recent sessions, filtered by user if logged in."""
-    user_id = None
-    session_cookie = request.cookies.get("session_id")
-    if session_cookie:
-        user = auth_service.get_user_for_session(session_cookie)
-        if user:
-            user_id = user.username
-    return get_sessions_list(limit, user_id=user_id)
+    """Get list of recent sessions. Requires auth."""
+    user = await require_auth(request)
+    # Only return sessions for this user
+    return get_sessions_list(limit, user_id=user["username"])
 
 @app.post("/api/sessions")
 async def create_new_session(request: Request):
-    """Create a new session with user association if logged in."""
+    """Create a new session. Requires auth."""
+    user = await require_auth(request)
     data = await request.json()
     session_id = data.get("session_id")
     title = data.get("title")
     if not session_id:
         raise HTTPException(status_code=400, detail="session_id required")
     
-    # Get user_id from auth cookie if present
-    user_id = None
-    session_cookie = request.cookies.get("session_id")
-    if session_cookie:
-        user = auth_service.get_user_for_session(session_cookie)
-        if user:
-            user_id = user.username
-    
-    create_session(session_id, title, user_id=user_id)
-    return {"session_id": session_id, "user_id": user_id, "status": "created"}
+    create_session(session_id, title, user_id=user["username"])
+    return {"session_id": session_id, "user_id": user["username"], "status": "created"}
 
 @app.get("/api/sessions/{session_id}")
-async def get_session_details(session_id: str):
-    """Get a session by ID with full history."""
+async def get_session_details(session_id: str, request: Request):
+    """Get a session by ID. Requires auth."""
+    await require_auth(request)
     session = get_session(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -385,7 +402,8 @@ async def get_session_details(session_id: str):
 
 @app.put("/api/sessions/{session_id}")
 async def update_session_data(session_id: str, request: Request):
-    """Update session data (title, goals, messages)."""
+    """Update session data. Requires auth."""
+    await require_auth(request)
     data = await request.json()
     update_session(
         session_id,
@@ -399,28 +417,32 @@ async def update_session_data(session_id: str, request: Request):
 
 @app.post("/api/sessions/{session_id}/messages")
 async def add_session_message(session_id: str, request: Request):
-    """Append a message to session history."""
+    """Append a message to session history. Requires auth."""
+    await require_auth(request)
     message = await request.json()
     append_session_message(session_id, message)
     return {"status": "added"}
 
 @app.post("/api/sessions/{session_id}/goals")
 async def add_session_goal(session_id: str, request: Request):
-    """Append a goal to session."""
+    """Append a goal to session. Requires auth."""
+    await require_auth(request)
     goal = await request.json()
     append_session_goal(session_id, goal)
     return {"status": "added"}
 
 @app.put("/api/sessions/{session_id}/goals/{goal_id}")
 async def update_goal_status(session_id: str, goal_id: str, request: Request):
-    """Update a goal's status."""
+    """Update a goal's status. Requires auth."""
+    await require_auth(request)
     data = await request.json()
     update_session_goal(session_id, goal_id, data.get("status"), data.get("result"))
     return {"status": "updated"}
 
 @app.post("/api/sessions/{session_id}/close")
-async def close_session_endpoint(session_id: str):
-    """Close a session (archive it)."""
+async def close_session_endpoint(session_id: str, request: Request):
+    """Close a session. Requires auth."""
+    await require_auth(request)
     close_session(session_id)
     return {"session_id": session_id, "status": "closed"}
 
@@ -431,7 +453,8 @@ IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 @app.post("/api/sessions/{session_id}/images")
 async def upload_session_image(session_id: str, request: Request):
-    """Upload an image for a session (base64 or multipart)."""
+    """Upload an image for a session. Requires auth."""
+    await require_auth(request)
     import base64
     import uuid
     
@@ -464,16 +487,18 @@ async def upload_session_image(session_id: str, request: Request):
         raise HTTPException(status_code=400, detail="JSON with base64 image required")
 
 @app.get("/api/sessions/{session_id}/images")
-async def list_session_images(session_id: str):
-    """Get all images for a session."""
+async def list_session_images(session_id: str, request: Request):
+    """Get all images for a session. Requires auth."""
+    await require_auth(request)
     images = get_session_images(session_id)
     for img in images:
         img["url"] = f"/api/images/{img['image_id']}"
     return {"images": images}
 
 @app.get("/api/images/{image_id}")
-async def get_image(image_id: str):
-    """Get an image by ID."""
+async def get_image(image_id: str, request: Request):
+    """Get an image by ID. Requires auth."""
+    await require_auth(request)
     from fastapi.responses import FileResponse
     
     img_meta = get_image_by_id(image_id)
@@ -487,21 +512,6 @@ async def get_image(image_id: str):
     return FileResponse(file_path, media_type=img_meta.get("content_type", "image/png"))
 
 # --- WORKSTATION / AGENT MANAGEMENT ---
-
-async def require_auth(request: Request, require_admin: bool = False) -> dict:
-    """Helper to require authentication. Returns user dict or raises 401/403."""
-    session_id = request.cookies.get("session_id")
-    if not session_id:
-        raise HTTPException(status_code=401, detail="Authentication required")
-    
-    user = auth_service.get_user_for_session(session_id)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid or expired session")
-    
-    if require_admin and user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-    
-    return {"username": user.username, "role": user.role, "display_name": user.display_name}
 
 @app.get("/api/workstations")
 async def get_workstations(request: Request):
