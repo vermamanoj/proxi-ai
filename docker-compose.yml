@@ -11,6 +11,7 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./.env:/app/.env
+      - ./data:/app/data  # Persist SQLite database across rebuilds
       # Note: auth data persists via ./backend/auth (already mounted above)
     ports:
       - "4000:8000"

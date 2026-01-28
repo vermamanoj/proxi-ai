@@ -232,7 +232,7 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
                                 } else if (data.type === 'status_change' && data.metadata?.screenshot) {
                                     // Handle screenshot - add to logs with metadata for display
                                     addLog(MessageSource.AGENT, data.content || 'Screenshot', { screenshot: data.metadata.screenshot });
-                                } else if (data.type === 'response') {
+                                } else if (data.type === 'response' || data.type === 'final_response') {
                                     finalSummary = data.content;
                                     addLog(MessageSource.AGENT, `Core Result: ${data.content}`);
                                 } else if (data.type === 'plan') {
@@ -319,11 +319,13 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
       return;
     }
     connectingRef.current = true;
+    console.log('[LIVE] 🎤 Starting voice connection...');
     
     try {
       setConnectionStatus('connecting');
       // Vite exposes env vars via import.meta.env with VITE_ prefix
       const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+      console.log('[LIVE] API Key present:', !!apiKey, apiKey ? `(${apiKey.substring(0,10)}...)` : '');
       if (!apiKey) {
         addLog(MessageSource.SYSTEM, '⚠️ Voice mode requires VITE_GEMINI_API_KEY in frontend/.env');
         setConnectionStatus('error');
@@ -331,7 +333,9 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
         return;
       }
 
+      console.log('[LIVE] Creating GoogleGenAI client...');
       const ai = new GoogleGenAI({ apiKey });
+      console.log('[LIVE] Creating AudioContexts (input@16kHz, output@24kHz)...');
       inputContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       
@@ -340,13 +344,16 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
       gainNodeRef.current.gain.value = audioOutputEnabledRef.current ? 1 : 0;
       gainNodeRef.current.connect(audioContextRef.current.destination);
       
+      console.log('[LIVE] Requesting microphone access...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('[LIVE] ✓ Microphone access granted, tracks:', stream.getAudioTracks().length);
       streamRef.current = stream;
 
       // Use different config based on backend mode
       const systemInstruction = backendEnabledRef.current ? SYSTEM_INSTRUCTION_RELAY : SYSTEM_INSTRUCTION_CHAT;
       const tools = backendEnabledRef.current ? [{ functionDeclarations: TOOLS }] : undefined;
       
+      console.log('[LIVE] Connecting to Gemini Live API (model: gemini-2.5-flash-native-audio-preview)...');
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
         config: {
@@ -356,6 +363,7 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
         },
         callbacks: {
           onopen: () => {
+            console.log('[LIVE] ✓ WebSocket OPEN - Connected to Gemini Live!');
             setConnected(true);
             setConnectionStatus('connected');
             // Start muted for 2 seconds to let user compose thoughts
@@ -464,13 +472,22 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
                  sourcesRef.current.add(source);
              }
           },
-          onclose: () => { setConnected(false); setConnectionStatus('disconnected'); },
-          onerror: (err) => { console.error(err); setConnectionStatus('error'); }
+          onclose: () => { 
+            console.log('[LIVE] WebSocket CLOSED');
+            setConnected(false); 
+            setConnectionStatus('disconnected'); 
+          },
+          onerror: (err) => { 
+            console.error('[LIVE] ❌ WebSocket ERROR:', err);
+            setConnectionStatus('error'); 
+          }
         }
       });
       sessionRef.current = sessionPromise;
+      console.log('[LIVE] Session promise created, awaiting connection...');
 
     } catch (err: any) {
+      console.error('[LIVE] ❌ Connection FAILED:', err.message || err);
       setConnectionStatus('error');
       setConnected(false);
       connectingRef.current = false;
