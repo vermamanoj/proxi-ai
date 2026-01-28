@@ -14,6 +14,8 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    // For Capacitor mobile builds, use relative paths
+    base: process.env.CAPACITOR_BUILD ? './' : '/',
     server: {
       host: true,
       port: 5173,
@@ -29,13 +31,23 @@ export default defineConfig(({ mode }) => {
         }
       }
     },
-    // Inject the API Key into the frontend so useGeminiLive.ts can use process.env.API_KEY
+    // Inject env vars into the frontend
     define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      // For mobile: absolute backend URL (set VITE_API_BASE_URL in .env for production)
+      'import.meta.env.VITE_API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL || '')
     },
     build: {
       outDir: 'dist',
       emptyOutDir: true,
+      // Production security: minify and drop console logs
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          drop_console: mode === 'production',
+          drop_debugger: true
+        }
+      }
     }
   };
 });
