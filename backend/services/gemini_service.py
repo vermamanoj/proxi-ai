@@ -368,6 +368,41 @@ class GeminiService:
                     continue
                 raise e
 
+    # --- DIRECT COMMAND DETECTION ---
+    def _is_shell_command(self, message: str) -> bool:
+        """Detect if message looks like a shell command to execute directly."""
+        msg = message.strip()
+        
+        # Common shell commands that should be executed directly
+        shell_prefixes = [
+            # Unix/Linux commands
+            'ls', 'cd', 'pwd', 'cat', 'head', 'tail', 'grep', 'find', 'ps', 'top',
+            'df', 'du', 'free', 'uname', 'whoami', 'id', 'echo', 'date', 'uptime',
+            'mkdir', 'rmdir', 'touch', 'cp', 'mv', 'rm', 'chmod', 'chown',
+            'curl', 'wget', 'ping', 'netstat', 'ss', 'ip', 'ifconfig',
+            'systemctl', 'service', 'journalctl', 'dmesg',
+            # Windows PowerShell commands
+            'dir', 'Get-', 'Set-', 'New-', 'Remove-', 'Copy-', 'Move-',
+            'Get-Process', 'Get-Service', 'Get-ChildItem', 'Get-Content',
+            'ipconfig', 'tasklist', 'netsh', 'wmic',
+            # Common patterns
+            './', '../', '~/'
+        ]
+        
+        # Check if message starts with a shell command
+        for prefix in shell_prefixes:
+            if msg.startswith(prefix) or msg.startswith(f"sudo {prefix}"):
+                return True
+        
+        # Check for pipe or redirect patterns
+        if '|' in msg or '>' in msg or '&&' in msg:
+            # Only if it looks like a command (no natural language sentences)
+            words = msg.split()
+            if len(words) <= 10 and not any(w in msg.lower() for w in ['please', 'can you', 'could you', 'help']):
+                return True
+        
+        return False
+
     # --- MAIN ORCHESTRATOR ---
     async def route_and_execute_stream(self, message: str, complexity_request: str = "fast", session_id: str = None):
         log_system(f"NEW REQUEST: {message} (Mode: {complexity_request}, Session: {session_id})", "ROUTER")
@@ -376,6 +411,34 @@ class GeminiService:
         import uuid
         if not session_id:
             session_id = f"session_{uuid.uuid4().hex[:8]}"
+        
+        # --- DIRECT COMMAND EXECUTION ---
+        # If input looks like a shell command, execute it directly (with guardrails)
+        if self._is_shell_command(message):
+            log_system(f"DIRECT COMMAND DETECTED: {message}", "ROUTER")
+            yield json.dumps({"type": "llm_thought", "content": f"Executing command directly: `{message}`"})
+            
+            result = self.run_terminal_command(message, session_id)
+            
+            # Check if approval is required
+            if isinstance(result, str) and result.startswith("APPROVAL_REQUIRED:"):
+                yield json.dumps({"type": "final_response", "content": result})
+                return
+            elif isinstance(result, str) and result.startswith("BLOCKED:"):
+                yield json.dumps({"type": "final_response", "content": result})
+                return
+            
+            # Format and return result
+            if isinstance(result, dict):
+                if result.get('success'):
+                    output = result.get('output', 'Command completed')
+                    yield json.dumps({"type": "final_response", "content": f"```\n{output}\n```"})
+                else:
+                    error = result.get('error', 'Command failed')
+                    yield json.dumps({"type": "final_response", "content": f"Error: {error}"})
+            else:
+                yield json.dumps({"type": "final_response", "content": f"```\n{result}\n```"})
+            return
         
         # Get or create session history - limit to last 6 messages (3 exchanges) to prevent stale command re-execution
         if session_id not in self.sessions:

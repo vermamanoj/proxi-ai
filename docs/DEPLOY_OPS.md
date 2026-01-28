@@ -230,6 +230,41 @@ taskkill /PID <pid> /F
 - Verify network connectivity between Core and Agent
 - Check firewall rules
 
+### Agent Returns 401 Unauthorized
+
+**Root Cause:** The `PROXI_AGENT_KEY` must be set in `.env` and passed to both `core` and `agent` containers.
+
+**Architecture Note:** There are TWO code paths that call the agent:
+1. `agent_proxy.py` - Used for direct API calls (health checks, activation)
+2. `proxy_adapter.py` - Used by GeminiService for LLM tool execution
+
+Both must include the `X-Agent-Key` header.
+
+**Fix Checklist:**
+```powershell
+# 1. Verify .env has the key
+grep PROXI_AGENT_KEY .env
+
+# 2. Check docker-compose.yml passes it to both services
+# environment:
+#   - PROXI_AGENT_KEY=${PROXI_AGENT_KEY}
+
+# 3. Rebuild containers (env vars are read at container start)
+docker-compose down
+docker-compose up -d --build
+
+# 4. Verify key is loaded in container
+docker-compose exec core python -c "import os; print(os.environ.get('PROXI_AGENT_KEY', 'NOT_SET'))"
+
+# 5. Test agent directly with header
+docker-compose exec core python -c "import requests; r = requests.post('http://agent:8081/execute', json={'tool_name': 'get_system_health', 'parameters': {}}, headers={'X-Agent-Key': 'YOUR_KEY'}); print(r.status_code)"
+```
+
+**Key Files:**
+- `backend/services/desktop/proxy_adapter.py` - Must have `X-Agent-Key` header
+- `backend/services/agent_proxy.py` - Must have `X-Agent-Key` header  
+- `backend/agent_server.py` - Validates the header
+
 ---
 
 ## 9. Backup & Recovery

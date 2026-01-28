@@ -131,7 +131,16 @@ const App: React.FC = () => {
   }, [liveChatLogs]);
 
   // Use liveTrace when voice connected, otherwise use lastTrace
-  const displayTrace: TraceStep[] = liveConnected ? liveTrace : lastTrace;
+  const rawTrace: TraceStep[] = liveConnected ? liveTrace : lastTrace;
+  
+  // Filter trace based on debug mode - hide thinking when debug is OFF
+  const displayTrace: TraceStep[] = useMemo(() => {
+    if (showDebugLogs) {
+      return rawTrace; // Show everything including thinking
+    }
+    // Hide llm_thought when debug is OFF
+    return rawTrace.filter(step => step.step_type !== 'llm_thought');
+  }, [rawTrace, showDebugLogs]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
