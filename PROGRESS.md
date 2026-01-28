@@ -1,6 +1,6 @@
 # PROXI Development Progress
 
-**Last Updated:** 2026-01-27  
+**Last Updated:** 2026-01-28  
 **Target:** Google Gemini Hackathon ($50k Top Prize)  
 **Judging Period:** Feb 10-27, 2026
 
@@ -475,3 +475,37 @@ To reset: Delete `backend/auth/users.json` and restart.
 | POST /execute | ✅ run_terminal_command works |
 
 **Pending:** Core → Agent proxy (route tool calls to selected agent)
+
+### 2026-01-28 Session 5 (UI Polish & Auth Fixes)
+
+**Auth & Session Improvements:**
+| Change | Details |
+|--------|---------|
+| Session timeout | Extended from 1hr to 6hrs |
+| Remember Me | Added checkbox for 24hr sessions |
+| Container crash fix | Added missing `Path` import in main.py |
+
+**UI Fixes:**
+| Component | Fix |
+|-----------|-----|
+| Agent selector | Fixed `is_default` → `isDefault` mapping for Linux Sandbox default |
+| Approval modal | Compact header, scrollable description for long commands |
+| Mission panel | Added collapsible horizontal stepper for mobile |
+| Stale sessions | Auto-clear localStorage logs older than 1 hour |
+
+**Backend Features Added:**
+- Image storage API (`/api/sessions/{id}/images`, `/api/images/{id}`)
+- Session images table in SQLite
+- Goal completion mapping fix (string ID matching)
+- Cancel task marks ALL remaining goals as failed
+- Log panel scroll fix (no auto-scroll when reading history)
+
+**Files Modified:**
+- `backend/auth/auth_service.py` - 6hr timeout, remember_me param
+- `backend/main.py` - Image storage endpoints, Path import fix
+- `backend/database.py` - session_images table
+- `frontend/components/LoginPage.tsx` - Remember Me checkbox
+- `frontend/components/ApprovalCard.tsx` - Compact layout
+- `frontend/components/MissionPanelCollapsible.tsx` - New component
+- `frontend/hooks/useGeminiLive.ts` - Stale session cleanup
+- `frontend/hooks/useWorkstations.ts` - isDefault mapping fix

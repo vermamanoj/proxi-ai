@@ -2,6 +2,29 @@
 
 All notable changes to Proxi are documented in this file.
 
+## [2.3.0] - January 28, 2026
+
+### Added
+- **Remember Me**: Login checkbox for 24-hour sessions
+- **Image Storage API**: Upload/retrieve session screenshots (`/api/sessions/{id}/images`)
+- **Collapsible Mission Panel**: Horizontal stepper for mobile with expandable sections
+- **Session Images Table**: SQLite storage for screenshots and user photos
+
+### Changed
+- **Session Timeout**: Extended from 1 hour to 6 hours default
+- **Approval Modal**: Compact layout with scrollable description for long commands
+- **Default Agent**: Linux Sandbox now auto-selected on startup
+- **Stale Session Cleanup**: localStorage logs expire after 1 hour of inactivity
+
+### Fixed
+- **Container Crash**: Added missing `Path` import in main.py
+- **Goal Tracking**: String ID matching for consistent goal updates
+- **Cancel Task**: Now marks ALL remaining goals as failed (not just first)
+- **Log Panel Scroll**: No longer auto-scrolls when user is reading history
+- **Agent Selector**: Fixed `is_default` → `isDefault` field mapping
+
+---
+
 ## [2.2.0] - January 2026
 
 ### Fixed
