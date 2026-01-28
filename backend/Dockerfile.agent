@@ -5,8 +5,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Minimal system tools
+# System tools + build dependencies for psutil on ARM64
 RUN apt-get update && apt-get install -y \
+    gcc \
+    python3-dev \
     procps \
     curl \
     && rm -rf /var/lib/apt/lists/*
