@@ -260,6 +260,7 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
                         }
                         break;
                     case 'response':
+                    case 'final_response':  // Handle both response types
                         updateTrace({ step_type: 'final_response', content: data.content });
                         addLog(MessageSource.AGENT, data.content);
                         speak(data.content);

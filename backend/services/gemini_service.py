@@ -369,39 +369,21 @@ class GeminiService:
                 raise e
 
     # --- DIRECT COMMAND DETECTION ---
-    def _is_shell_command(self, message: str) -> bool:
-        """Detect if message looks like a shell command to execute directly."""
+    def _is_shell_command(self, message: str) -> tuple[bool, str]:
+        """
+        Detect if message is a shell command prefixed with '!'.
+        
+        Returns:
+            (is_command, command_text) - True if starts with !, and the command without prefix
+        """
         msg = message.strip()
         
-        # Common shell commands that should be executed directly
-        shell_prefixes = [
-            # Unix/Linux commands
-            'ls', 'cd', 'pwd', 'cat', 'head', 'tail', 'grep', 'find', 'ps', 'top',
-            'df', 'du', 'free', 'uname', 'whoami', 'id', 'echo', 'date', 'uptime',
-            'mkdir', 'rmdir', 'touch', 'cp', 'mv', 'rm', 'chmod', 'chown',
-            'curl', 'wget', 'ping', 'netstat', 'ss', 'ip', 'ifconfig',
-            'systemctl', 'service', 'journalctl', 'dmesg',
-            # Windows PowerShell commands
-            'dir', 'Get-', 'Set-', 'New-', 'Remove-', 'Copy-', 'Move-',
-            'Get-Process', 'Get-Service', 'Get-ChildItem', 'Get-Content',
-            'ipconfig', 'tasklist', 'netsh', 'wmic',
-            # Common patterns
-            './', '../', '~/'
-        ]
+        # Commands must start with ! prefix to be executed directly
+        # This prevents accidental execution (e.g., voice saying "less" heard as "ls")
+        if msg.startswith('!'):
+            return (True, msg[1:].strip())
         
-        # Check if message starts with a shell command
-        for prefix in shell_prefixes:
-            if msg.startswith(prefix) or msg.startswith(f"sudo {prefix}"):
-                return True
-        
-        # Check for pipe or redirect patterns
-        if '|' in msg or '>' in msg or '&&' in msg:
-            # Only if it looks like a command (no natural language sentences)
-            words = msg.split()
-            if len(words) <= 10 and not any(w in msg.lower() for w in ['please', 'can you', 'could you', 'help']):
-                return True
-        
-        return False
+        return (False, "")
 
     # --- MAIN ORCHESTRATOR ---
     async def route_and_execute_stream(self, message: str, complexity_request: str = "fast", session_id: str = None):
@@ -413,12 +395,13 @@ class GeminiService:
             session_id = f"session_{uuid.uuid4().hex[:8]}"
         
         # --- DIRECT COMMAND EXECUTION ---
-        # If input looks like a shell command, execute it directly (with guardrails)
-        if self._is_shell_command(message):
-            log_system(f"DIRECT COMMAND DETECTED: {message}", "ROUTER")
-            yield json.dumps({"type": "llm_thought", "content": f"Executing command directly: `{message}`"})
+        # If input starts with !, execute as shell command directly (with guardrails)
+        is_command, command = self._is_shell_command(message)
+        if is_command:
+            log_system(f"DIRECT COMMAND DETECTED: !{command}", "ROUTER")
+            yield json.dumps({"type": "llm_thought", "content": f"Executing: `{command}`"})
             
-            result = self.run_terminal_command(message, session_id)
+            result = self.run_terminal_command(command, session_id)
             
             # Check if approval is required
             if isinstance(result, str) and result.startswith("APPROVAL_REQUIRED:"):

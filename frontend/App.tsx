@@ -119,15 +119,35 @@ const App: React.FC = () => {
 
   // Convert liveChatLogs to trace format for display when using voice
   const liveTrace: TraceStep[] = useMemo(() => {
-    return liveChatLogs.map(log => ({
-      step_type: (log.source === MessageSource.USER ? 'user_input' 
-               : log.metadata?.screenshot ? 'status_change'  // Screenshots need status_change for proper rendering
-               : log.metadata?.completed ? 'tool_result'  // Completed tools get tool_result type
-               : log.source === MessageSource.SYSTEM ? 'status_change' 
-               : 'llm_thought'),
-      content: log.text,
-      metadata: log.metadata
-    }));
+    return liveChatLogs.map(log => {
+      // Determine step type based on log content and source
+      let step_type: TraceStep['step_type'] = 'llm_thought';
+      let content = log.text;
+      
+      if (log.source === MessageSource.USER) {
+        step_type = 'user_input';
+      } else if (log.metadata?.screenshot) {
+        step_type = 'status_change';
+      } else if (log.metadata?.completed) {
+        step_type = 'tool_result';
+      } else if (log.source === MessageSource.SYSTEM) {
+        step_type = 'status_change';
+      } else if (log.source === MessageSource.AGENT) {
+        // Distinguish thinking from final responses
+        if (log.text.startsWith('(Thinking)')) {
+          step_type = 'llm_thought';
+          content = log.text.replace('(Thinking) ', ''); // Clean up prefix
+        } else if (log.text.startsWith('Core Result:')) {
+          step_type = 'final_response';
+          content = log.text.replace('Core Result: ', ''); // Clean up prefix
+        } else {
+          // Default agent messages are final responses
+          step_type = 'final_response';
+        }
+      }
+      
+      return { step_type, content, metadata: log.metadata };
+    });
   }, [liveChatLogs]);
 
   // Use liveTrace when voice connected, otherwise use lastTrace
