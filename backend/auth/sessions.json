@@ -1,17 +1,9 @@
 {
-  "a21298719524f50dc447d932aedd00a99285b2ac332cc73ea7fadb8c0044d0fd": {
-    "session_id": "a21298719524f50dc447d932aedd00a99285b2ac332cc73ea7fadb8c0044d0fd",
-    "username": "admin",
-    "created_at": "2026-01-27T21:34:39.581683",
-    "expires_at": "2026-01-27T22:34:39.581683",
-    "ip_address": "",
-    "user_agent": ""
-  },
-  "cf7684e6471342bcb4c8d38b8ca3b87ce99e17582183c066726911626d8730bc": {
-    "session_id": "cf7684e6471342bcb4c8d38b8ca3b87ce99e17582183c066726911626d8730bc",
+  "7e57ff9a7a8b1b71605fe31a6bb9c1bd9b85958c8f4f81b9cecdcc247e2db0a8": {
+    "session_id": "7e57ff9a7a8b1b71605fe31a6bb9c1bd9b85958c8f4f81b9cecdcc247e2db0a8",
     "username": "demo",
-    "created_at": "2026-01-27T21:54:30.791304",
-    "expires_at": "2026-01-27T22:54:30.791304",
+    "created_at": "2026-01-28T03:47:25.646330",
+    "expires_at": "2026-01-28T04:47:25.646330",
     "ip_address": "",
     "user_agent": ""
   }

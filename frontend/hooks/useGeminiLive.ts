@@ -541,21 +541,22 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
   // Filter out status messages from logs for chat display
   const chatLogs = logs.filter(log => !isStatusMessage(log.text));
 
-  // Function to mark active goal as failed (when user denies approval)
+  // Function to mark ALL remaining goals as failed (when user denies approval)
   const markActiveGoalFailed = useCallback((reason: string = 'User denied') => {
-    // Find the most recent active goal from logs
+    // Find the most recent plan from logs
     for (let i = logs.length - 1; i >= 0; i--) {
       const log = logs[i];
       if (log.metadata?.plan) {
-        // Find first pending/active goal
-        for (const goal of log.metadata.plan) {
-          if (goal.status === 'active' || goal.status === 'pending') {
-            addLog(MessageSource.SYSTEM, `❌ ${goal.id}: cancelled - ${reason}`, { 
-              goalUpdate: { goal_id: String(goal.id), status: 'failed', result: reason }
-            });
-            return;
-          }
+        // Mark ALL pending/active goals as cancelled
+        const pendingGoals = log.metadata.plan.filter(
+          (goal: any) => goal.status === 'active' || goal.status === 'pending'
+        );
+        for (const goal of pendingGoals) {
+          addLog(MessageSource.SYSTEM, `❌ ${goal.id}: cancelled - ${reason}`, { 
+            goalUpdate: { goal_id: String(goal.id), status: 'failed', result: reason }
+          });
         }
+        return;
       }
     }
   }, [logs, addLog]);

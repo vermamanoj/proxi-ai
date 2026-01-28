@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { LogEntry, MessageSource } from '../types';
 import { User, Cpu, Info, Wrench, Eye, Activity, Terminal, AlertTriangle, CheckCircle2, Zap } from 'lucide-react';
 
@@ -7,11 +7,24 @@ interface LogViewProps {
 }
 
 export const LogView: React.FC<LogViewProps> = ({ logs }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
+  // Check if user is at bottom of scroll
+  const handleScroll = () => {
+    if (!containerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+    // Consider "at bottom" if within 50px of bottom
+    setIsAtBottom(scrollHeight - scrollTop - clientHeight < 50);
+  };
+
+  // Only auto-scroll if user is at bottom
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
+    if (isAtBottom) {
+      endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [logs, isAtBottom]);
 
   // Pre-process logs to group atomic motor actions (The "Matrix" cleanup)
   const displayLogs = useMemo(() => {
@@ -49,7 +62,7 @@ export const LogView: React.FC<LogViewProps> = ({ logs }) => {
   }, [logs]);
 
   return (
-    <div className="h-full overflow-y-auto p-4 font-mono text-sm space-y-3 scrollbar-hide">
+    <div ref={containerRef} onScroll={handleScroll} className="h-full overflow-y-auto p-4 font-mono text-sm space-y-3 scrollbar-hide">
       {displayLogs.length === 0 && (
         <div className="h-full flex flex-col items-center justify-center text-gray-600 opacity-30">
            <Terminal className="w-16 h-16 mb-4" />
