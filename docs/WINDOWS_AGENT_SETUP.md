@@ -1,6 +1,6 @@
 # Windows Agent Setup Guide
 
-## Connecting a Windows Desktop to Proxi Core
+## Connecting a Windows Desktop to Proxi Core (Production)
 
 This guide explains how to register a Windows machine as a remote agent that Proxi can control.
 
@@ -9,88 +9,102 @@ This guide explains how to register a Windows machine as a remote agent that Pro
 ## Prerequisites
 
 - Windows 10/11 with Python 3.10+
-- Network access to Proxi Core server
+- **Tailscale** installed (for secure connection to production server)
 - Admin rights (for some automation features)
 
 ---
 
-## Quick Start
+## Quick Start (Recommended)
 
-### 1. Clone the Repository
+### One-Command Setup
+
+```powershell
+# Run the setup script - it handles everything
+.\scripts\register-windows-agent.ps1
+```
+
+The script will:
+1. Check Tailscale connection
+2. Set up Python environment
+3. Start the agent
+4. Show you how to register with production
+
+---
+
+## Manual Setup
+
+### 1. Install Tailscale (Required for Production)
+
+```powershell
+# Install Tailscale
+winget install Tailscale.Tailscale
+
+# Connect via system tray icon, then get your IP:
+tailscale ip -4
+# Example output: 100.64.0.5
+```
+
+### 2. Clone and Setup
 
 ```powershell
 git clone https://github.com/vermamanoj/proxi-ai.git
 cd proxi-ai
-```
 
-### 2. Install Dependencies
-
-```powershell
 # Create virtual environment
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 
-# Install agent-only requirements (minimal, no Gemini/DB)
+# Install agent-only requirements
 pip install -r backend/requirements-agent.txt
 ```
 
-### 3. Configure the Agent
+### 3. Set Agent Key (Security)
 
-Create a `.env` file in the project root:
-
-```env
-# Agent Configuration
-AGENT_NAME=my-windows-pc
-CORE_URL=http://localhost:4000
-
-# Optional: For GUI automation
-ENABLE_GUI_AUTOMATION=true
+```powershell
+# Must match PROXI_AGENT_KEY in production .env
+$env:PROXI_AGENT_KEY = "your-production-agent-key"
 ```
 
 ### 4. Start the Agent
 
 ```powershell
-# Run the agent server on port 8081
 python -m uvicorn backend.agent_server:app --host 0.0.0.0 --port 8081
 ```
 
-Or use the batch file:
-```powershell
-.\run_agent.bat
+### 5. Register with Production Server
+
+**Option A: Edit workstations.json on server** (Recommended)
+
+SSH to your production server and edit `backend/registry/workstations.json`:
+
+```json
+{
+  "win-desktop": {
+    "id": "win-desktop",
+    "name": "Windows Desktop",
+    "host": "100.64.0.5",
+    "port": 8081,
+    "workstation_type": "windows",
+    "capabilities": ["terminal", "screenshot", "desktop", "file_operations"],
+    "is_default": false
+  }
+}
 ```
 
-### 5. Register with Proxi Core
+Then restart the backend: `docker compose restart core`
 
-**IMPORTANT:** The agent must be registered with Core to appear in the UI dropdown.
+**Option B: Via Admin UI**
 
-```powershell
-# Option A: Use the registration script
-.\scripts\register-agent.ps1 -AgentName "my-windows-pc" -CoreUrl "http://localhost:4000" -Port 8081
+1. Log in to https://proxi.audista.com as admin
+2. Open Settings → Admin Panel
+3. Add new workstation with your Tailscale IP
 
-# Option B: Manual API call
-$body = @{
-    id = "my-windows-pc"
-    name = "My Windows PC"
-    description = "Windows desktop automation"
-    workstation_type = "windows"
-    host = "host.docker.internal"  # Required for Docker to reach Windows host
-    port = 8081
-    capabilities = @("terminal", "screenshot", "desktop", "file_operations")
-} | ConvertTo-Json
+### 6. Verify Connection
 
-Invoke-RestMethod -Uri "http://localhost:4000/api/workstations" -Method POST -ContentType "application/json" -Body $body
-```
-
-After registration, refresh the UI (or wait 30 seconds) - your agent will appear in the dropdown.
-
-### 6. Verify Registration
-
-```powershell
-# List all registered agents
-Invoke-RestMethod -Uri "http://localhost:4000/api/workstations"
-
-# Check specific agent health
-Invoke-RestMethod -Uri "http://localhost:4000/api/workstations/my-windows-pc/health"
+From the production server (via Tailscale):
+```bash
+curl http://100.64.0.5:8081/health
+# Should return: {"status": "healthy", ...}
 ```
 
 ---

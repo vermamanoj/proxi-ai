@@ -488,31 +488,54 @@ async def get_image(image_id: str):
 
 # --- WORKSTATION / AGENT MANAGEMENT ---
 
+async def require_auth(request: Request, require_admin: bool = False) -> dict:
+    """Helper to require authentication. Returns user dict or raises 401/403."""
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    
+    user = auth_service.get_user_for_session(session_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
+    
+    if require_admin and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return {"username": user.username, "role": user.role, "display_name": user.display_name}
+
 @app.get("/api/workstations")
-async def get_workstations():
+async def get_workstations(request: Request):
     """List all registered Proxi Agents (workstations) with live health status."""
+    # Require authentication to list workstations
+    await require_auth(request)
+    
     registry = get_registry()
     # Check health of all workstations before returning
     await registry.check_all_health()
     return {"workstations": list_workstations()}
 
 @app.get("/api/workstations/{workstation_id}")
-async def get_workstation_details(workstation_id: str):
-    """Get details of a specific workstation."""
+async def get_workstation_details(workstation_id: str, request: Request):
+    """Get details of a specific workstation. Requires auth."""
+    await require_auth(request)
     ws = get_workstation(workstation_id)
     if not ws:
         raise HTTPException(status_code=404, detail="Workstation not found")
     return ws
 
 @app.get("/api/workstations/{workstation_id}/health")
-async def check_workstation_health(workstation_id: str):
-    """Check health status of a workstation."""
+async def check_workstation_health(workstation_id: str, request: Request):
+    """Check health status of a workstation. Requires auth."""
+    await require_auth(request)
     status = await get_workstation_status(workstation_id)
     return status
 
 @app.post("/api/workstations")
 async def register_workstation(request: Request):
-    """Register a new Proxi Agent (workstation)."""
+    """Register a new Proxi Agent (workstation). Requires admin."""
+    # Only admins can register new workstations
+    await require_auth(request, require_admin=True)
+    
     from backend.registry.workstation_registry import Workstation
     data = await request.json()
     
@@ -538,20 +561,24 @@ async def register_workstation(request: Request):
     return {"status": "registered", "workstation": ws.to_dict()}
 
 @app.delete("/api/workstations/{workstation_id}")
-async def remove_workstation(workstation_id: str):
-    """Remove a registered workstation."""
+async def remove_workstation(workstation_id: str, request: Request):
+    """Remove a registered workstation. Requires admin."""
+    # Only admins can delete workstations
+    await require_auth(request, require_admin=True)
+    
     registry = get_registry()
     if registry.delete_workstation(workstation_id):
         return {"status": "deleted", "workstation_id": workstation_id}
     raise HTTPException(status_code=404, detail="Workstation not found")
 
 @app.post("/api/workstations/{workstation_id}/activate")
-async def activate_workstation(workstation_id: str):
+async def activate_workstation(workstation_id: str, request: Request):
     """
-    Set a workstation as the active agent for tool execution.
+    Set a workstation as the active agent for tool execution. Requires auth.
     All subsequent tool calls will be proxied to this agent.
     Validates agent is reachable before activating.
     """
+    await require_auth(request)
     ws = get_workstation(workstation_id)
     if not ws:
         raise HTTPException(status_code=404, detail="Workstation not found")
@@ -578,8 +605,9 @@ async def activate_workstation(workstation_id: str):
     }
 
 @app.post("/api/workstations/deactivate")
-async def deactivate_workstation():
-    """Clear the active agent, use local execution."""
+async def deactivate_workstation(request: Request):
+    """Clear the active agent, use local execution. Requires auth."""
+    await require_auth(request)
     clear_active_agent()
     return {"status": "deactivated", "message": "Using local execution"}
 
