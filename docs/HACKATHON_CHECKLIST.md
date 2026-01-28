@@ -28,8 +28,8 @@
 | ☐ 3-minute demo video | 📋 | Use DEMO_SCRIPT.md |
 | ☐ 200-word Gemini write-up | 📋 | See template below |
 | ☐ Architecture diagram | ✅ | In docs/ARCHITECTURE.md |
-| ☐ Public repository | ✅ | github.com/vermamanoj/proxi-ai |
-| ☐ Testing credentials | ✅ | demo/demo123, judge/gemini2026 |
+| ☐ Public repository | 🔄 | github.com/vermamanoj/proxi-ai - yet to make public |
+| ☐ Testing credentials | ✅ | magic link - check docs\HACKATHON_JUDGE_ACCESS.md |
 
 ---
 

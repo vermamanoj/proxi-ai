@@ -137,16 +137,72 @@ async def check_permission(user: User, action: str) -> bool:
     return action in ROLE_PERMISSIONS.get(user.role, [])
 ```
 
-### 4.3 2FA for Agent Connect (To Implement)
+### 4.3 2FA for Windows Agent (To Implement)
+
+**Scope:** Windows agents only (not Linux docker agent)
+
+**Admin Exception:** Judges and admins can bypass 2FA via admin portal setting.
 
 ```python
+# backend/auth/agent_2fa.py
+
+class Agent2FA:
+    """2FA verification for sensitive agent activation."""
+    
+    # Agents requiring 2FA
+    PROTECTED_AGENTS = ["win-azure", "win-desktop"]
+    
+    # Users exempt from 2FA (set via admin portal)
+    EXEMPT_USERS = set()  # Populated from DB/config
+    
+    def requires_2fa(self, user: User, agent_id: str) -> bool:
+        """Check if 2FA is required for this user + agent combo."""
+        # Admins can grant exemptions
+        if user.id in self.EXEMPT_USERS:
+            return False
+        
+        # Judge role exempt (for hackathon demos)
+        if user.role == "judge":
+            return False
+        
+        # Only protected agents require 2FA
+        return agent_id in self.PROTECTED_AGENTS
+    
+    async def verify_totp(self, user: User, code: str) -> bool:
+        """Verify TOTP code against user's secret."""
+        import pyotp
+        totp = pyotp.TOTP(user.totp_secret)
+        return totp.verify(code)
+    
+    def grant_exemption(self, admin: User, target_user_id: str):
+        """Admin grants 2FA exemption to a user."""
+        if admin.role != "admin":
+            raise PermissionError("Only admins can grant exemptions")
+        self.EXEMPT_USERS.add(target_user_id)
+        # Persist to DB...
+
 # Flow:
-# 1. User clicks "Activate" on remote agent
-# 2. If agent.requires_2fa:
-#    a. Generate TOTP challenge
-#    b. Show modal for code entry
-#    c. Verify code before activation
-# 3. Set 15-minute 2FA session for that agent
+# 1. User clicks "Activate" on Windows agent
+# 2. Check requires_2fa(user, agent_id)
+# 3. If True:
+#    a. Show TOTP modal in frontend
+#    b. User enters 6-digit code
+#    c. POST /api/agent/verify-2fa {agent_id, code}
+#    d. If valid, set 15-min 2FA session cookie
+# 4. Activate agent
+```
+
+**Admin Portal UI (Future):**
+```
+┌─────────────────────────────────────────┐
+│  2FA Exemptions                         │
+├─────────────────────────────────────────┤
+│  ☑ judge@hackathon.com (role: judge)   │
+│  ☑ demo@proxi.ai (temporary)            │
+│  ☐ sarah@company.com                    │
+│                                         │
+│  [+ Add Exemption]                      │
+└─────────────────────────────────────────┘
 ```
 
 ### 4.4 Per-Agent Permissions (To Implement)
