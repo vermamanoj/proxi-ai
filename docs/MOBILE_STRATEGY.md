@@ -304,22 +304,89 @@ Essential for mobile UX:
 
 ---
 
-## 8. Checklist
+## 8. Progress Tracker
 
-### Pre-Development
-- [ ] Test WebRTC on physical Android device via Chrome
+### ✅ Completed (Jan 29, 2026)
+
+| Step | Status | Notes |
+|------|--------|-------|
+| WebRTC tested on mobile browser | ✅ Done | Voice works in Android/iOS browsers |
+| Capacitor 5.7.8 installed | ✅ Done | Using v5 for Node 20 compatibility |
+| `vite.config.ts` updated | ✅ Done | `base: './'` for mobile, terser minification |
+| `capacitor.config.ts` created | ✅ Done | Security settings, domain whitelist |
+| Android platform added | ✅ Done | `frontend/android/` generated |
+| Android permissions configured | ✅ Done | Mic, camera, audio settings |
+| Web assets synced | ✅ Done | `npx cap sync android` |
+
+### 🔲 Pending (Resume When Ready)
+
+| Step | Command | Notes |
+|------|---------|-------|
+| **Set production backend URL** | Edit `capacitor.config.ts` | Uncomment `server.url` |
+| **Open Android Studio** | `npx cap open android` | From `frontend/` directory |
+| **Build debug APK** | `Build → Build APK(s)` | In Android Studio |
+| **Generate release keystore** | Android Studio or `keytool` | For signed release |
+| **Build release APK** | `./gradlew assembleRelease` | Signed APK for distribution |
+
+### Commands Reference
+
+```powershell
+# From frontend/ directory
+
+# Rebuild after frontend changes
+$env:CAPACITOR_BUILD='true'; npm run build
+npx cap sync android
+
+# Open in Android Studio
+npx cap open android
+
+# Build APK from command line (requires Java + Android SDK)
+cd android
+./gradlew assembleDebug
+# APK at: app/build/outputs/apk/debug/app-debug.apk
+```
+
+### Files Created
+
+| File | Purpose |
+|------|---------|
+| `frontend/capacitor.config.ts` | Capacitor configuration |
+| `frontend/android/` | Android native project |
+| `frontend/android/app/src/main/AndroidManifest.xml` | Permissions |
+
+---
+
+## 9. iOS Setup (Future)
+
+```bash
+# From frontend/ directory
+npm install @capacitor/ios@5.7.8
+npx cap add ios
+npx cap open ios  # Opens Xcode
+```
+
+**Requires:**
+- macOS with Xcode installed
+- Apple Developer account ($99/year)
+
+---
+
+## 10. Checklist
+
+### Pre-Production
+- [x] Test WebRTC on physical Android device via Chrome
 - [ ] Test WebRTC on physical iOS device via Safari
 - [ ] Generate Android keystore
 - [ ] Get Apple Developer Team ID
 
-### Development
-- [ ] `npm install @capacitor/core @capacitor/cli`
-- [ ] Update `vite.config.ts` with `base: './'`
-- [ ] Add `VITE_API_BASE_URL` configuration
-- [ ] Create `capacitor.config.ts`
-- [ ] Add Android/iOS platforms
-- [ ] Configure permissions in manifests
-- [ ] Build and test on physical devices
+### Development (Completed)
+- [x] `npm install @capacitor/core @capacitor/cli`
+- [x] Update `vite.config.ts` with `base: './'`
+- [x] Add `VITE_API_BASE_URL` configuration
+- [x] Create `capacitor.config.ts`
+- [x] Add Android platform
+- [x] Configure permissions in manifests
+- [ ] Build and test APK on physical device
 
 ### Post-Hackathon
 - [ ] Move Gemini API key to backend proxy
