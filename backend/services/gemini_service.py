@@ -399,28 +399,28 @@ class GeminiService:
         is_command, command = self._is_shell_command(message)
         if is_command:
             log_system(f"DIRECT COMMAND DETECTED: !{command}", "ROUTER")
-            yield json.dumps({"type": "llm_thought", "content": f"Executing: `{command}`"})
+            yield json.dumps({"type": "llm_thought", "content": f"Executing: `{command}`"}) + "\n"
             
             result = self.run_terminal_command(command, session_id)
             
             # Check if approval is required
             if isinstance(result, str) and result.startswith("APPROVAL_REQUIRED:"):
-                yield json.dumps({"type": "final_response", "content": result})
+                yield json.dumps({"type": "final_response", "content": result}) + "\n"
                 return
             elif isinstance(result, str) and result.startswith("BLOCKED:"):
-                yield json.dumps({"type": "final_response", "content": result})
+                yield json.dumps({"type": "final_response", "content": result}) + "\n"
                 return
             
             # Format and return result
             if isinstance(result, dict):
                 if result.get('success'):
                     output = result.get('output', 'Command completed')
-                    yield json.dumps({"type": "final_response", "content": f"```\n{output}\n```"})
+                    yield json.dumps({"type": "final_response", "content": f"```\n{output}\n```"}) + "\n"
                 else:
                     error = result.get('error', 'Command failed')
-                    yield json.dumps({"type": "final_response", "content": f"Error: {error}"})
+                    yield json.dumps({"type": "final_response", "content": f"Error: {error}"}) + "\n"
             else:
-                yield json.dumps({"type": "final_response", "content": f"```\n{result}\n```"})
+                yield json.dumps({"type": "final_response", "content": f"```\n{result}\n```"}) + "\n"
             return
         
         # Get or create session history - limit to last 6 messages (3 exchanges) to prevent stale command re-execution
