@@ -13,7 +13,8 @@ param(
     [string]$Type = "windows",                      # windows, linux, container
     [string]$AgentHost = "host.docker.internal",     # How Core reaches the agent
     [int]$Port = 8081,                              # Agent port
-    [string[]]$Capabilities = @("terminal", "screenshot", "desktop", "file_operations")
+    [string[]]$Capabilities = @("terminal", "screenshot", "desktop", "file_operations"),
+    [string]$AgentKey = ""                          # PROXI_AGENT_KEY for secure communication
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,11 +32,21 @@ if ([string]::IsNullOrEmpty($DisplayName)) {
 # Check if agent is running
 Write-Host "[INFO] Checking agent health at http://localhost:$Port..." -ForegroundColor Blue
 try {
-    $healthResponse = Invoke-WebRequest -Uri "http://localhost:$Port/health" -UseBasicParsing -TimeoutSec 5
+    $headers = @{}
+    if (-not [string]::IsNullOrEmpty($AgentKey)) {
+        $headers["X-Agent-Key"] = $AgentKey
+        Write-Host "[INFO] Using Agent API Key for authentication" -ForegroundColor Blue
+    }
+    $healthResponse = Invoke-WebRequest -Uri "http://localhost:$Port/health" -Headers $headers -UseBasicParsing -TimeoutSec 5
     if ($healthResponse.StatusCode -eq 200) {
         Write-Host "[OK] Agent is running" -ForegroundColor Green
     }
 } catch {
+    $statusCode = $_.Exception.Response.StatusCode.value__
+    if ($statusCode -eq 401) {
+        Write-Host "[ERROR] Agent requires API key. Use -AgentKey parameter." -ForegroundColor Red
+        exit 1
+    }
     Write-Host "[WARNING] Agent may not be running at localhost:$Port" -ForegroundColor Yellow
     Write-Host "[INFO] Make sure the agent is started before registering" -ForegroundColor Yellow
 }
