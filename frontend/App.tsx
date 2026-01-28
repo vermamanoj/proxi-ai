@@ -132,7 +132,7 @@ const App: React.FC = () => {
 
   // Use liveTrace when voice connected, otherwise use lastTrace
   const displayTrace: TraceStep[] = liveConnected ? liveTrace : lastTrace;
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Extract mission goals from logs (combine both voice and text logs)
@@ -738,14 +738,21 @@ const App: React.FC = () => {
 
           {/* Text Input */}
           <div className="flex-1 relative">
-            <input
+            <textarea
               ref={inputRef}
-              type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
+              }}
               placeholder={isProcessing ? "Processing..." : stagedImage ? "What should I do with this image?" : "Ask Proxi anything..."}
               disabled={isProcessing}
-              className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-proxi-accent/50 disabled:opacity-50"
+              rows={1}
+              className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-proxi-accent/50 disabled:opacity-50 resize-none overflow-hidden"
+              style={{ minHeight: '44px', maxHeight: '120px' }}
             />
             {isProcessing && (
               <div className="absolute right-3 top-1/2 -translate-y-1/2">

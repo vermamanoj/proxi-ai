@@ -168,12 +168,12 @@ def update_item_status_record(item_id: int, status: str):
 # ============== SESSION MANAGEMENT ==============
 
 def create_session(session_id: str, title: str = None, user_id: str = None):
-    """Create a new session with optional user association."""
+    """Create a new session with optional user association. Uses INSERT OR IGNORE to avoid duplicates."""
     conn = get_connection()
     c = conn.cursor()
     now = datetime.datetime.now()
     c.execute(
-        "INSERT INTO sessions (id, user_id, title, created_at, updated_at, status, requirements, goals, messages) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT OR IGNORE INTO sessions (id, user_id, title, created_at, updated_at, status, requirements, goals, messages) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (session_id, user_id, title or "New Session", now, now, "active", "[]", "[]", "[]")
     )
     conn.commit()

@@ -115,13 +115,18 @@ export function useWorkstations(): UseWorkstationsResult {
     return () => clearInterval(interval);
   }, [refreshWorkstations]);
 
-  // Set default active workstation
+  // Set default active workstation - prioritize online default, then any online, then first
   useEffect(() => {
-    if (!activeWorkstationId && workstations.length > 0) {
-      const defaultWs = workstations.find(w => w.isDefault) || workstations[0];
+    if (!activeWorkstationId && workstations.length > 0 && !isLoading) {
+      // Priority: online default > any default > first online > first
+      const onlineDefault = workstations.find(w => w.isDefault && w.status === 'online');
+      const anyDefault = workstations.find(w => w.isDefault);
+      const firstOnline = workstations.find(w => w.status === 'online');
+      const defaultWs = onlineDefault || anyDefault || firstOnline || workstations[0];
+      console.log('[Workstations] Auto-selecting:', defaultWs.id, defaultWs.name);
       setActiveWorkstationId(defaultWs.id);
     }
-  }, [workstations, activeWorkstationId]);
+  }, [workstations, activeWorkstationId, isLoading]);
 
   const setActiveWorkstation = useCallback(async (id: string) => {
     // Check if agent is online before activating
