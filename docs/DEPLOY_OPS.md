@@ -51,7 +51,23 @@ SLACK_WEBHOOK_URL=https://hooks.slack.com/...
 
 # Tailscale (for remote agents)
 TAILSCALE_AUTHKEY=tskey-auth-xxxxxxxxxxxxx
+
+# Agent authentication (generate with: openssl rand -hex 32)
+PROXI_AGENT_KEY=your_strong_64_char_hex_key_here
 ```
+
+### Security: Set .env Permissions
+
+**On Linux server (production):**
+```bash
+# Restrict .env to owner read/write only
+chmod 600 .env
+
+# Verify permissions (should show -rw-------)
+ls -la .env
+```
+
+> ⚠️ **Important:** Never commit `.env` to git. It contains secrets.
 
 ---
 
