@@ -46,16 +46,7 @@ export function useWorkstations(): UseWorkstationsResult {
   // Check health of a single workstation
   const checkWorkstationHealth = useCallback(async (ws: Workstation): Promise<WorkstationStatus> => {
     try {
-      // For localhost containers, check directly
-      if (ws.host === '127.0.0.1' || ws.host === 'localhost') {
-        const response = await fetch(`http://${ws.host}:${ws.port}/health`, {
-          method: 'GET',
-          signal: AbortSignal.timeout(3000),
-        });
-        return response.ok ? 'online' : 'offline';
-      }
-      
-      // For remote workstations, ask backend to check
+      // Always prefer backend API for health checks (works in production)
       if (backendAvailable) {
         const response = await fetch(`${API_BASE}/api/workstations/${ws.id}/health`, {
           credentials: 'include',
@@ -64,6 +55,17 @@ export function useWorkstations(): UseWorkstationsResult {
           const data = await response.json();
           return data.status as WorkstationStatus;
         }
+      }
+      
+      // Fallback: For local dev only, check localhost directly
+      // This won't work in production (browser can't reach server's localhost)
+      const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (isLocalDev && (ws.host === '127.0.0.1' || ws.host === 'localhost')) {
+        const response = await fetch(`http://${ws.host}:${ws.port}/health`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(3000),
+        });
+        return response.ok ? 'online' : 'offline';
       }
       
       return 'unknown';
