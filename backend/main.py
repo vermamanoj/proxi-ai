@@ -50,6 +50,9 @@ ALLOWED_ORIGINS = [
     "http://localhost:5173",      # Vite dev server
     "http://127.0.0.1:4002",
     "http://localhost",           # Capacitor mobile app
+    "capacitor://localhost",      # Capacitor Android
+    "ionic://localhost",          # Ionic webview
+    "http://10.0.2.2",            # Android emulator
 ]
 
 app.add_middleware(

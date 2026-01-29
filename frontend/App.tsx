@@ -25,7 +25,7 @@ import { useWorkstations } from './hooks/useWorkstations';
 
 const App: React.FC = () => {
   // Auth state
-  const { isAuthenticated, isLoading: authLoading, user, login, logout, redeemMagicLink } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user, login: authLogin, logout, redeemMagicLink } = useAuth();
   const [authView, setAuthView] = useState<'landing' | 'login'>('landing');
   const [magicLinkStatus, setMagicLinkStatus] = useState<'checking' | 'invalid' | null>(null);
 
@@ -55,7 +55,19 @@ const App: React.FC = () => {
   const coreEnabled = mode === 'remote'; // Backward compat
   
   // Agent/workstation management - single source of truth
-  const { activeWorkstation, workstations, setActiveWorkstation, isLoading: workstationsLoading } = useWorkstations();
+  const { activeWorkstation, workstations, setActiveWorkstation, isLoading: workstationsLoading, refreshWorkstations } = useWorkstations();
+
+  // Wrapper login that refreshes workstations immediately after successful auth
+  const login = async (username: string, password: string, rememberMe: boolean = false): Promise<boolean> => {
+    const success = await authLogin(username, password, rememberMe);
+    if (success) {
+      // Immediately fetch workstations after login so user sees agents right away
+      console.log('[App] Login successful, refreshing workstations...');
+      refreshWorkstations();
+    }
+    return success;
+  };
+
   // Collapsible panels
   const [missionExpanded, setMissionExpanded] = useState(true);
   const [showDebugLogs, setShowDebugLogs] = useState(false);

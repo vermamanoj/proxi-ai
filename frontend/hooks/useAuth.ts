@@ -26,13 +26,19 @@ export function useAuth() {
   }, []);
 
   const checkSession = useCallback(async () => {
+    const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
+    console.log(`[Auth] Checking session - mobile: ${isCapacitor}, API: ${API_BASE}`);
+    
     try {
       const response = await fetch(`${API_BASE}/api/auth/session`, {
         credentials: 'include',
       });
       
+      console.log(`[Auth] Session check response: ${response.status}`);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log(`[Auth] Session valid for: ${data.username}`);
         setAuthState({
           isAuthenticated: true,
           user: {
@@ -43,6 +49,7 @@ export function useAuth() {
           isLoading: false,
         });
       } else {
+        console.log(`[Auth] No valid session (${response.status})`);
         setAuthState({
           isAuthenticated: false,
           user: null,
@@ -50,7 +57,7 @@ export function useAuth() {
         });
       }
     } catch (error) {
-      console.error('Session check failed:', error);
+      console.error('[Auth] Session check failed:', error);
       // Always require valid backend session - no localStorage bypass
       setAuthState({
         isAuthenticated: false,
@@ -61,6 +68,9 @@ export function useAuth() {
   }, []);
 
   const login = useCallback(async (username: string, password: string, rememberMe: boolean = false): Promise<boolean> => {
+    const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
+    console.log(`[Auth] Login attempt - user: ${username}, mobile: ${isCapacitor}, API: ${API_BASE}`);
+    
     try {
       const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
@@ -71,6 +81,8 @@ export function useAuth() {
         body: JSON.stringify({ username, password, remember_me: rememberMe }),
       });
 
+      console.log(`[Auth] Response status: ${response.status}`);
+      
       if (response.ok) {
         const data = await response.json();
         const user = {
@@ -85,12 +97,17 @@ export function useAuth() {
         });
         // Save to localStorage for demo purposes
         localStorage.setItem('proxi_auth', JSON.stringify(user));
+        console.log(`[Auth] Login successful: ${user.username}`);
         return true;
       }
+      
+      // Log error details for debugging
+      const errorText = await response.text();
+      console.error(`[Auth] Login failed - status: ${response.status}, body: ${errorText}`);
       return false;
     } catch (error) {
-      console.error('Login failed:', error);
-            return false;
+      console.error('[Auth] Login exception:', error);
+      return false;
     }
   }, []);
 
