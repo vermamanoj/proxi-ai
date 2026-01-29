@@ -293,9 +293,10 @@ const App: React.FC = () => {
     metadata: pendingAction.data
   } : null;
 
-  // Status - don't block input during speech, only during actual processing
-  const isProcessing = brainStatus === 'processing' || !!liveActiveTool;
-  const statusColor = isProcessing ? 'bg-yellow-500' : isSpeaking ? 'bg-blue-500' : liveConnected ? 'bg-green-500' : 'bg-gray-500';
+  // Status - show Stop button during processing, speaking, or live tool execution
+  const isProcessing = brainStatus === 'processing' || brainStatus === 'speaking' || !!liveActiveTool;
+  const isActivelyProcessing = brainStatus === 'processing' || !!liveActiveTool; // For input disabling
+  const statusColor = isActivelyProcessing ? 'bg-yellow-500' : isSpeaking ? 'bg-blue-500' : liveConnected ? 'bg-green-500' : 'bg-gray-500';
 
   useEffect(() => {
     if (brainStatus === 'idle') {
@@ -305,7 +306,7 @@ const App: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isProcessing) return;
+    if (isActivelyProcessing) return;
     
     // If we have a staged image, submit with vision-action
     if (stagedImage) {
@@ -737,8 +738,8 @@ const App: React.FC = () => {
                   handleSubmit(e);
                 }
               }}
-              placeholder={isProcessing ? "Processing..." : stagedImage ? "What should I do with this image?" : "Ask Proxi anything..."}
-              disabled={isProcessing}
+              placeholder={isActivelyProcessing ? "Processing..." : stagedImage ? "What should I do with this image?" : "Ask Proxi anything..."}
+              disabled={isActivelyProcessing}
               rows={1}
               className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-proxi-accent/50 disabled:opacity-50 resize-none overflow-hidden"
               style={{ minHeight: '44px', maxHeight: '120px' }}
@@ -784,7 +785,7 @@ const App: React.FC = () => {
               /* Send Button - when there's text */
               <button
                 type="submit"
-                disabled={isProcessing}
+                disabled={isActivelyProcessing}
                 className="p-3 bg-proxi-accent text-black rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:bg-proxi-accent/80"
               >
                 <Send className="w-5 h-5" />
