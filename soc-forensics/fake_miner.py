@@ -75,13 +75,13 @@ def fake_postgres():
     FALSE LEAD: Simulate PostgreSQL listening on localhost
     This makes analysts think DB might be attack vector
     """
-    print("[DB] Starting fake PostgreSQL on 127.0.0.1:5432...")
+    print("[DB] Starting fake PostgreSQL on 0.0.0.0:5432...")
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(('127.0.0.1', 5432))
+        sock.bind(('0.0.0.0', 5432))
         sock.listen(1)
-        print("[DB] PostgreSQL simulation listening on localhost:5432")
+        print("[DB] PostgreSQL simulation listening on 0.0.0.0:5432")
         
         while running:
             time.sleep(100)

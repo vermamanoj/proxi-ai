@@ -368,26 +368,49 @@ docker-compose down && docker-compose up -d --build  # Rebuild
 - No change to normal login flow (demo/demo123 still works)
 - Session persistence still works via cookies
 
-### Fix #4: Upgrade Password Hashing ✅ COMPLETED
-**Completed:** Jan 29, 2026 11:35 AM IST
+### Fix #4: Upgrade Password Hashing ✅ COMPLETED & DEPLOYED
 
-**Changes made:**
-1. `backend/requirements.txt`:
-   - Added `bcrypt==4.1.2` dependency
+### Implementation Notes
 
-2. `backend/auth/auth_service.py`:
-   - Imported `bcrypt` module
-   - Modified `_hash_password()` to use bcrypt with 12 rounds
-   - Added `_verify_password()` method with legacy SHA-256 support
-   - Modified `authenticate()` to upgrade legacy hashes on successful login
-   - Detects legacy hash by length (64 hex chars) and verifies using old method
-   - Automatically upgrades to bcrypt on next successful login
+**Files Modified:**
+1. `backend/auth/auth_service.py` - Added bcrypt import and password verification logic
+2. `backend/requirements.txt` - Added bcrypt==4.1.2 dependency
+3. `backend/requirements-linux.txt` - Added bcrypt==4.1.2 for Docker containers
+4. `backend/agent_server.py` - Fixed verify_agent_key ordering issue
 
-**Security improvement:**
-- Bcrypt is resistant to offline brute-force attacks (adaptive cost)
-- 12 rounds provides strong security while maintaining performance
-- Legacy SHA-256 hashes automatically upgraded on login
-- Transparent migration - no user action required
+**Migration Strategy:**
+- Automatic upgrade on first login (legacy SHA-256 → bcrypt)
+- Backward compatible during transition period
+- Manual migration script executed for existing users
+
+**Docker Deployment Issues Fixed:**
+1. ❌ Core container crashed - bcrypt missing from requirements-linux.txt
+   - ✅ Fixed: Added bcrypt==4.1.2 to requirements-linux.txt
+2. ❌ Agent container crashed - verify_agent_key used before definition
+   - ✅ Fixed: Moved function definition before health endpoint
+3. ❌ Login failed - Database had old SHA-256 hashes
+   - ✅ Fixed: Ran migration script to upgrade all passwords
+
+**Testing Results:**
+- ✅ New user registration with bcrypt
+- ✅ Legacy user login triggers migration
+- ✅ Password verification with bcrypt
+- ✅ Docker Core container running successfully
+- ✅ Docker Agent container running successfully
+- ✅ Login API tested: `demo/demo123` → SUCCESS
+- ✅ Agent health endpoint: Requires X-Agent-Key ✓
+- ✅ All user passwords upgraded to bcrypt format
+
+**Commits:**
+1. `feat: Upgrade password hashing from SHA-256 to bcrypt` (Jan 29)
+2. `fix: Add bcrypt to Linux requirements and fix agent auth ordering` (Jan 29)
+
+### Performance Notes
+
+- bcrypt is intentionally slow (~100ms per hash) - this is a security feature
+- Prevents brute-force attacks
+- No noticeable impact on user experience
+- Work factor: 12 rounds (industry standard)
 
 **Hackathon compatibility:**
 - demo/demo123 continues to work (upgraded on first login)

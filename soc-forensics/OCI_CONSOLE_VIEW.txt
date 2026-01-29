@@ -14,7 +14,7 @@ INGRESS RULES (Inbound Traffic to Instance)
 
 Rule #  Source CIDR      Protocol  Src Port  Dest Port  Action  Description
 ------  ---------------  --------  --------  ---------  ------  -----------
-1       20.40.50.18/32   TCP       All       22         ALLOW   SSH - Admin Home IP Only
+1       120.40.50.108/32   TCP       All       22         ALLOW   SSH - Admin Home IP Only
 2       0.0.0.0/0        TCP       All       443        ALLOW   HTTPS Web Traffic
 3       0.0.0.0/0        TCP       All       80         ALLOW   HTTP Web Traffic  
 4       10.0.0.0/16      ICMP      All       -          ALLOW   Internal VCN Ping

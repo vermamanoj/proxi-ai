@@ -1,0 +1,23 @@
+# Docker Compose for Forensic Investigation Container with Proxi Agent
+version: '3.8'
+
+services:
+  forensic-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: proxi-forensics:v2
+    container_name: forensic-investigation
+    hostname: prod-ideaforge-01
+    ports:
+      - "5081:8081"  # Proxi agent port (avoid conflict with main agent on 4001)
+    environment:
+      - PROXI_AGENT_KEY=${PROXI_AGENT_KEY}  # Shared secret for Core auth
+    restart: unless-stopped
+    networks:
+      - proxi-network
+
+networks:
+  proxi-network:
+    external: true
+    name: proxi-ai_default  # Connect to main Proxi network

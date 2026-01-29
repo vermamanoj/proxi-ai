@@ -28,9 +28,9 @@ This is a realistic cybersecurity incident simulation for SOC analyst training. 
 - **Finding:** Only 20 successful logins from trusted IP `20.40.50.18`
 - **Conclusion:** No brute force activity. SSH is secure.
 
-#### Hypothesis 2: Database Exploit ❌
+#### Hypothesis 2: Database Exploit 
 - **Check:** `netstat -tlnp | grep 5432`
-- **Finding:** PostgreSQL listening on `127.0.0.1:5432` only (localhost)
+- **Finding:** PostgreSQL listening on `0.0.0.0:5432` only (public)
 - **Action Required:** Switch to Windows workstation to verify OCI firewall rules
 - **OCI Console Check:** Port 5432 NOT in ingress rules (blocked externally)
 - **Conclusion:** Database not exposed. Not the attack vector.

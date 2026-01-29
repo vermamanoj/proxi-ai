@@ -2,19 +2,42 @@
 
 ## Quick Start
 
-### Build the Container
+### Option A: With Proxi Agent (Recommended for Gemini Integration)
+
 ```bash
+cd soc-forensics
+
+# 1. Build agent-enabled image
+docker build -t proxi-forensics:v2 .
+
+# 2. Start with Docker Compose (connects to Proxi network)
+docker-compose -f docker-compose.forensic.yml up -d
+
+# 3. Register with Proxi Core
+docker exec forensic-investigation bash /usr/local/bin/register_forensic_agent.sh
+
+# 4. Verify agent is working
+curl http://localhost:5081/health -H "X-Agent-Key: YOUR_PROXI_AGENT_KEY"
+```
+
+**Now Gemini can investigate the container!** See `AGENT_SETUP.md` for details.
+
+### Option B: Standalone Container (Manual Investigation Only)
+
+```bash
+cd soc-forensics
+
+# 1. Build the container
 docker build -t proxi-forensics:v1 .
-```
 
-### Run the Container
-```bash
-docker run -d --name forensic-investigation proxi-forensics:v1
-```
+# 2. Run the container
+docker run -d \
+  --name forensic-investigation \
+  --hostname prod-ideaforge-01 \
+  proxi-forensics:v1
 
-### Access the Container
-```bash
-docker exec -it forensic-investigation /bin/bash
+# 3. Access the container
+docker exec -it forensic-investigation bash
 ```
 
 ## Investigation Scenario

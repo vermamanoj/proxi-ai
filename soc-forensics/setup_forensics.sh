@@ -28,12 +28,12 @@ echo "  → Generating SSH authentication logs (clean - no brute force)..."
 for i in {1..20}; do
     HOUR=$((9 + i / 10))
     MIN=$((i * 3 % 60))
-    echo "Dec  5 ${HOUR}:${MIN}:00 instance-ideaforge sshd[123${i}]: Accepted publickey for opc from 20.40.50.18 port 513${i} ssh2: RSA SHA256:kE4xW9vN2mP8qR5tY7uI1oP3aS6dF9gH2jK4lZ8xC0v" >> $LOG_SEC
+    echo "Dec  5 ${HOUR}:${MIN}:00 instance-ideaforge sshd[123${i}]: Accepted publickey for opc from 120.40.50.108 port 513${i} ssh2: RSA SHA256:kE4xW9vN2mP8qR5tY7uI1oP3aS6dF9gH2jK4lZ8xC0v" >> $LOG_SEC
 done
 
 # Add some normal system activity
-echo "Dec  5 23:15:00 instance-ideaforge sshd[12401]: Accepted publickey for opc from 20.40.50.18 port 51440 ssh2: RSA SHA256:kE4xW9vN2mP8qR5tY7uI1oP3aS6dF9gH2jK4lZ8xC0v" >> $LOG_SEC
-echo "Dec  6 08:30:00 instance-ideaforge sshd[12450]: Accepted publickey for opc from 20.40.50.18 port 51501 ssh2: RSA SHA256:kE4xW9vN2mP8qR5tY7uI1oP3aS6dF9gH2jK4lZ8xC0v" >> $LOG_SEC
+echo "Dec  5 23:15:00 instance-ideaforge sshd[12401]: Accepted publickey for opc from 120.40.50.108 port 51440 ssh2: RSA SHA256:kE4xW9vN2mP8qR5tY7uI1oP3aS6dF9gH2jK4lZ8xC0v" >> $LOG_SEC
+echo "Dec  6 08:30:00 instance-ideaforge sshd[12450]: Accepted publickey for opc from 120.40.50.108 port 51501 ssh2: RSA SHA256:kE4xW9vN2mP8qR5tY7uI1oP3aS6dF9gH2jK4lZ8xC0v" >> $LOG_SEC
 
 echo "  ✓ SSH logs created (20 legitimate logins, no brute force)"
 
