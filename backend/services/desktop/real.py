@@ -36,6 +36,38 @@ if platform.system() == "Windows":
     except ImportError:
         pass
 
+# Security: Blocked paths and dangerous patterns
+BLOCKED_PATHS = [
+    '/etc/shadow', '/etc/gshadow', '/etc/sudoers',
+    '/root/.ssh', '/root/.bash_history',
+    '/proc/1/environ', '/proc/self/environ',
+    'c:\\windows\\system32\\config\\sam',  # Windows SAM database
+]
+
+BLOCKED_PATTERNS = [
+    'shadow', 'gshadow', 'sudoers',  # Sensitive auth files
+    'chmod 777', 'chmod +s',  # Dangerous permissions
+    'curl|bash', 'wget|sh', 'curl|sh',  # Download and execute
+    'rm -rf /', 'rm -rf /*',  # System destruction
+    'mkfs', 'dd if=',  # Disk operations
+    ':(){:|:&};:',  # Fork bomb
+    '> /dev/sd',  # Direct disk write
+]
+
+def _is_command_blocked(command: str) -> tuple:
+    """Check if command accesses restricted paths or patterns."""
+    cmd_lower = command.lower().strip()
+    
+    for blocked in BLOCKED_PATHS:
+        if blocked.lower() in cmd_lower:
+            return True, f"Access to {blocked} is restricted"
+    
+    for pattern in BLOCKED_PATTERNS:
+        if pattern.lower() in cmd_lower:
+            return True, f"Dangerous pattern '{pattern}' blocked"
+    
+    return False, ""
+
 class RealDesktopService(DesktopInterface):
     def __init__(self):
         self.os_type = platform.system()
@@ -70,6 +102,13 @@ class RealDesktopService(DesktopInterface):
 
     def run_terminal_command(self, command: str):
         print(f"[DEBUG] Request to execute: {command}", flush=True)
+        
+        # Security check - block dangerous commands
+        blocked, reason = _is_command_blocked(command)
+        if blocked:
+            print(f"[SECURITY] Blocked command: {command} - {reason}", flush=True)
+            return f"🔒 BLOCKED: {reason}"
+        
         is_windows = self.os_type == "Windows"
         
         clean_cmd = command.strip()

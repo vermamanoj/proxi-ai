@@ -1,5 +1,6 @@
 # Proxi Agent - Lightweight isolated desktop automation
 # NO access to user DB, sessions, or API keys
+# SECURITY: Runs as non-root user 'proxi'
 
 FROM python:3.12-slim
 
@@ -12,6 +13,9 @@ RUN apt-get update && apt-get install -y \
     procps \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN groupadd -r proxi && useradd -r -g proxi proxi
 
 # Agent-only requirements (minimal)
 COPY requirements-agent.txt /app/requirements.txt
@@ -27,6 +31,12 @@ COPY agent_server.py /app/backend/agent_server.py
 RUN mkdir -p /app/backend/services && \
     touch /app/backend/__init__.py && \
     touch /app/backend/services/__init__.py
+
+# Set ownership to non-root user
+RUN chown -R proxi:proxi /app
+
+# Switch to non-root user
+USER proxi
 
 EXPOSE 8081
 
