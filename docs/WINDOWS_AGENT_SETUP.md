@@ -91,6 +91,10 @@ SSH to your production server and edit `backend/registry/workstations.json`:
 }
 ```
 
+> ⚠️ **IMPORTANT**: The outer JSON key must match the `id` field exactly!
+> - ✅ Correct: `"win-desktop": { "id": "win-desktop", ... }`
+> - ❌ Wrong: `"my-key": { "id": "different-id", ... }` (causes 404 errors)
+
 Then restart the backend: `docker compose restart core`
 
 **Option B: Via Admin UI**

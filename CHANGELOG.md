@@ -2,6 +2,33 @@
 
 All notable changes to Proxi are documented in this file.
 
+## [2.5.0] - January 29, 2026
+
+### Security
+- **API Authentication**: All sensitive endpoints now require authentication
+  - Chat, vision, sessions, missions, images, workstations
+  - Admin-only: workstation registration/deletion, magic link management
+- **Cloudflare Protection**: Bot challenge provides additional layer of defense
+
+### Added
+- **Windows Agent Script**: `scripts/register-windows-agent.ps1` for simplified setup
+- **Mobile Camera**: Camera button now opens actual camera (not just gallery) via `capture="environment"`
+
+### Changed
+- **Mobile UX Simplified**: Removed Chat/Remote toggle - always Remote mode with Linux sandbox default
+- **New Session Button**: Moved outside hamburger menu to main header
+- **Settings Drawer**: Removed redundant mode details
+
+### Fixed
+- **Mobile Scroll**: Chat no longer auto-scrolls when user is reading history
+- **Mobile Layout**: Uses `100dvh` for proper viewport on mobile browsers
+
+### Documentation
+- Updated Windows agent setup with Tailscale instructions
+- Added workstations.json key/id matching requirement
+
+---
+
 ## [2.4.0] - January 28, 2026
 
 ### Added
