@@ -17,6 +17,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List, Any
 from backend.services.desktop.factory import get_desktop_service
+from backend.tools.ppt_tools import (
+    ppt_get_active_presentation,
+    ppt_open_presentation,
+    ppt_get_slide_info,
+    ppt_edit_text,
+    ppt_add_slide,
+    ppt_duplicate_slide,
+    ppt_delete_slide,
+    ppt_save_presentation,
+    ppt_goto_slide,
+    ppt_add_picture,
+    ppt_add_shape,
+    ppt_move_shape,
+    ppt_resize_shape,
+    ppt_format_text,
+    ppt_get_theme_colors,
+)
 
 # Agent API Key for Core <-> Agent authentication
 # Set via PROXI_AGENT_KEY env var or pass at startup
@@ -119,6 +136,86 @@ async def execute_tool(call: ToolCall, _: bool = Depends(verify_agent_key)):
             result = ds.focus_window(params.get("title", ""))
         elif tool_name == "list_windows":
             result = ds.list_windows()
+        elif tool_name == "drag_mouse":
+            result = ds.drag_mouse(params.get("start_x", 0), params.get("start_y", 0),
+                                   params.get("end_x", 0), params.get("end_y", 0))
+        elif tool_name == "get_window_rect":
+            result = ds.get_window_rect(params.get("title", ""))
+        elif tool_name == "read_page_content":
+            result = ds.read_page_content()
+        elif tool_name == "scroll_page":
+            result = ds.scroll_page(params.get("direction", "down"))
+        elif tool_name == "browser_command":
+            result = ds.browser_command(params.get("action", ""), params.get("url"))
+        # PowerPoint Tools (execute locally on Windows agent)
+        elif tool_name == "ppt_get_active_presentation":
+            result = ppt_get_active_presentation()
+        elif tool_name == "ppt_open_presentation":
+            result = ppt_open_presentation(params.get("file_path", ""))
+        elif tool_name == "ppt_get_slide_info":
+            result = ppt_get_slide_info(int(params.get("slide_number", 0)))
+        elif tool_name == "ppt_edit_text":
+            result = ppt_edit_text(
+                int(params.get("slide_number", 1)),
+                params.get("shape_name", ""),
+                params.get("new_text", "")
+            )
+        elif tool_name == "ppt_add_slide":
+            result = ppt_add_slide(
+                int(params.get("after_slide", 0)),
+                params.get("layout", "title_content")
+            )
+        elif tool_name == "ppt_duplicate_slide":
+            result = ppt_duplicate_slide(int(params.get("slide_number", 1)))
+        elif tool_name == "ppt_delete_slide":
+            result = ppt_delete_slide(int(params.get("slide_number", 1)))
+        elif tool_name == "ppt_save_presentation":
+            result = ppt_save_presentation(params.get("save_as_path"))
+        elif tool_name == "ppt_goto_slide":
+            result = ppt_goto_slide(int(params.get("slide_number", 1)))
+        elif tool_name == "ppt_add_picture":
+            result = ppt_add_picture(
+                int(params.get("slide_number", 1)),
+                params.get("image_path", ""),
+                int(params.get("left", 100)),
+                int(params.get("top", 100)),
+                int(params.get("width", 400))
+            )
+        elif tool_name == "ppt_add_shape":
+            result = ppt_add_shape(
+                int(params.get("slide_number", 1)),
+                params.get("shape_type", "rectangle"),
+                int(params.get("left", 100)),
+                int(params.get("top", 100)),
+                int(params.get("width", 100)),
+                int(params.get("height", 100)),
+                params.get("text", "")
+            )
+        elif tool_name == "ppt_move_shape":
+            result = ppt_move_shape(
+                int(params.get("slide_number", 1)),
+                params.get("shape_name", ""),
+                int(params.get("left", 0)),
+                int(params.get("top", 0))
+            )
+        elif tool_name == "ppt_resize_shape":
+            result = ppt_resize_shape(
+                int(params.get("slide_number", 1)),
+                params.get("shape_name", ""),
+                int(params.get("width", 100)),
+                int(params.get("height", 100))
+            )
+        elif tool_name == "ppt_format_text":
+            result = ppt_format_text(
+                int(params.get("slide_number", 1)),
+                params.get("shape_name", ""),
+                params.get("bold"),
+                params.get("italic"),
+                params.get("font_size"),
+                params.get("font_color")
+            )
+        elif tool_name == "ppt_get_theme_colors":
+            result = ppt_get_theme_colors(int(params.get("slide_number", 1)))
         else:
             return ToolResult(success=False, error=f"Unknown tool: {tool_name}")
         

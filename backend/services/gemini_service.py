@@ -41,23 +41,8 @@ from backend.tools.standard_tools import (
     create_github_issue
 )
 
-from backend.tools.ppt_tools import (
-    ppt_get_active_presentation,
-    ppt_open_presentation,
-    ppt_get_slide_info,
-    ppt_edit_text,
-    ppt_add_slide,
-    ppt_duplicate_slide,
-    ppt_delete_slide,
-    ppt_save_presentation,
-    ppt_goto_slide,
-    ppt_add_picture,
-    ppt_add_shape,
-    ppt_move_shape,
-    ppt_resize_shape,
-    ppt_format_text,
-    ppt_get_theme_colors,
-)
+# PPT tools are now proxied via get_desktop_service() to Windows agent
+# Direct imports removed - using wrapper methods instead
 
 # Load .env
 root_dir = Path(__file__).resolve().parent.parent.parent
@@ -141,22 +126,22 @@ class GeminiService:
             "focus_window": self.focus_window,
             "get_window_rect": self.get_window_rect,
             "list_windows": self.list_windows,
-            # PowerPoint Tools
-            "ppt_get_active_presentation": ppt_get_active_presentation,
-            "ppt_open_presentation": ppt_open_presentation,
-            "ppt_get_slide_info": ppt_get_slide_info,
-            "ppt_edit_text": ppt_edit_text,
-            "ppt_add_slide": ppt_add_slide,
-            "ppt_duplicate_slide": ppt_duplicate_slide,
-            "ppt_delete_slide": ppt_delete_slide,
-            "ppt_save_presentation": ppt_save_presentation,
-            "ppt_goto_slide": ppt_goto_slide,
-            "ppt_add_picture": ppt_add_picture,
-            "ppt_add_shape": ppt_add_shape,
-            "ppt_move_shape": ppt_move_shape,
-            "ppt_resize_shape": ppt_resize_shape,
-            "ppt_format_text": ppt_format_text,
-            "ppt_get_theme_colors": ppt_get_theme_colors,
+            # PowerPoint Tools (proxied to Windows agent)
+            "ppt_get_active_presentation": self.ppt_get_active_presentation,
+            "ppt_open_presentation": self.ppt_open_presentation,
+            "ppt_get_slide_info": self.ppt_get_slide_info,
+            "ppt_edit_text": self.ppt_edit_text,
+            "ppt_add_slide": self.ppt_add_slide,
+            "ppt_duplicate_slide": self.ppt_duplicate_slide,
+            "ppt_delete_slide": self.ppt_delete_slide,
+            "ppt_save_presentation": self.ppt_save_presentation,
+            "ppt_goto_slide": self.ppt_goto_slide,
+            "ppt_add_picture": self.ppt_add_picture,
+            "ppt_add_shape": self.ppt_add_shape,
+            "ppt_move_shape": self.ppt_move_shape,
+            "ppt_resize_shape": self.ppt_resize_shape,
+            "ppt_format_text": self.ppt_format_text,
+            "ppt_get_theme_colors": self.ppt_get_theme_colors,
             # Image handling
             "save_uploaded_image": self.save_uploaded_image,
         }
@@ -285,6 +270,68 @@ class GeminiService:
     def list_windows(self):
         """Lists all visible windows with their titles and positions."""
         return get_desktop_service().list_windows()
+
+    # --- PPT WRAPPERS (proxied to Windows agent via get_desktop_service) ---
+    def ppt_get_active_presentation(self):
+        """Gets info about the currently active/open PowerPoint presentation."""
+        return get_desktop_service().ppt_get_active_presentation()
+    
+    def ppt_open_presentation(self, file_path: str):
+        """Opens a PowerPoint presentation file."""
+        return get_desktop_service().ppt_open_presentation(file_path)
+    
+    def ppt_get_slide_info(self, slide_number: int = 0):
+        """Gets information about a specific slide or all slides if slide_number is 0."""
+        return get_desktop_service().ppt_get_slide_info(slide_number)
+    
+    def ppt_edit_text(self, slide_number: int, shape_name: str, new_text: str):
+        """Edits text in a specific shape on a slide, preserving formatting."""
+        return get_desktop_service().ppt_edit_text(slide_number, shape_name, new_text)
+    
+    def ppt_add_slide(self, after_slide: int = 0, layout: str = "title_content"):
+        """Adds a new slide to the presentation, inheriting the theme."""
+        return get_desktop_service().ppt_add_slide(after_slide, layout)
+    
+    def ppt_duplicate_slide(self, slide_number: int):
+        """Duplicates an existing slide, preserving all formatting and content."""
+        return get_desktop_service().ppt_duplicate_slide(slide_number)
+    
+    def ppt_delete_slide(self, slide_number: int):
+        """Deletes a slide from the presentation."""
+        return get_desktop_service().ppt_delete_slide(slide_number)
+    
+    def ppt_save_presentation(self, save_as_path: str = None):
+        """Saves the current presentation. Optionally saves to a new file."""
+        return get_desktop_service().ppt_save_presentation(save_as_path)
+    
+    def ppt_goto_slide(self, slide_number: int):
+        """Navigates to a specific slide in the presentation."""
+        return get_desktop_service().ppt_goto_slide(slide_number)
+    
+    def ppt_add_picture(self, slide_number: int, image_path: str, left: int = 100, top: int = 100, width: int = 400):
+        """Adds a picture to a slide at the specified position."""
+        return get_desktop_service().ppt_add_picture(slide_number, image_path, left, top, width)
+    
+    def ppt_add_shape(self, slide_number: int, shape_type: str, left: int, top: int, width: int, height: int, text: str = ""):
+        """Adds a shape to a slide with optional text."""
+        return get_desktop_service().ppt_add_shape(slide_number, shape_type, left, top, width, height, text)
+    
+    def ppt_move_shape(self, slide_number: int, shape_name: str, left: int, top: int):
+        """Moves a shape to a new position on the slide."""
+        return get_desktop_service().ppt_move_shape(slide_number, shape_name, left, top)
+    
+    def ppt_resize_shape(self, slide_number: int, shape_name: str, width: int, height: int):
+        """Resizes a shape on the slide."""
+        return get_desktop_service().ppt_resize_shape(slide_number, shape_name, width, height)
+    
+    def ppt_format_text(self, slide_number: int, shape_name: str, bold: bool = None, italic: bool = None,
+                        font_size: int = None, font_color: str = None):
+        """Formats text in a shape (bold, italic, size, color)."""
+        return get_desktop_service().ppt_format_text(slide_number, shape_name, bold, italic, font_size, font_color)
+    
+    def ppt_get_theme_colors(self, slide_number: int = 1):
+        """Extracts theme colors from the presentation for consistency."""
+        return get_desktop_service().ppt_get_theme_colors(slide_number)
 
     def look_at_screen(self, purpose: str):
         base64_img = get_desktop_service().get_screenshot_base64()

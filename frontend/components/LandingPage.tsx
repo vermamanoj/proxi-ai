@@ -16,14 +16,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             <span className="text-xl font-bold">PROXI</span>
           </div>
           <div className="flex items-center gap-4">
-            <a 
-              href="https://github.com/vermamanoj/proxi-ai" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              <Github className="w-5 h-5" />
-            </a>
             <button
               onClick={onLogin}
               className="px-4 py-2 bg-proxi-accent text-black font-medium rounded-lg hover:bg-proxi-accent/90 transition-colors"
@@ -211,17 +203,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           <div className="flex items-center gap-2">
             <Zap className="w-5 h-5 text-proxi-accent" />
             <span className="text-sm text-gray-400">PROXI © 2026</span>
-          </div>
-          <div className="flex items-center gap-6 text-sm text-gray-400">
-            <span>Built for Google Gemini Hackathon</span>
-            <a 
-              href="https://github.com/vermamanoj/proxi-ai" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hover:text-white transition-colors"
-            >
-              GitHub
-            </a>
           </div>
         </div>
       </footer>
