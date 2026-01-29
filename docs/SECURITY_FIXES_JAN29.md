@@ -368,7 +368,54 @@ docker-compose down && docker-compose up -d --build  # Rebuild
 - No change to normal login flow (demo/demo123 still works)
 - Session persistence still works via cookies
 
+### Fix #4: Upgrade Password Hashing ✅ COMPLETED
+**Completed:** Jan 29, 2026 11:35 AM IST
+
+**Changes made:**
+1. `backend/requirements.txt`:
+   - Added `bcrypt==4.1.2` dependency
+
+2. `backend/auth/auth_service.py`:
+   - Imported `bcrypt` module
+   - Modified `_hash_password()` to use bcrypt with 12 rounds
+   - Added `_verify_password()` method with legacy SHA-256 support
+   - Modified `authenticate()` to upgrade legacy hashes on successful login
+   - Detects legacy hash by length (64 hex chars) and verifies using old method
+   - Automatically upgrades to bcrypt on next successful login
+
+**Security improvement:**
+- Bcrypt is resistant to offline brute-force attacks (adaptive cost)
+- 12 rounds provides strong security while maintaining performance
+- Legacy SHA-256 hashes automatically upgraded on login
+- Transparent migration - no user action required
+
+**Hackathon compatibility:**
+- demo/demo123 continues to work (upgraded on first login)
+- Magic links unaffected (don't use passwords)
+- Judges won't notice any change
+- Existing users automatically migrated
+
+**Migration behavior:**
+- Legacy hash detected: 64 hex characters
+- Verification: uses old SHA-256 method for legacy hashes
+- Upgrade: on successful login, re-hash with bcrypt and save
+- New users: always use bcrypt from creation
+
 ---
 
-**Status:** Ready to commit Fix #3, then implement Fix #4
-**Started:** Jan 29, 2026 11:05 AM IST
+## All Security Fixes Complete ✅
+
+**Total time:** ~30 minutes
+**Commits:** 4 separate commits (can rollback individually)
+
+**Next steps:**
+1. Rebuild Docker containers: `docker-compose down && docker-compose up -d --build`
+2. Test approval flow with destructive command
+3. Test agent health checks with PROXI_AGENT_KEY set
+4. Test login with demo/demo123 (should upgrade hash)
+5. Verify production deployment at proxi.audista.com
+
+---
+
+**Status:** All 4 security fixes completed and committed
+**Completed:** Jan 29, 2026 11:35 AM IST

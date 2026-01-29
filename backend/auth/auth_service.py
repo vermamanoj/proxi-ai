@@ -10,6 +10,7 @@ import secrets
 import json
 import os
 import sys
+import bcrypt
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 from dataclasses import dataclass, asdict
@@ -231,10 +232,23 @@ class AuthService:
         sys.stdout.flush()
     
     def _hash_password(self, password: str) -> str:
-        """Hash password using SHA-256 with salt."""
-        # In production, use bcrypt or argon2
-        salt = "proxi_hackathon_salt_2026"
-        return hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+        """Hash password using bcrypt (12 rounds)."""
+        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12)).decode('utf-8')
+    
+    def _verify_password(self, password: str, hashed: str) -> bool:
+        """Verify password against hash. Supports legacy SHA-256 hashes for migration."""
+        # Detect legacy SHA-256 hash (64 hex chars)
+        if len(hashed) == 64 and all(c in '0123456789abcdef' for c in hashed):
+            # Legacy SHA-256 hash - verify using old method
+            salt = "proxi_hackathon_salt_2026"
+            legacy_hash = hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+            return legacy_hash == hashed
+        
+        # Modern bcrypt hash
+        try:
+            return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+        except Exception:
+            return False
     
     def _generate_session_id(self) -> str:
         """Generate a secure random session ID."""
@@ -254,13 +268,19 @@ class AuthService:
         return user
     
     def authenticate(self, username: str, password: str) -> Optional[User]:
-        """Authenticate a user by username and password."""
+        """Authenticate a user by username and password. Upgrades legacy hashes on successful login."""
         user = self.users.get(username)
         if not user:
             return None
         
-        if user.password_hash != self._hash_password(password):
+        if not self._verify_password(password, user.password_hash):
             return None
+        
+        # If using legacy hash, upgrade to bcrypt
+        if len(user.password_hash) == 64:
+            user.password_hash = self._hash_password(password)
+            self._save_users()
+            print(f"[AUTH] Upgraded password hash for user: {username}")
         
         return user
     

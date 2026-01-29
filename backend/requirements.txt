@@ -18,3 +18,4 @@ comtypes==1.2.0
 pywin32==306
 pyperclip==1.8.2
 requests==2.31.0
+bcrypt==4.1.2
