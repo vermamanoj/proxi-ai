@@ -77,6 +77,19 @@ Proxi uses a security-focused split where sensitive data (API keys, user DB) sta
 | `core` | proxi-core | `backend/Dockerfile` | Full backend with DB, Auth, LLM |
 | `agent` | proxi-agent | `backend/Dockerfile.agent` | Minimal, tools only |
 | `frontend` | proxi-frontend | `frontend/Dockerfile` | React static build |
+| `forensic-investigation` | proxi-forensics | External build | SOC training container |
+
+### Port Configuration
+
+Core communicates with agents via Docker internal networking or Tailscale. **Always use internal port 8081** in workstation config:
+
+| Agent | External Port | Internal Port | workstations.json |
+|-------|--------------|---------------|-------------------|
+| Linux Agent (Docker) | 4001 | 8081 | `"host": "agent", "port": 8081` |
+| Forensics (Docker) | 5081 | 8081 | `"host": "forensic-investigation", "port": 8081` |
+| Windows Agent (Tailscale) | - | 8081 | `"host": "100.x.x.x", "port": 8081` |
+
+**Why?** Core runs inside Docker and connects via internal network (service names) or Tailscale (direct IP). External ports (4001, 5081) are only for debugging from host.
 
 ---
 
