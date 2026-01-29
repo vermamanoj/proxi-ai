@@ -24,13 +24,21 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 # Copy only desktop services (no auth, no database, no gemini)
 COPY services/desktop /app/backend/services/desktop
 
+# Copy tools directory (needed for ppt_tools on Windows agent, stubs on Linux)
+COPY tools /app/backend/tools
+
+# Copy utils directory (needed for logger)
+COPY utils /app/backend/utils
+
 # Copy agent server
 COPY agent_server.py /app/backend/agent_server.py
 
 # Create empty __init__.py files for imports
-RUN mkdir -p /app/backend/services && \
+RUN mkdir -p /app/backend/services /app/backend/tools /app/backend/utils && \
     touch /app/backend/__init__.py && \
-    touch /app/backend/services/__init__.py
+    touch /app/backend/services/__init__.py && \
+    touch /app/backend/tools/__init__.py && \
+    touch /app/backend/utils/__init__.py
 
 # Set ownership to non-root user
 RUN chown -R proxi:proxi /app

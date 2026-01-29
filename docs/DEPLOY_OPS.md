@@ -71,6 +71,38 @@ TAILSCALE_AUTHKEY=tskey-auth-xxxxxxxxxxxxx
 
 # Agent authentication (generate with: openssl rand -hex 32)
 PROXI_AGENT_KEY=your_strong_64_char_hex_key_here
+
+# Development/Demo Mode - DISABLE IN PRODUCTION!
+PROXI_DEV_MODE=false
+```
+
+### Development Mode (PROXI_DEV_MODE)
+
+> ⚠️ **Security Warning:** Only enable on sandbox/demo machines. Never in production!
+
+When `PROXI_DEV_MODE=true`, the Command Guard security system is bypassed:
+- **Auto-approves** commands that normally require user confirmation (pip install, taskkill, etc.)
+- **Allows BLOCKED** commands (with warning log) for demo purposes
+- Useful for video recording, demos, and sandbox testing
+
+**Enable in `.env` file (only location needed):**
+```ini
+PROXI_DEV_MODE=true
+```
+
+**Then restart Core:**
+```bash
+docker-compose restart core
+```
+
+**Verification:** Look for this log at Core startup:
+```
+[WARN] ⚠️  DEV MODE ENABLED - Command approvals DISABLED (sandbox/demo mode)
+```
+
+**Disable after recording:**
+```ini
+PROXI_DEV_MODE=false
 ```
 
 ### Security: Set .env Permissions
