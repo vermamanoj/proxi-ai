@@ -3,7 +3,7 @@
  * Bypasses CORS/Cloudflare issues on mobile
  */
 
-import { Http, HttpResponse } from '@capacitor-community/http';
+import { CapacitorHttp, HttpResponse } from '@capacitor/core';
 import { API_BASE } from '../constants';
 
 const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
@@ -37,7 +37,7 @@ export async function httpRequest<T = any>(
   if (isCapacitor) {
     // Use Capacitor native HTTP - bypasses CORS entirely
     try {
-      const response: HttpResponse = await Http.request({
+      const response: HttpResponse = await CapacitorHttp.request({
         url,
         method,
         headers: {
