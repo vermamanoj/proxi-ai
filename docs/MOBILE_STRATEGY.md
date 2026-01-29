@@ -312,11 +312,14 @@ Essential for mobile UX:
 |------|--------|-------|
 | WebRTC tested on mobile browser | ✅ Done | Voice works in Android/iOS browsers |
 | Capacitor 5.7.8 installed | ✅ Done | Using v5 for Node 20 compatibility |
-| `vite.config.ts` updated | ✅ Done | `base: './'` for mobile, terser minification |
+| `vite.config.ts` updated | ✅ Done | `base: './'` for mobile, code-splitting |
 | `capacitor.config.ts` created | ✅ Done | Security settings, domain whitelist |
 | Android platform added | ✅ Done | `frontend/android/` generated |
 | Android permissions configured | ✅ Done | Mic, camera, audio settings |
 | Web assets synced | ✅ Done | `npx cap sync android` |
+| **Native HTTP plugin** | ✅ Done | `@capacitor-community/http` - bypasses CORS |
+| **Mobile-first login** | ✅ Done | Skips landing page, goes straight to login |
+| **HTTP client wrapper** | ✅ Done | `services/httpClient.ts` - native on mobile |
 
 ### 🔲 Pending (Resume When Ready)
 

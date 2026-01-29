@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_BASE } from '../constants';
+import { api } from '../services/httpClient';
 import { DEFAULT_WORKSTATIONS, Workstation, WorkstationStatus } from '../config/workstations';
 
 interface UseWorkstationsResult {
@@ -25,22 +25,15 @@ export function useWorkstations(): UseWorkstationsResult {
 
   // Fetch workstations from backend
   const fetchFromBackend = useCallback(async (): Promise<Workstation[] | null> => {
-    try {
-      const response = await fetch(`${API_BASE}/api/workstations`, {
-        credentials: 'include',
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setBackendAvailable(true);
-        return data.workstations || data;
-      }
-      return null;
-    } catch (err) {
-      console.warn('Backend unavailable, using static workstation config');
-      setBackendAvailable(false);
-      return null;
+    const response = await api.get('/api/workstations');
+    
+    if (response.ok && response.data) {
+      setBackendAvailable(true);
+      return response.data.workstations || response.data;
     }
+    console.warn('Backend unavailable, using static workstation config');
+    setBackendAvailable(false);
+    return null;
   }, []);
 
   // Check health of a single workstation
@@ -48,12 +41,9 @@ export function useWorkstations(): UseWorkstationsResult {
     try {
       // Always prefer backend API for health checks (works in production)
       if (backendAvailable) {
-        const response = await fetch(`${API_BASE}/api/workstations/${ws.id}/health`, {
-          credentials: 'include',
-        });
-        if (response.ok) {
-          const data = await response.json();
-          return data.status as WorkstationStatus;
+        const response = await api.get(`/api/workstations/${ws.id}/health`);
+        if (response.ok && response.data) {
+          return response.data.status as WorkstationStatus;
         }
       }
       
@@ -132,13 +122,9 @@ export function useWorkstations(): UseWorkstationsResult {
     // Notify backend to activate this agent for proxied tool execution
     if (backendAvailable) {
       try {
-        const response = await fetch(`${API_BASE}/api/workstations/${id}/activate`, {
-          method: 'POST',
-          credentials: 'include',
-        });
+        const response = await api.post(`/api/workstations/${id}/activate`);
         if (!response.ok) {
-          const data = await response.json();
-          setError(data.detail || 'Failed to activate agent');
+          setError(response.data?.detail || 'Failed to activate agent');
           return;
         }
         console.log(`Activated agent: ${id}`);

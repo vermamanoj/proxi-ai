@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_BASE } from '../constants';
+import { api } from '../services/httpClient';
 
 interface User {
   username: string;
@@ -27,38 +27,24 @@ export function useAuth() {
 
   const checkSession = useCallback(async () => {
     const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
-    console.log(`[Auth] Checking session - mobile: ${isCapacitor}, API: ${API_BASE}`);
+    console.log(`[Auth] Checking session - mobile: ${isCapacitor}`);
     
-    try {
-      const response = await fetch(`${API_BASE}/api/auth/session`, {
-        credentials: 'include',
+    const response = await api.get('/api/auth/session');
+    console.log(`[Auth] Session check response: ${response.status}`);
+    
+    if (response.ok && response.data) {
+      console.log(`[Auth] Session valid for: ${response.data.username}`);
+      setAuthState({
+        isAuthenticated: true,
+        user: {
+          username: response.data.username,
+          displayName: response.data.display_name,
+          role: response.data.role,
+        },
+        isLoading: false,
       });
-      
-      console.log(`[Auth] Session check response: ${response.status}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log(`[Auth] Session valid for: ${data.username}`);
-        setAuthState({
-          isAuthenticated: true,
-          user: {
-            username: data.username,
-            displayName: data.display_name,
-            role: data.role,
-          },
-          isLoading: false,
-        });
-      } else {
-        console.log(`[Auth] No valid session (${response.status})`);
-        setAuthState({
-          isAuthenticated: false,
-          user: null,
-          isLoading: false,
-        });
-      }
-    } catch (error) {
-      console.error('[Auth] Session check failed:', error);
-      // Always require valid backend session - no localStorage bypass
+    } else {
+      console.log(`[Auth] No valid session (${response.status})`);
       setAuthState({
         isAuthenticated: false,
         user: null,
@@ -69,59 +55,33 @@ export function useAuth() {
 
   const login = useCallback(async (username: string, password: string, rememberMe: boolean = false): Promise<boolean> => {
     const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
-    console.log(`[Auth] Login attempt - user: ${username}, mobile: ${isCapacitor}, API: ${API_BASE}`);
+    console.log(`[Auth] Login attempt - user: ${username}, mobile: ${isCapacitor}`);
     
-    try {
-      const response = await fetch(`${API_BASE}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ username, password, remember_me: rememberMe }),
+    const response = await api.post('/api/auth/login', { username, password, remember_me: rememberMe });
+    console.log(`[Auth] Response status: ${response.status}`);
+    
+    if (response.ok && response.data) {
+      const user = {
+        username: response.data.username,
+        displayName: response.data.display_name,
+        role: response.data.role,
+      };
+      setAuthState({
+        isAuthenticated: true,
+        user,
+        isLoading: false,
       });
-
-      console.log(`[Auth] Response status: ${response.status}`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        const user = {
-          username: data.username,
-          displayName: data.display_name,
-          role: data.role,
-        };
-        setAuthState({
-          isAuthenticated: true,
-          user,
-          isLoading: false,
-        });
-        // Save to localStorage for demo purposes
-        localStorage.setItem('proxi_auth', JSON.stringify(user));
-        console.log(`[Auth] Login successful: ${user.username}`);
-        return true;
-      }
-      
-      // Log error details for debugging
-      const errorText = await response.text();
-      console.error(`[Auth] Login failed - status: ${response.status}, body: ${errorText}`);
-      return false;
-    } catch (error) {
-      console.error('[Auth] Login exception:', error);
-      return false;
+      localStorage.setItem('proxi_auth', JSON.stringify(user));
+      console.log(`[Auth] Login successful: ${user.username}`);
+      return true;
     }
+    
+    console.error(`[Auth] Login failed - status: ${response.status}, error: ${response.error}`);
+    return false;
   }, []);
 
   const logout = useCallback(async () => {
-    try {
-      await fetch(`${API_BASE}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-    } catch (error) {
-      console.error('Logout API failed:', error);
-    }
-    
-    // Clear local state regardless of API success
+    await api.post('/api/auth/logout');
     localStorage.removeItem('proxi_auth');
     setAuthState({
       isAuthenticated: false,
@@ -131,32 +91,24 @@ export function useAuth() {
   }, []);
 
   const redeemMagicLink = useCallback(async (token: string): Promise<boolean> => {
-    try {
-      const response = await fetch(`${API_BASE}/api/auth/magic-link/${token}/redeem`, {
-        method: 'POST',
-        credentials: 'include',
+    const response = await api.post(`/api/auth/magic-link/${token}/redeem`);
+    
+    if (response.ok && response.data) {
+      const user = {
+        username: response.data.username,
+        displayName: response.data.display_name,
+        role: response.data.role,
+      };
+      setAuthState({
+        isAuthenticated: true,
+        user,
+        isLoading: false,
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        const user = {
-          username: data.username,
-          displayName: data.display_name,
-          role: data.role,
-        };
-        setAuthState({
-          isAuthenticated: true,
-          user,
-          isLoading: false,
-        });
-        localStorage.setItem('proxi_auth', JSON.stringify(user));
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Magic link redemption failed:', error);
-      return false;
+      localStorage.setItem('proxi_auth', JSON.stringify(user));
+      return true;
     }
+    console.error('Magic link redemption failed:', response.error);
+    return false;
   }, []);
 
   return {
