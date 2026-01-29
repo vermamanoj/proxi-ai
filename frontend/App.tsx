@@ -381,7 +381,14 @@ const App: React.FC = () => {
       );
     }
     if (authView === 'login') {
-      return <LoginPage onLogin={login} onBack={() => setAuthView('landing')} />;
+      // On mobile, hide back button (no landing page for app)
+      const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
+      return <LoginPage onLogin={login} onBack={isCapacitor ? undefined : () => setAuthView('landing')} />;
+    }
+    // Skip landing page on mobile - go straight to login
+    const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
+    if (isCapacitor) {
+      return <LoginPage onLogin={login} onBack={undefined} />;
     }
     return <LandingPage onLogin={() => setAuthView('login')} />;
   }

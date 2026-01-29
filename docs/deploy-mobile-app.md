@@ -36,7 +36,10 @@ $env:CAPACITOR_BUILD='true'; npm run build
 
 ### 3. Sync to Android
 
+**Important:** Run from `frontend/` directory, NOT `frontend/android/`
+
 ```powershell
+# Must be in E:\data\proxi-ai\frontend (not android subdirectory)
 npx cap sync android
 ```
 

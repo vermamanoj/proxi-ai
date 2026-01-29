@@ -7,15 +7,10 @@
 ## 1. Production Server (proxi.audista.com)
 
 ```bash
-# SSH to server
 ssh ubuntu@proxi.audista.com
-
-# Pull and rebuild
 cd ~/proxi-ai
 git pull
 docker compose up -d --build
-
-# Verify
 ./deploy.sh --status
 ```
 
@@ -25,19 +20,18 @@ docker compose up -d --build
 
 ## 2. Mobile App (Android APK)
 
+**Important:** Run `cap sync` from `frontend/` directory, not `frontend/android/`
+
 ```powershell
-# From Windows dev machine (E:\data\proxi-ai\frontend)
+cd E:\data\proxi-ai\frontend
 $env:CAPACITOR_BUILD='true'; npm run build
 npx cap sync android
-
-# Build APK
 cd android
 $env:JAVA_HOME = "e:\Program Files\Android\Android Studio\jbr"
 .\gradlew assembleDebug
-
-# APK location
-# E:\data\proxi-ai\frontend\android\app\build\outputs\apk\debug\app-debug.apk
 ```
+
+**APK:** `frontend\android\app\build\outputs\apk\debug\app-debug.apk`
 
 **Full docs:** [deploy-mobile-app.md](./deploy-mobile-app.md)
 

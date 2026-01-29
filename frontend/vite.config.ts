@@ -47,7 +47,19 @@ export default defineConfig(({ mode }) => {
           drop_console: mode === 'production',
           drop_debugger: true
         }
-      }
+      },
+      // Code splitting for better performance
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Separate vendor chunks
+            'react-vendor': ['react', 'react-dom'],
+            'google-ai': ['@google/genai'],
+            'lucide': ['lucide-react'],
+          }
+        }
+      },
+      chunkSizeWarningLimit: 600  // Slightly increase limit for main bundle
     }
   };
 });
