@@ -33,6 +33,15 @@ services:
       - PROXI_AGENT_KEY=${PROXI_AGENT_KEY}  # Shared secret for Core auth
     restart: unless-stopped
 
+  # SOC Forensics Container - Simulated compromised server for training
+  forensic-investigation:
+    image: proxi-forensics:v2
+    ports:
+      - "5081:8081"
+    environment:
+      - PROXI_AGENT_KEY=${PROXI_AGENT_KEY}
+    restart: unless-stopped
+
   # Frontend UI
   frontend:
     build: 

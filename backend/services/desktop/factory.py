@@ -1,5 +1,6 @@
 import platform
 from typing import Optional
+from backend.utils.logger import log_system
 
 _windows_instance = None
 _linux_instance = None
@@ -11,6 +12,7 @@ def set_active_agent(agent_url: str):
     """Set the active agent URL for proxied tool execution."""
     global _active_agent_url
     _active_agent_url = agent_url
+    log_system(f"Active agent set to: {agent_url}", "FACTORY")
 
 
 def clear_active_agent():
@@ -45,6 +47,7 @@ def get_desktop_service(agent_url: str = None, allow_local: bool = False):
         if url not in _proxy_instances:
             from .proxy_adapter import ProxyDesktopService
             _proxy_instances[url] = ProxyDesktopService(url)
+        log_system(f"Using ProxyDesktopService for: {url}", "FACTORY")
         return _proxy_instances[url]
     
     # Local execution only allowed for agent_server.py
@@ -54,13 +57,16 @@ def get_desktop_service(agent_url: str = None, allow_local: bool = False):
             if _linux_instance is None:
                 from .linux import LinuxDesktopService
                 _linux_instance = LinuxDesktopService()
+            log_system("Using LinuxDesktopService (allow_local=True)", "FACTORY")
             return _linux_instance
         # Windows
         if _windows_instance is None:
             from .real import RealDesktopService
             _windows_instance = RealDesktopService()
+        log_system("Using RealDesktopService (allow_local=True)", "FACTORY")
         return _windows_instance
     
     # NO LOCAL EXECUTION for Core - require agent selection
+    log_system(f"No agent URL set (_active_agent_url={_active_agent_url}), returning NullDesktopService", "FACTORY")
     from .null import NullDesktopService
     return NullDesktopService()
