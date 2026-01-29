@@ -102,8 +102,8 @@ export const ApprovalModal: React.FC<ApprovalModalProps> = ({
         onClick={onDeny}
       />
 
-      {/* Modal */}
-      <div className={`relative w-full max-w-md rounded-2xl border ${config.borderClass} ${config.bgClass} bg-gray-900 shadow-2xl animate-in zoom-in-95 fade-in duration-200`}>
+      {/* Modal - responsive: nearly full width on mobile, max-w-lg on desktop */}
+      <div className={`relative w-[calc(100%-2rem)] sm:w-full sm:max-w-lg rounded-2xl border ${config.borderClass} ${config.bgClass} bg-gray-900 shadow-2xl animate-in zoom-in-95 fade-in duration-200`}>
         {/* Header */}
         <div className={`px-6 py-4 border-b ${config.borderClass} flex items-center gap-4`}>
           <div className={`w-12 h-12 rounded-xl ${config.iconBg} flex items-center justify-center`}>
