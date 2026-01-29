@@ -170,8 +170,20 @@ const App: React.FC = () => {
     if (showDebugLogs) {
       return rawTrace; // Show everything including thinking
     }
-    // Hide llm_thought when debug is OFF
-    return rawTrace.filter(step => step.step_type !== 'llm_thought');
+    // Hide verbose messages when debug is OFF
+    return rawTrace.filter(step => {
+      // Always hide llm_thought
+      if (step.step_type === 'llm_thought') return false;
+      
+      // Hide delegation-related verbose messages
+      const content = typeof step.content === 'string' ? step.content : '';
+      if (content.includes('Handing off to Core')) return false;
+      if (content.includes('delegate_task')) return false;
+      if (content.includes('Analyzing the Request') || content.includes('Analyzing the request')) return false;
+      if (content.includes('I\'ve determined') && content.includes('tool')) return false;
+      
+      return true;
+    });
   }, [rawTrace, showDebugLogs]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
