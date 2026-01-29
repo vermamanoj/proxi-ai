@@ -61,6 +61,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
+    expose_headers=["set-cookie"], # Ensure the mobile app can see the cookie header
 )
 
 # --- AUTH HELPER ---

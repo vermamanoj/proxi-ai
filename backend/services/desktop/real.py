@@ -466,3 +466,64 @@ class RealDesktopService(DesktopInterface):
             return {"windows": result}
         except Exception as e:
             return {"error": f"List windows failed: {e}"}
+
+    # --- PowerPoint Tools (call ppt_tools directly on Windows) ---
+    def ppt_get_active_presentation(self):
+        from backend.tools.ppt_tools import ppt_get_active_presentation
+        return ppt_get_active_presentation()
+
+    def ppt_open_presentation(self, file_path: str):
+        from backend.tools.ppt_tools import ppt_open_presentation
+        return ppt_open_presentation(file_path)
+
+    def ppt_get_slide_info(self, slide_number: int = 0):
+        from backend.tools.ppt_tools import ppt_get_slide_info
+        return ppt_get_slide_info(slide_number)
+
+    def ppt_edit_text(self, slide_number: int, shape_name: str, new_text: str):
+        from backend.tools.ppt_tools import ppt_edit_text
+        return ppt_edit_text(slide_number, shape_name, new_text)
+
+    def ppt_add_slide(self, after_slide: int = 0, layout: str = "title_content"):
+        from backend.tools.ppt_tools import ppt_add_slide
+        return ppt_add_slide(after_slide, layout)
+
+    def ppt_duplicate_slide(self, slide_number: int):
+        from backend.tools.ppt_tools import ppt_duplicate_slide
+        return ppt_duplicate_slide(slide_number)
+
+    def ppt_delete_slide(self, slide_number: int):
+        from backend.tools.ppt_tools import ppt_delete_slide
+        return ppt_delete_slide(slide_number)
+
+    def ppt_save_presentation(self, save_as_path: str = None):
+        from backend.tools.ppt_tools import ppt_save_presentation
+        return ppt_save_presentation(save_as_path)
+
+    def ppt_goto_slide(self, slide_number: int):
+        from backend.tools.ppt_tools import ppt_goto_slide
+        return ppt_goto_slide(slide_number)
+
+    def ppt_add_picture(self, slide_number: int, image_path: str, left: int = 100, top: int = 100, width: int = 400):
+        from backend.tools.ppt_tools import ppt_add_picture
+        return ppt_add_picture(slide_number, image_path, left, top, width)
+
+    def ppt_add_shape(self, slide_number: int, shape_type: str, left: int, top: int, width: int, height: int, text: str = ""):
+        from backend.tools.ppt_tools import ppt_add_shape
+        return ppt_add_shape(slide_number, shape_type, left, top, width, height, text)
+
+    def ppt_move_shape(self, slide_number: int, shape_name: str, left: int, top: int):
+        from backend.tools.ppt_tools import ppt_move_shape
+        return ppt_move_shape(slide_number, shape_name, left, top)
+
+    def ppt_resize_shape(self, slide_number: int, shape_name: str, width: int, height: int):
+        from backend.tools.ppt_tools import ppt_resize_shape
+        return ppt_resize_shape(slide_number, shape_name, width, height)
+
+    def ppt_format_text(self, slide_number: int, shape_name: str, bold: bool = None, italic: bool = None, font_size: int = None, font_color: str = None):
+        from backend.tools.ppt_tools import ppt_format_text
+        return ppt_format_text(slide_number, shape_name, bold, italic, font_size, font_color)
+
+    def ppt_get_theme_colors(self, slide_number: int = 1):
+        from backend.tools.ppt_tools import ppt_get_theme_colors
+        return ppt_get_theme_colors(slide_number)

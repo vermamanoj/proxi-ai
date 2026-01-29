@@ -114,3 +114,49 @@ class LinuxDesktopService(DesktopInterface):
     
     def list_windows(self):
         return {"status": "not_available", "message": "No GUI in container"}
+
+    # --- PowerPoint Tools (not available on Linux) ---
+    def ppt_get_active_presentation(self):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_open_presentation(self, file_path: str):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_get_slide_info(self, slide_number: int = 0):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_edit_text(self, slide_number: int, shape_name: str, new_text: str):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_add_slide(self, after_slide: int = 0, layout: str = "title_content"):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_duplicate_slide(self, slide_number: int):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_delete_slide(self, slide_number: int):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_save_presentation(self, save_as_path: str = None):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_goto_slide(self, slide_number: int):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_add_picture(self, slide_number: int, image_path: str, left: int = 100, top: int = 100, width: int = 400):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_add_shape(self, slide_number: int, shape_type: str, left: int, top: int, width: int, height: int, text: str = ""):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_move_shape(self, slide_number: int, shape_name: str, left: int, top: int):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_resize_shape(self, slide_number: int, shape_name: str, width: int, height: int):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_format_text(self, slide_number: int, shape_name: str, bold: bool = None, italic: bool = None, font_size: int = None, font_color: str = None):
+        return "Error: PowerPoint not available on Linux"
+
+    def ppt_get_theme_colors(self, slide_number: int = 1):
+        return "Error: PowerPoint not available on Linux"

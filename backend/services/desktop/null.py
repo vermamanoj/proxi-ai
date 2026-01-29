@@ -63,3 +63,49 @@ class NullDesktopService(DesktopInterface):
     
     def list_windows(self) -> list:
         return []
+
+    # --- PowerPoint Tools ---
+    def ppt_get_active_presentation(self) -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_open_presentation(self, file_path: str) -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_get_slide_info(self, slide_number: int = 0) -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_edit_text(self, slide_number: int, shape_name: str, new_text: str) -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_add_slide(self, after_slide: int = 0, layout: str = "title_content") -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_duplicate_slide(self, slide_number: int) -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_delete_slide(self, slide_number: int) -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_save_presentation(self, save_as_path: str = None) -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_goto_slide(self, slide_number: int) -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_add_picture(self, slide_number: int, image_path: str, left: int = 100, top: int = 100, width: int = 400) -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_add_shape(self, slide_number: int, shape_type: str, left: int, top: int, width: int, height: int, text: str = "") -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_move_shape(self, slide_number: int, shape_name: str, left: int, top: int) -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_resize_shape(self, slide_number: int, shape_name: str, width: int, height: int) -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_format_text(self, slide_number: int, shape_name: str, bold: bool = None, italic: bool = None, font_size: int = None, font_color: str = None) -> str:
+        return f"Error: {self.ERROR_MSG}"
+
+    def ppt_get_theme_colors(self, slide_number: int = 1) -> str:
+        return f"Error: {self.ERROR_MSG}"

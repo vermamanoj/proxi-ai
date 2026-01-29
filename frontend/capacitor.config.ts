@@ -5,32 +5,34 @@ const config: CapacitorConfig = {
   appName: 'Proxi',
   webDir: 'dist',
   
-  // Server configuration for API calls
   server: {
-    // For development: leave empty to use relative paths with proxy
-    // For production: set to your backend URL (e.g., 'https://api.proxi.audista.com')
-    // url: 'https://api.proxi.audista.com',
-    cleartext: false,  // Security: block HTTP, require HTTPS
+    // This ensures your origin is consistent. 
+    // If your logs say 'http://localhost', keep this as 'http'.
+    androidScheme: 'http', 
+    cleartext: false,
     allowNavigation: [
       'https://*.audista.com',
-      'https://*.google.com',  // For Gemini API
-      'wss://*.google.com'     // For Gemini Live WebSocket
+      'https://*.google.com',
+      'wss://*.google.com'
     ]
   },
 
-  // Android-specific settings
   android: {
-    allowMixedContent: true,   // Allow during development
-    captureInput: true,        // Better keyboard handling
-    webContentsDebuggingEnabled: true  // Enable for debugging - disable in production
+    allowMixedContent: true,
+    captureInput: true,
+    webContentsDebuggingEnabled: true
   },
 
-  // Plugins configuration
   plugins: {
+    // ADD THIS SECTION: This tells Capacitor to handle 'fetch' calls 
+    // using native Android code instead of the restricted WebView browser.
+    CapacitorHttp: {
+      enabled: true,
+    },
     SplashScreen: {
       launchShowDuration: 2000,
       launchAutoHide: true,
-      backgroundColor: '#0a0a0f',  // Match Proxi dark theme
+      backgroundColor: '#0a0a0f',
       showSpinner: false
     }
   }
