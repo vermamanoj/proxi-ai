@@ -1,0 +1,69 @@
+================================================================================
+ORACLE CLOUD INFRASTRUCTURE (OCI) - NETWORKING CONSOLE
+================================================================================
+
+Region:         ap-hyderabad-1
+VCN:            vcn-hyd-prod
+Subnet:         private-subnet-vcn-hyd
+Security List:  Default Security List for vcn-hyd-prod
+Instance:       instance-ideaforge (10.0.1.45)
+
+================================================================================
+INGRESS RULES (Inbound Traffic to Instance)
+================================================================================
+
+Rule #  Source CIDR      Protocol  Src Port  Dest Port  Action  Description
+------  ---------------  --------  --------  ---------  ------  -----------
+1       20.40.50.18/32   TCP       All       22         ALLOW   SSH - Admin Home IP Only
+2       0.0.0.0/0        TCP       All       443        ALLOW   HTTPS Web Traffic
+3       0.0.0.0/0        TCP       All       80         ALLOW   HTTP Web Traffic  
+4       10.0.0.0/16      ICMP      All       -          ALLOW   Internal VCN Ping
+5       10.0.0.0/16      TCP       All       3000       ALLOW   Next.js App (Internal)
+
+================================================================================
+EGRESS RULES (Outbound Traffic from Instance)
+================================================================================
+
+Rule #  Dest CIDR        Protocol  Src Port  Dest Port  Action  Description
+------  ---------------  --------  --------  ---------  ------  -----------
+1       0.0.0.0/0        TCP       All       All        ALLOW   All Outbound TCP
+2       0.0.0.0/0        UDP       All       All        ALLOW   All Outbound UDP
+3       0.0.0.0/0        ICMP      All       -          ALLOW   All Outbound ICMP
+
+================================================================================
+SECURITY ANALYSIS
+================================================================================
+
+✓ Port 22 (SSH):     RESTRICTED to 20.40.50.18/32 only
+                     → SSH brute force from internet: IMPOSSIBLE
+
+✗ Port 5432 (PostgreSQL): NOT LISTED in ingress rules
+                          → Database is NOT exposed to internet
+                          → DB exploit from external attacker: IMPOSSIBLE
+
+✓ Port 80/443 (Web):  OPEN to 0.0.0.0/0 (all internet)
+                      → Web application IS exposed
+                      → Web app vulnerabilities CAN be exploited
+
+✓ Port 3000 (Next.js): RESTRICTED to 10.0.0.0/16 (internal VCN only)
+                       → Direct access to Next.js: BLOCKED
+                       → But reverse proxy on 80/443 forwards to 3000
+
+================================================================================
+CONCLUSION
+================================================================================
+
+Based on firewall rules:
+  ✗ SSH brute force attack:     RULED OUT (port restricted)
+  ✗ Direct database exploit:    RULED OUT (port not exposed)
+  ✓ Web application attack:     POSSIBLE (ports 80/443 open)
+
+The attack vector MUST be through the web application (ports 80/443).
+
+Recommendation: Check application logs for exploitation attempts.
+File: /var/log/ideaforge-frontend.log
+
+================================================================================
+LAST UPDATED: 2026-01-29 12:00:00 UTC
+ANALYST: SOC-TRAINING-SIMULATION
+================================================================================
