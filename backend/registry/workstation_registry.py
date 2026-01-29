@@ -204,8 +204,14 @@ class WorkstationRegistry:
             return WorkstationStatus.UNKNOWN
         
         try:
+            # Include X-Agent-Key header for authentication
+            headers = {}
+            agent_key = os.getenv("PROXI_AGENT_KEY")
+            if agent_key:
+                headers["X-Agent-Key"] = agent_key
+            
             async with aiohttp.ClientSession() as session:
-                async with session.get(ws.health_url, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
+                async with session.get(ws.health_url, headers=headers, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
                     if response.status == 200:
                         ws.status = WorkstationStatus.ONLINE.value
                         ws.last_seen = datetime.utcnow().isoformat()

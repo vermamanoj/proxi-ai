@@ -624,8 +624,14 @@ async def activate_workstation(workstation_id: str, request: Request):
     # Check if agent is reachable before activating
     import aiohttp
     try:
+        # Include X-Agent-Key header for authentication
+        headers = {}
+        agent_key = os.getenv("PROXI_AGENT_KEY")
+        if agent_key:
+            headers["X-Agent-Key"] = agent_key
+        
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
-            async with session.get(f"{agent_url}/health") as response:
+            async with session.get(f"{agent_url}/health", headers=headers) as response:
                 if response.status != 200:
                     raise HTTPException(status_code=503, detail=f"Agent '{ws['name']}' is not responding (status {response.status})")
     except aiohttp.ClientConnectorError:

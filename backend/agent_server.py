@@ -59,8 +59,8 @@ async def root():
     }
 
 @app.get("/health")
-async def health():
-    """Health check with system metrics."""
+async def health(_: bool = Depends(verify_agent_key)):
+    """Health check with system metrics. Requires agent key if configured."""
     ds = get_desktop_service(allow_local=True)
     health_data = ds.get_system_health()
     return {

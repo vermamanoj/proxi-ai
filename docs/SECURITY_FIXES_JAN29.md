@@ -319,7 +319,35 @@ docker-compose down && docker-compose up -d --build  # Rebuild
 - Approval expires after 5 minutes
 - Command only executes after explicit API call with valid approval_id
 
+### Fix #2: Agent Auth Consistency ✅ COMPLETED
+**Completed:** Jan 29, 2026 11:25 AM IST
+
+**Changes made:**
+1. `backend/registry/workstation_registry.py`:
+   - Modified `check_workstation_health()` to include `X-Agent-Key` header
+   - Reads `PROXI_AGENT_KEY` from environment
+   - Adds header to health check requests if key is configured
+
+2. `backend/main.py`:
+   - Modified `activate_workstation()` health check to include `X-Agent-Key` header
+   - Consistent with tool execution authentication
+
+3. `backend/agent_server.py`:
+   - Modified `/health` endpoint to require agent key verification
+   - Uses existing `verify_agent_key` dependency
+   - Returns 401 if key is configured but missing/invalid
+
+**Security improvement:**
+- Health checks and activation now use same authentication as tool execution
+- Can safely enable `PROXI_AGENT_KEY` in production without breaking health checks
+- Agents are protected from unauthorized health probes
+- Consistent authentication across all Core→Agent communication
+
+**Deployment note:**
+- If `PROXI_AGENT_KEY` is not set, authentication is optional (backward compatible)
+- For production: set `PROXI_AGENT_KEY` in both Core and Agent environments
+
 ---
 
-**Status:** Ready to commit Fix #1, then implement Fix #2
+**Status:** Ready to commit Fix #2, then implement Fix #3
 **Started:** Jan 29, 2026 11:05 AM IST
