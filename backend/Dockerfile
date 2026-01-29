@@ -1,15 +1,16 @@
 # Proxi Core - LLM orchestration, auth, sessions
-# SECURITY: Runs as non-root user 'proxi'
+# SECURITY: Runs as non-root user 'proxi' via entrypoint
 
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system utilities
+# Install system utilities + gosu for proper user switching
 RUN apt-get update && apt-get install -y \
     gcc \
     procps \
     curl \
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security
@@ -22,10 +23,14 @@ COPY requirements-linux.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Create data directory for SQLite
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && chown proxi:proxi /app/data
 
 # Copy the application code into /app/backend to maintain import structure
 COPY . /app/backend
+
+# Copy and setup entrypoint script
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Set ownership to non-root user
 RUN chown -R proxi:proxi /app
@@ -33,11 +38,9 @@ RUN chown -R proxi:proxi /app
 # Set PYTHONPATH so python can find the 'backend' module
 ENV PYTHONPATH=/app
 
-# Switch to non-root user
-USER proxi
-
 # Expose the port
 EXPOSE 8000
 
-# Start the server
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use entrypoint to fix permissions on mounted volumes before starting
+# Runs as root initially, switches to proxi user via gosu
+ENTRYPOINT ["/app/entrypoint.sh"]
