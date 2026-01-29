@@ -884,14 +884,17 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                     if res_str.startswith("APPROVAL_REQUIRED:"):
                         # Parse: "APPROVAL_REQUIRED:approval_id:reason. Command: cmd. Should I proceed?"
                         import re
-                        parts = res_str.split(":", 3)  # Split into [APPROVAL_REQUIRED, approval_id, reason+rest]
+                        # Split only on first 2 colons to get [APPROVAL_REQUIRED, approval_id, rest]
+                        parts = res_str.split(":", 2)
                         if len(parts) >= 3:
                             approval_id = parts[1]
-                            rest = parts[2]
-                            # Extract command from rest
+                            rest = parts[2]  # "reason. Command: cmd. Should I proceed?"
+                            # Extract command - handle colon in "Command:"
                             cmd_match = re.search(r'Command:\s*(.+?)\.\s*Should', rest)
-                            command = cmd_match.group(1) if cmd_match else "Unknown command"
-                            reason = rest.split(".")[0] if "." in rest else "Command requires approval"
+                            command = cmd_match.group(1).strip() if cmd_match else "Unknown command"
+                            # Extract reason (text before ". Command:")
+                            reason_match = re.search(r'^(.+?)\.\s*Command:', rest)
+                            reason = reason_match.group(1).strip() if reason_match else "Command requires approval"
                             yield json.dumps({"type": "approval_required", "approval_id": approval_id, "reason": reason, "command": command, "risk_level": "moderate"}) + "\n"
                     
                     # Check for escalation
