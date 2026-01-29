@@ -51,21 +51,7 @@ export function useAuth() {
       }
     } catch (error) {
       console.error('Session check failed:', error);
-      // For demo/hackathon: allow bypass if backend is not available
-      const savedAuth = localStorage.getItem('proxi_auth');
-      if (savedAuth) {
-        try {
-          const user = JSON.parse(savedAuth);
-          setAuthState({
-            isAuthenticated: true,
-            user,
-            isLoading: false,
-          });
-          return;
-        } catch (e) {
-          // Invalid saved auth
-        }
-      }
+      // Always require valid backend session - no localStorage bypass
       setAuthState({
         isAuthenticated: false,
         user: null,

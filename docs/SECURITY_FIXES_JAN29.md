@@ -347,7 +347,28 @@ docker-compose down && docker-compose up -d --build  # Rebuild
 - If `PROXI_AGENT_KEY` is not set, authentication is optional (backward compatible)
 - For production: set `PROXI_AGENT_KEY` in both Core and Agent environments
 
+### Fix #3: Remove Frontend Auth Fallback ✅ COMPLETED
+**Completed:** Jan 29, 2026 11:30 AM IST
+
+**Changes made:**
+1. `frontend/hooks/useAuth.ts`:
+   - Removed localStorage auth bypass in `checkSession()` catch block
+   - Removed 15 lines of fallback code that allowed authentication when backend unreachable
+   - Now always requires valid backend session for authentication
+   - localStorage still used for UI preferences, but not as auth source
+
+**Security improvement:**
+- Frontend cannot bypass authentication when backend is down
+- All authentication must go through backend session validation
+- Eliminates client-side auth bypass vulnerability
+- Enforces server-side session control
+
+**User impact:**
+- If backend is down, users see login screen (correct behavior)
+- No change to normal login flow (demo/demo123 still works)
+- Session persistence still works via cookies
+
 ---
 
-**Status:** Ready to commit Fix #2, then implement Fix #3
+**Status:** Ready to commit Fix #3, then implement Fix #4
 **Started:** Jan 29, 2026 11:05 AM IST
