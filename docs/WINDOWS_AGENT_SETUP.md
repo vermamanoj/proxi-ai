@@ -117,23 +117,39 @@ curl http://100.64.0.5:8081/health
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Proxi Core (Cloud/Server)                │
+│              Proxi Core (Ubuntu Server / Docker)            │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
 │  │  Auth API   │  │ Session DB  │  │  Gemini Live API    │  │
+│  │  (cookies)  │  │  (SQLite)   │  │  (WebRTC/REST)      │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘  │
 │                          │                                  │
-│                    Agent Registry                           │
+│              Workstation Registry (JSON)                    │
+│                  stores agent Tailscale IPs                 │
 └──────────────────────────┬──────────────────────────────────┘
-                           │ WebSocket
-                           ▼
+                           │
+                    Tailscale Mesh VPN
+                    (secure, NAT-traversing)
+                           │
+                           ▼ HTTP requests to agent
 ┌──────────────────────────────────────────────────────────────┐
-│                   Windows Agent (Your PC)                    │
+│           Windows Agent (Your PC - behind NAT/firewall)      │
+│                    Tailscale IP: 100.x.x.x                   │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────────┐  │
 │  │ Command Exec │  │ Screenshot   │  │ GUI Automation    │  │
 │  │ (PowerShell) │  │ (PIL)        │  │ (pyautogui)       │  │
 │  └──────────────┘  └──────────────┘  └───────────────────┘  │
+│                                                              │
+│  Agent Server (uvicorn :8081)                               │
+│  - GET /health    → health check                            │
+│  - POST /execute  → run tools (X-Agent-Key auth)            │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+**Key Points:**
+- Core initiates connections TO agents (not the reverse)
+- Tailscale provides secure mesh networking through NAT/firewalls
+- Agent validates requests via `X-Agent-Key` header
+- No inbound ports needed on Windows machine
 
 ---
 
@@ -149,25 +165,28 @@ curl http://100.64.0.5:8081/health
 
 ---
 
-## Registration Flow
+## Connection Flow
 
-```mermaid
-sequenceDiagram
-    participant Agent as Windows Agent
-    participant Core as Proxi Core
-    participant User as User (Browser)
-    
-    Agent->>Core: POST /api/agents/register
-    Core->>Core: Generate agent token
-    Core-->>Agent: {token, agent_id}
-    Agent->>Core: WebSocket /ws/agent/{agent_id}
-    Core-->>Agent: Connection established
-    
-    User->>Core: Select agent in UI
-    Core->>Agent: Forward command
-    Agent->>Agent: Execute command
-    Agent-->>Core: Return result
-    Core-->>User: Display result
+```
+1. SETUP (one-time)
+   ├── Install Tailscale on both machines
+   ├── Both join same Tailscale network (tailnet)
+   └── Add agent to workstations.json with Tailscale IP
+
+2. RUNTIME
+   ├── User logs in to Proxi (cookie auth)
+   ├── User selects Windows agent from dropdown
+   ├── Core calls GET http://{tailscale-ip}:8081/health
+   │   └── Agent validates X-Agent-Key header
+   ├── If healthy, agent is marked "online"
+   └── User commands → Core → POST /execute → Agent → Result
+
+3. SECURITY LAYERS
+   ├── Cloudflare: Bot protection on frontend
+   ├── Session Auth: All API endpoints require login
+   ├── Admin Only: Workstation create/delete
+   ├── Tailscale: Encrypted mesh, no public exposure
+   └── Agent Key: Shared secret validates Core→Agent calls
 ```
 
 ---
@@ -194,39 +213,12 @@ The agent uses `CommandGuard` to filter dangerous commands:
 
 ### Network Security
 
-1. **Use HTTPS** - Always connect over TLS in production
-2. **Firewall** - Agent only needs outbound to Core server
-3. **Token rotation** - Rotate agent tokens periodically
-
----
-
-## Troubleshooting
-
-### Agent won't connect
-
-```powershell
-# Check network connectivity
-Test-NetConnection -ComputerName your-core-server -Port 4000
-
-# Check agent logs
-Get-Content .\proxi_debug.log -Tail 50
-```
-
-### GUI automation not working
-
-```powershell
-# Ensure display scaling is 100%
-# Or set DPI awareness in script
-import ctypes
-ctypes.windll.shcore.SetProcessDpiAwareness(2)
-```
-
-### Permission errors
-
-Run PowerShell as Administrator for:
-- Registry modifications
-- Service management
-- System file access
+| Layer | Protection |
+|-------|------------|
+| **Tailscale** | Encrypted WireGuard tunnel, no public ports |
+| **Agent Key** | `PROXI_AGENT_KEY` must match on Core and Agent |
+| **Session Auth** | All API calls require valid login cookie |
+| **Admin Role** | Only admins can register/delete workstations |
 
 ---
 
@@ -261,44 +253,40 @@ AGENT_NAME=build-machine
 
 ---
 
-## API Reference
+## Agent API Reference
 
-### Register Agent
+These endpoints run on the Windows agent (port 8081):
 
-```http
-POST /api/agents/register
-Content-Type: application/json
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Returns agent status, OS info |
+| `/execute` | POST | Execute a tool (terminal, screenshot, etc.) |
+
+### Execute Request
+
+```json
+POST /execute
+X-Agent-Key: {PROXI_AGENT_KEY}
 
 {
-  "name": "my-windows-pc",
-  "os": "windows",
-  "capabilities": ["terminal", "screenshot", "gui"]
+  "tool_name": "run_terminal_command",
+  "parameters": {
+    "command": "Get-Process | Select-Object -First 5"
+  }
 }
 ```
 
-### Agent Heartbeat
-
-```http
-POST /api/agents/{agent_id}/heartbeat
-Authorization: Bearer {agent_token}
-
-{
-  "status": "idle",
-  "cpu": 15.2,
-  "memory": 45.8
-}
-```
-
-### Execute Command (via WebSocket)
+### Health Response
 
 ```json
 {
-  "type": "execute",
-  "command": "Get-Process | Select-Object -First 5",
-  "shell": "powershell"
+  "status": "healthy",
+  "os": "Windows",
+  "hostname": "WIN-PC",
+  "tools_available": ["run_terminal_command", "take_screenshot", ...]
 }
 ```
 
 ---
 
-*Last updated: 2026-01-27*
+*Last updated: 2026-01-29*
