@@ -49,6 +49,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:4002",      # Local dev
     "http://localhost:5173",      # Vite dev server
     "http://127.0.0.1:4002",
+    "http://localhost",           # Capacitor mobile app
 ]
 
 app.add_middleware(

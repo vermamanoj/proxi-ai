@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { API_BASE } from '../constants';
 
 export type BackendStatus = 'connected' | 'disconnected' | 'checking';
 
@@ -13,7 +14,7 @@ export const useBackendHealth = (intervalMs: number = 5000) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
       
-      const response = await fetch('/api/health', {
+      const response = await fetch(`${API_BASE}/api/health`, {
         signal: controller.signal
       });
       clearTimeout(timeoutId);

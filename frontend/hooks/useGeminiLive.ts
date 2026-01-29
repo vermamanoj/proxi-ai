@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { LogEntry, MessageSource, ActiveToolState } from '../types';
-import { SYSTEM_INSTRUCTION_RELAY, SYSTEM_INSTRUCTION_CHAT, TOOLS } from '../constants';
+import { API_BASE, SYSTEM_INSTRUCTION_RELAY, SYSTEM_INSTRUCTION_CHAT, TOOLS } from '../constants';
 import { blobToBase64, createPcmBlob, decodeAudioData, encodePcm } from '../utils/audio';
 import { createSession, updateSession, closeSession as closeSessionApi } from '../services/sessionService';
 
@@ -176,7 +176,7 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
                 backendSessionTimestampRef.current = now;
                 
                 // Use complexity from UI setting
-                const response = await fetch('/api/chat', {
+                const response = await fetch(`${API_BASE}/api/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 

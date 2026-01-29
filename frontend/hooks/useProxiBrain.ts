@@ -2,6 +2,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { LogEntry, MessageSource, Complexity, AgentStatus, PendingAction, TraceStep, MissionState } from '../types';
 import { createSession, updateSession, closeSession as closeSessionApi } from '../services/sessionService';
+import { API_BASE } from '../constants';
 
 export const useProxiBrain = (audioEnabled: boolean = true, workstationId: string | null = null) => {
   const [status, setStatus] = useState<AgentStatus>('idle');
@@ -166,7 +167,7 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
     resetActivityTimer();
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, complexity, session_id: currentSessionId, workstation_id: workstationId }),
@@ -394,7 +395,7 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
 
     try {
       // Use new streaming vision-action endpoint
-      const response = await fetch('/api/vision-action', { method: 'POST', body: formData });
+      const response = await fetch(`${API_BASE}/api/vision-action`, { method: 'POST', body: formData });
       if (!response.ok) throw new Error(`Vision Action Error: ${response.status}`);
       if (!response.body) throw new Error("No response body");
 
