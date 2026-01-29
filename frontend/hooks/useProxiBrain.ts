@@ -25,8 +25,11 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
   });
 
   useEffect(() => {
+    // speechSynthesis not available in Android WebView
+    if (!window.speechSynthesis) return;
+    
     const loadVoices = () => {
-      voicesRef.current = window.speechSynthesis.getVoices();
+      voicesRef.current = window.speechSynthesis?.getVoices() || [];
     };
     if (window.speechSynthesis.onvoiceschanged !== undefined) {
       window.speechSynthesis.onvoiceschanged = loadVoices;
