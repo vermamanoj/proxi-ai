@@ -63,7 +63,7 @@ docker compose up -d --build
 # On production server
 cd ~/proxi-ai/soc-forensics
 docker build -t proxi-forensics:v2 .
-docker-compose -f docker-compose.forensic.yml up -d
+docker compose -f docker-compose.forensic.yml up -d
 
 # Verify (port 5081)
 curl http://localhost:5081/health

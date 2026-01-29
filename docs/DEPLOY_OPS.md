@@ -128,24 +128,24 @@ docker logs proxi-ai-core-1 | head -30  # View new passwords
 
 ```powershell
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # Rebuild after code changes
-docker-compose up -d --build
+docker compose up -d --build
 
 # View logs
-docker-compose logs -f
-docker-compose logs core --tail 50
+docker compose logs -f
+docker compose logs core --tail 50
 
 # Stop all services
-docker-compose down
+docker compose down
 
 # Restart specific service
-docker-compose restart core
+docker compose restart core
 
 # Enter container shell
-docker-compose exec core bash
-docker-compose exec frontend sh
+docker compose exec core bash
+docker compose exec frontend sh
 ```
 
 ---
@@ -279,9 +279,9 @@ server {
 
 ### Container Won't Start
 ```powershell
-docker-compose logs core
-docker-compose down
-docker-compose up -d --build
+docker compose logs core
+docker compose down
+docker compose up -d --build
 ```
 
 ### Port Already in Use
@@ -319,14 +319,14 @@ grep PROXI_AGENT_KEY .env
 #   - PROXI_AGENT_KEY=${PROXI_AGENT_KEY}
 
 # 3. Rebuild containers (env vars are read at container start)
-docker-compose down
-docker-compose up -d --build
+docker compose down
+docker compose up -d --build
 
 # 4. Verify key is loaded in container
-docker-compose exec core python -c "import os; print(os.environ.get('PROXI_AGENT_KEY', 'NOT_SET'))"
+docker compose exec core python -c "import os; print(os.environ.get('PROXI_AGENT_KEY', 'NOT_SET'))"
 
 # 5. Test agent directly with header
-docker-compose exec core python -c "import requests; r = requests.post('http://agent:8081/execute', json={'tool_name': 'get_system_health', 'parameters': {}}, headers={'X-Agent-Key': 'YOUR_KEY'}); print(r.status_code)"
+docker compose exec core python -c "import requests; r = requests.post('http://agent:8081/execute', json={'tool_name': 'get_system_health', 'parameters': {}}, headers={'X-Agent-Key': 'YOUR_KEY'}); print(r.status_code)"
 ```
 
 **Key Files:**
@@ -350,7 +350,7 @@ docker cp proxi-ai-core-1:/app/auth/users.json ./backup/users.json
 ### Restore
 ```powershell
 docker cp ./backup/proxi.db proxi-ai-core-1:/app/proxi.db
-docker-compose restart core
+docker compose restart core
 ```
 
 ---

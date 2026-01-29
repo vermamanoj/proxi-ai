@@ -285,7 +285,7 @@ cd soc-forensics
 docker build -t proxi-forensics:v2 .
 
 # 3. Start with agent support
-docker-compose -f docker-compose.forensic.yml up -d
+docker compose -f docker-compose.forensic.yml up -d
 
 # 4. Verify agent is working
 curl http://localhost:5081/health
