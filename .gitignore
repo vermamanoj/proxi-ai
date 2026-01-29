@@ -29,6 +29,11 @@ data/*
 # Auth credentials (NEVER commit)
 backend/auth/users.json
 backend/auth/INITIAL_CREDENTIALS.txt
+backend/auth/sessions.json
+backend/auth/magic_links.json
+
+# Runtime data files (use .example templates)
+backend/registry/workstations.json
 
 # OS
 .DS_Store

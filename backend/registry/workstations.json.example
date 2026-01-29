@@ -1,0 +1,22 @@
+{
+  "workstations": [
+    {
+      "id": "linux-agent",
+      "name": "Linux Agent",
+      "type": "linux",
+      "host": "agent",
+      "port": 8081,
+      "status": "online",
+      "capabilities": ["terminal", "files", "process"]
+    },
+    {
+      "id": "windows-desktop",
+      "name": "Windows Desktop",
+      "type": "windows", 
+      "host": "host.docker.internal",
+      "port": 8081,
+      "status": "offline",
+      "capabilities": ["terminal", "files", "process", "gui", "screenshot"]
+    }
+  ]
+}
