@@ -103,6 +103,9 @@ class GeminiService:
         # Track approved commands per session (for command guard bypass after user approval)
         self.approved_commands = {}  # {session_id: set(command_hashes)}
         
+        # Track pending approvals awaiting user decision
+        self.pending_approvals = {}  # {approval_id: {command, session_id, timestamp, cmd_hash}}
+        
         # Temporary storage for uploaded images (for save_uploaded_image tool)
         self.current_uploaded_image = None  # {"bytes": bytes, "mime_type": str}
 
@@ -218,6 +221,8 @@ class GeminiService:
             sys.path.insert(0, backend_dir)
         from tools.command_guard import check_command_safety, CommandRisk
         import hashlib
+        import secrets
+        import time
         
         # Check command safety before execution
         check_result = check_command_safety(command)
@@ -233,14 +238,18 @@ class GeminiService:
                     # Previously approved - execute it
                     return get_desktop_service().run_terminal_command(command)
             
-            # Mark as pending approval (will be added to approved set when user says yes)
-            if session_id:
-                if session_id not in self.approved_commands:
-                    self.approved_commands[session_id] = set()
-                self.approved_commands[session_id].add(cmd_hash)
+            # Generate unique approval ID and store as pending
+            approval_id = secrets.token_urlsafe(16)
+            self.pending_approvals[approval_id] = {
+                "command": command,
+                "session_id": session_id,
+                "timestamp": time.time(),
+                "cmd_hash": cmd_hash,
+                "reason": check_result.reason
+            }
             
-            # Return approval request - agent should ask user before proceeding
-            return f"APPROVAL_REQUIRED: {check_result.reason}. Command: {command}. Should I proceed? Reply 'yes' to approve or 'no' to cancel."
+            # Return approval request with approval_id
+            return f"APPROVAL_REQUIRED:{approval_id}:{check_result.reason}. Command: {command}. Should I proceed? Reply 'yes' to approve or 'no' to cancel."
         
         # Safe command - execute directly
         return get_desktop_service().run_terminal_command(command)
@@ -334,6 +343,50 @@ class GeminiService:
             return f"SUCCESS: Image saved to {expanded_path}"
         except Exception as e:
             return f"ERROR: Failed to save image: {str(e)}"
+    
+    def approve_command(self, approval_id: str) -> dict:
+        """Approve a pending command and execute it."""
+        import time
+        
+        if approval_id not in self.pending_approvals:
+            return {"success": False, "error": "Invalid or expired approval ID"}
+        
+        approval = self.pending_approvals[approval_id]
+        
+        # Check if approval expired (5 minutes)
+        if time.time() - approval["timestamp"] > 300:
+            del self.pending_approvals[approval_id]
+            return {"success": False, "error": "Approval request expired"}
+        
+        # Move command hash to approved set for session
+        session_id = approval["session_id"]
+        if session_id:
+            if session_id not in self.approved_commands:
+                self.approved_commands[session_id] = set()
+            self.approved_commands[session_id].add(approval["cmd_hash"])
+        
+        # Execute the command
+        command = approval["command"]
+        del self.pending_approvals[approval_id]
+        
+        try:
+            result = get_desktop_service().run_terminal_command(command)
+            log_system(f"Approved command executed: {command[:50]}...", "APPROVAL")
+            return {"success": True, "result": result}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+    
+    def deny_command(self, approval_id: str) -> dict:
+        """Deny a pending command."""
+        if approval_id not in self.pending_approvals:
+            return {"success": False, "error": "Invalid or expired approval ID"}
+        
+        approval = self.pending_approvals[approval_id]
+        command = approval["command"]
+        del self.pending_approvals[approval_id]
+        
+        log_system(f"Command denied by user: {command[:50]}...", "APPROVAL")
+        return {"success": True, "message": "Command denied"}
 
     async def _execute_with_index(self, index: int, name: str, args: dict, session_id: str = None):
         func = self.tools_map.get(name)
@@ -829,12 +882,17 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                     # Check for approval required
                     res_str = str(res)
                     if res_str.startswith("APPROVAL_REQUIRED:"):
-                        # Parse: "APPROVAL_REQUIRED: reason. Command: cmd. Should I proceed?"
+                        # Parse: "APPROVAL_REQUIRED:approval_id:reason. Command: cmd. Should I proceed?"
                         import re
-                        match = re.search(r'APPROVAL_REQUIRED:\s*(.+?)\.\s*Command:\s*(.+?)\.\s*Should', res_str)
-                        if match:
-                            reason, command = match.group(1), match.group(2)
-                            yield json.dumps({"type": "approval_required", "reason": reason, "command": command, "risk_level": "moderate"}) + "\n"
+                        parts = res_str.split(":", 3)  # Split into [APPROVAL_REQUIRED, approval_id, reason+rest]
+                        if len(parts) >= 3:
+                            approval_id = parts[1]
+                            rest = parts[2]
+                            # Extract command from rest
+                            cmd_match = re.search(r'Command:\s*(.+?)\.\s*Should', rest)
+                            command = cmd_match.group(1) if cmd_match else "Unknown command"
+                            reason = rest.split(".")[0] if "." in rest else "Command requires approval"
+                            yield json.dumps({"type": "approval_required", "approval_id": approval_id, "reason": reason, "command": command, "risk_level": "moderate"}) + "\n"
                     
                     # Check for escalation
                     if "ESCALATED" in res_str and "Human Operator" in res_str:

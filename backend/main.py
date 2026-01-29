@@ -339,6 +339,32 @@ IMAGE_DATA:{mime_type};base64,{image_base64}"""
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/approvals/{approval_id}")
+async def handle_approval(
+    approval_id: str,
+    request: Request,
+    action: dict = Body(...)
+):
+    """Handle command approval or denial. Requires auth."""
+    await require_auth(request)
+    
+    action_type = action.get("action")
+    if action_type not in ["approve", "deny"]:
+        raise HTTPException(status_code=400, detail="Action must be 'approve' or 'deny'")
+    
+    try:
+        if action_type == "approve":
+            result = gemini_service.approve_command(approval_id)
+        else:
+            result = gemini_service.deny_command(approval_id)
+        
+        if not result.get("success"):
+            raise HTTPException(status_code=400, detail=result.get("error", "Unknown error"))
+        
+        return JSONResponse(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # --- MEMORY / MISSION API ENDPOINTS ---
 
 @app.get("/api/missions")

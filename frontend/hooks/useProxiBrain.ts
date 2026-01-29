@@ -289,6 +289,21 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
                             setStatus('awaiting_confirmation');
                         }
                         break;
+                    case 'approval_required':
+                        // New structured approval request with approval_id
+                        setPendingAction({
+                            type: 'command_approval',
+                            description: `${data.reason}\n\nCommand: ${data.command}`,
+                            data: { 
+                                approval_id: data.approval_id,
+                                command: data.command,
+                                reason: data.reason,
+                                risk_level: data.risk_level
+                            }
+                        });
+                        setStatus('awaiting_confirmation');
+                        setAwaitingApproval(true);
+                        break;
                     case 'error':
                         addLog(MessageSource.SYSTEM, `Error: ${data.content}`);
                         setMissionState(prev => ({ ...prev, phase: 'failed', active: false }));
@@ -423,15 +438,66 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
   };
 
   const confirmAction = async () => {
+    const action = pendingAction;
     setPendingAction(null);
-    // Send "yes" with button approval flag to bypass security check
-    await sendCommand('yes', true);
+    
+    // If this is a structured approval with approval_id, call the approval endpoint
+    if (action?.type === 'command_approval' && action.data?.approval_id) {
+      try {
+        const response = await fetch(`/api/approvals/${action.data.approval_id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'approve' }),
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          addLog(MessageSource.SYSTEM, `✅ Command approved and executed`);
+          if (result.result) {
+            addLog(MessageSource.AGENT, result.result);
+          }
+        } else {
+          const error = await response.json();
+          addLog(MessageSource.SYSTEM, `❌ Approval failed: ${error.detail || 'Unknown error'}`);
+        }
+      } catch (err: any) {
+        addLog(MessageSource.SYSTEM, `❌ Approval error: ${err.message}`);
+      }
+      setStatus('idle');
+      setAwaitingApproval(false);
+    } else {
+      // Legacy approval flow - send "yes" with button approval flag
+      await sendCommand('yes', true);
+    }
   }; 
-  const cancelAction = () => { 
-    setPendingAction(null); 
+  
+  const cancelAction = async () => {
+    const action = pendingAction;
+    setPendingAction(null);
     setStatus('idle');
-    // Send "no" with button approval flag
-    sendCommand('no', true);
+    setAwaitingApproval(false);
+    
+    // If this is a structured approval with approval_id, call the approval endpoint
+    if (action?.type === 'command_approval' && action.data?.approval_id) {
+      try {
+        const response = await fetch(`/api/approvals/${action.data.approval_id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'deny' }),
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          addLog(MessageSource.SYSTEM, `🚫 Command denied`);
+        }
+      } catch (err: any) {
+        addLog(MessageSource.SYSTEM, `❌ Denial error: ${err.message}`);
+      }
+    } else {
+      // Legacy approval flow - send "no" with button approval flag
+      sendCommand('no', true);
+    }
   };
   const toggleComplexity = () => setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
   const logSystemError = (msg: string) => addLog(MessageSource.SYSTEM, msg);

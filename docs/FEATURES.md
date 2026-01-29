@@ -1,6 +1,6 @@
 # Proxi Feature Tracker
 
-**Last Updated:** January 28, 2026  
+**Last Updated:** January 29, 2026  
 **Target:** Google Gemini Hackathon (Judging: Feb 10-27, 2026)
 
 ---
@@ -10,6 +10,7 @@
 - 🔄 **In Progress** - Partially implemented
 - 📋 **Planned** - Designed but not started
 - ⚠️ **Blocked** - Waiting on dependency
+- 🔴 **Security Risk** - Needs immediate attention
 
 ---
 
@@ -61,12 +62,13 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | Core/Agent security split | ✅ | API keys isolated in Core |
-| Agent API Key auth | ✅ | X-Agent-Key header for Core↔Agent |
-| Session-based authentication | ✅ | 6hr timeout, 24hr remember-me |
-| Command guardrails | ✅ | Blocked + approval patterns |
+| Agent API Key auth | 🔄 🔴 | Proxy sets header, but health checks don't |
+| Session-based authentication | 🔄 | Works but has localStorage fallback |
+| Command guardrails | 🔄 🔴 | Logic exists but approval gate is unsafe |
 | Direct command execution | ✅ | `!` prefix for shell commands |
 | Magic links for judges | ✅ | Role-based temporary access |
-| User roles (demo/judge/admin) | ✅ | Stored but not enforced |
+| User roles (demo/judge/admin) | 🔄 | Stored but not enforced in endpoints |
+| Password hashing | 🔄 🔴 | SHA-256+static salt (not production-grade) |
 | **Role-based access control** | 📋 | Enforce role permissions |
 | **2FA for Windows agents** | 📋 | Admin can grant exemptions |
 | **Per-agent user permissions** | 📋 | Which users can access which agents |
@@ -136,7 +138,7 @@
 
 | Requirement | Status | Notes |
 |-------------|--------|-------|
-| Working demo URL | 🔄 | proxi.audista.com (needs deploy) |
+| Working demo URL | ✅ | proxi.audista.com (live) |
 | 3-minute demo video | 📋 | Script ready (DEMO_SCRIPT.md) |
 | 200-word Gemini write-up | 📋 | Template needed |
 | Architecture diagram | ✅ | In ARCHITECTURE.md |
@@ -158,27 +160,82 @@
 
 ---
 
-## Priority Matrix for Hackathon
+## Priority Actions (Before Judging: Feb 10)
 
-### Must Have (Before Feb 10)
-1. ✅ Linux agent as default
-2. ✅ Voice commands working
-3. ✅ Triple Handshake verification
-4. ✅ Demo scenario tested
-5. 📋 Demo video recorded
-6. 📋 Production deploy verified
+### 🔴 CRITICAL - Security Fixes (Production is Live)
+**Must fix before judges test the live app**
 
-### Nice to Have
-1. 📋 Escalation UI
-2. 📋 Landing page
-3. 📋 2FA for agents
+1. **Fix approval enforcement logic** 🔴  
+   - **Risk:** Commands marked "needs approval" can execute without true user approval
+   - **File:** `backend/services/gemini_service.py` (run_terminal_command + approval tracking)
+   - **Impact:** Main guardrail against destructive commands is bypassable
+   - **Effort:** 2-3 hours
 
-### Post-Hackathon
-1. Mobile app
-2. RBAC enforcement
-3. Multi-tenant
+2. **Make agent auth consistent** 🔴  
+   - **Risk:** Health checks + activation bypass X-Agent-Key, breaking secure agent setup
+   - **Files:** `backend/main.py` (activate_workstation), `backend/registry/workstation_registry.py` (health checks)
+   - **Impact:** Can't reliably secure agents in production
+   - **Effort:** 1-2 hours
+
+3. **Remove auth fallback in frontend** 🔴  
+   - **Risk:** localStorage auth bypass when backend unreachable
+   - **File:** `frontend/hooks/useAuth.ts`
+   - **Impact:** Undermines session-based security
+   - **Effort:** 30 min
+
+4. **Harden password storage** 🔴  
+   - **Risk:** SHA-256 + static salt vulnerable to offline attacks
+   - **File:** `backend/auth/auth_service.py`
+   - **Note:** Keep demo/demo123 for judges; upgrade algorithm only
+   - **Effort:** 1 hour
+
+### ✅ Hackathon Submission (Before Feb 10)
+5. **Record 3-minute demo video** 📋  
+   - Script exists in DEMO_SCRIPT.md
+   - Show: voice command → triple handshake → verification
+   - **Effort:** 2-3 hours (recording + editing)
+
+6. **Write 200-word Gemini integration summary** 📋  
+   - Highlight: Flash/Pro/Vision/Live, 45+ tools, verifiable agent pattern
+   - **Effort:** 30 min
+
+7. **Verify production deployment** 📋  
+   - Test proxi.audista.com with demo/demo123
+   - Verify magic links work for judges
+   - **Effort:** 1 hour
+
+### 🎯 Nice to Have (If Time Permits)
+8. **Escalation alert UI** 📋  
+   - Backend emits escalation events; frontend needs alert component
+   - **File:** `frontend/App.tsx` (wire up escalation state)
+   - **Effort:** 2 hours
+
+9. **Landing page** 📋  
+   - Public marketing page before login
+   - **Effort:** 3-4 hours
+
+### 📅 Post-Hackathon (After Feb 27)
+- RBAC enforcement (role checks in endpoints)
+- 2FA for Windows agents
+- Per-agent user permissions
+- Audit logging
+- Mobile native app
+
+---
+
+## Estimated Timeline to Submission
+
+| Task | Days | Deadline |
+|------|------|----------|
+| Security fixes (1-4) | 2 days | Feb 1 |
+| Demo video | 1 day | Feb 3 |
+| Gemini write-up | 0.5 day | Feb 3 |
+| Production verification | 0.5 day | Feb 4 |
+| **Buffer for issues** | 5 days | Feb 9 |
+| **Submission deadline** | - | **Feb 10** |
 
 ---
 
 *For architecture details, see [ARCHITECTURE.md](./ARCHITECTURE.md)*  
-*For deployment guide, see [DEPLOY_OPS.md](./DEPLOY_OPS.md)*
+*For deployment guide, see [DEPLOY_OPS.md](./DEPLOY_OPS.md)*  
+*For security roadmap, see [SECURITY_ROADMAP.md](./SECURITY_ROADMAP.md)*
