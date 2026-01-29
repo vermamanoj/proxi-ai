@@ -351,6 +351,13 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                         setMissionState(prev => ({ ...prev, phase: 'idle', active: false }));
                         setStatus('idle');
                         break;
+                    case 'stalled':
+                        // Model stopped responding - notify user they can continue
+                        addLog(MessageSource.SYSTEM, `⚠️ ${data.content || 'The model stopped responding. Send a follow-up message to continue.'}`);
+                        setMissionState(prev => ({ ...prev, phase: 'stalled', active: false }));
+                        setStatus('idle');
+                        speak('The model stopped responding. You can send a follow-up message to continue.');
+                        break;
                 }
             } catch (e) {
                 console.warn("Failed to parse chunk, probably incomplete JSON:", line);

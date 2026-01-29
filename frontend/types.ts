@@ -56,7 +56,7 @@ export interface ApprovalRequest {
   metadata?: any;
 }
 
-export type MissionPhase = 'idle' | 'listening' | 'planning' | 'executing' | 'verifying' | 'success' | 'failed';
+export type MissionPhase = 'idle' | 'listening' | 'planning' | 'executing' | 'verifying' | 'success' | 'failed' | 'stalled';
 
 export interface VerificationState {
     status: 'pending' | 'checking' | 'success' | 'failed';

@@ -522,11 +522,18 @@ class GeminiService:
             return (index, name, res)
         except Exception as e: return (index, name, str(e))
 
-    async def _send_with_retry(self, chat, content, retries=2):
+    async def _send_with_retry(self, chat, content, retries=2, timeout_seconds=90):
         """Send message with retry on transient errors (500, MALFORMED_FUNCTION_CALL)"""
         for attempt in range(retries + 1):
             try:
-                return await asyncio.to_thread(chat.send_message, content)
+                # Add timeout to detect silent Gemini hangs
+                return await asyncio.wait_for(
+                    asyncio.to_thread(chat.send_message, content),
+                    timeout=timeout_seconds
+                )
+            except asyncio.TimeoutError:
+                log_system(f"Gemini API timeout after {timeout_seconds}s", "TIMEOUT")
+                raise Exception(f"Model response timed out after {timeout_seconds}s. The model may be overloaded. Please try again.")
             except Exception as e:
                 error_str = str(e)
                 is_retryable = (
@@ -849,6 +856,8 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
             self.sessions[session_id].append({"role": "user", "parts": [user_message]})
 
             max_turns = 15
+            last_activity_had_response = False  # Track if we got a proper response
+            
             for turn in range(max_turns):
                 # Check for cancellation at start of each turn
                 if session_id in self.cancelled_sessions:
@@ -857,9 +866,14 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                     yield json.dumps({"type": "cancelled", "content": "Mission stopped by user"}) + "\n"
                     return
                 
-                # Extract parts safely
+                # Extract parts safely - detect stalls
                 if not response.candidates or not response.candidates[0].content.parts:
+                    if not last_activity_had_response:
+                        log_system(f"Model returned empty response on turn {turn}", "STALL")
+                        yield json.dumps({"type": "stalled", "content": "The model stopped responding. You can send a follow-up message to continue."}) + "\n"
                     break
+                
+                last_activity_had_response = False  # Reset for this turn
                 parts = response.candidates[0].content.parts
                 text_content = ""
                 function_calls = []
@@ -875,6 +889,8 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                     msg_type = "llm_thought" if function_calls else "response"
                     log_system(f"LLM: {text_content[:100]}...", "THOUGHT" if function_calls else "RESPONSE")
                     yield json.dumps({"type": msg_type, "content": text_content}) + "\n"
+                    if not function_calls:
+                        last_activity_had_response = True  # Got a final text response
                     
                     # Parse PLAN blocks for goal tracking
                     if "PLAN_START" in text_content and "PLAN_END" in text_content:
