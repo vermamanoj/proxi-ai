@@ -323,11 +323,22 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
     
     try {
       setConnectionStatus('connecting');
+      
+      // Check if running in Capacitor (mobile app)
+      const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
+      
       // Vite exposes env vars via import.meta.env with VITE_ prefix
       const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-      console.log('[LIVE] API Key present:', !!apiKey, apiKey ? `(${apiKey.substring(0,10)}...)` : '');
+      console.log('[LIVE] API Key present:', !!apiKey, 'isCapacitor:', isCapacitor);
+      
       if (!apiKey) {
-        addLog(MessageSource.SYSTEM, '⚠️ Voice mode requires VITE_GEMINI_API_KEY in frontend/.env');
+        if (isCapacitor) {
+          // Mobile app - voice mode not supported (API key can't be bundled for security)
+          addLog(MessageSource.SYSTEM, '⚠️ Voice mode is not available on mobile. Use text chat instead.');
+        } else {
+          // Desktop - missing .env configuration
+          addLog(MessageSource.SYSTEM, '⚠️ Voice mode requires VITE_GEMINI_API_KEY in frontend/.env');
+        }
         setConnectionStatus('error');
         connectingRef.current = false;
         return;

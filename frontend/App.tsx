@@ -116,9 +116,12 @@ const App: React.FC = () => {
     }
   }, [liveConnected, micMuted, isLiveSpeaking]);
 
-  // Auto-connect voice on page load
+  // Auto-connect voice on page load (desktop only - mobile doesn't support voice)
   useEffect(() => {
-    liveConnect();
+    const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
+    if (!isCapacitor) {
+      liveConnect();
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Convert liveChatLogs to trace format for display when using voice
