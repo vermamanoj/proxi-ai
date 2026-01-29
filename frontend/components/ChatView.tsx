@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { TraceStep } from '../types';
 import { User, BrainCircuit, Wrench, Terminal, MessageSquare, ChevronDown, ChevronUp, CheckCircle2, XCircle, Loader2, Monitor } from 'lucide-react';
 import { ScreenshotBubble } from './ScreenshotBubble';
@@ -142,6 +143,19 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
           filtered = filtered.replace(/\n{3,}/g, '\n\n').trim();
           return filtered;
         };
+        
+        // Check if content is command output (shouldn't render as markdown)
+        const isCommandOutput = (text: string): boolean => {
+          if (!text) return false;
+          // User commands start with !
+          if (isUser && text.startsWith('!')) return true;
+          // Terminal output patterns
+          if (text.includes('SUCCESS:') || text.includes('ERROR:')) return true;
+          if (text.includes('BLOCKED:')) return true;
+          // Looks like terminal/code output
+          if (text.startsWith('$') || text.startsWith('#') || text.startsWith('root@')) return true;
+          return false;
+        };
         const isResponse = step.step_type === 'final_response';
         const isVerification = step.step_type === 'verification';
         const isScreenshot = step.step_type === 'status_change' && step.metadata?.screenshot;
@@ -201,9 +215,44 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
               
               {/* Content */}
               <div className={`text-sm leading-relaxed ${isThought ? 'italic' : ''}`}>
-                {typeof step.content === 'string' 
-                  ? (isThought ? filterPlanText(step.content) : step.content)
-                  : JSON.stringify(step.content)}
+                {typeof step.content === 'string' ? (
+                  isCommandOutput(step.content) || isUser ? (
+                    // Plain text for commands and user input
+                    <span className={isUser && step.content.startsWith('!') ? 'font-mono' : ''}>
+                      {isThought ? filterPlanText(step.content) : step.content}
+                    </span>
+                  ) : (
+                    // Markdown for AI responses
+                    <ReactMarkdown
+                      components={{
+                        // Style markdown elements
+                        p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                        strong: ({children}) => <strong className="font-semibold text-proxi-accent">{children}</strong>,
+                        em: ({children}) => <em className="text-gray-300">{children}</em>,
+                        ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                        ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                        li: ({children}) => <li className="ml-2">{children}</li>,
+                        code: ({children, className}) => {
+                          const isBlock = className?.includes('language-');
+                          return isBlock ? (
+                            <code className="block bg-black/50 p-2 rounded my-2 font-mono text-xs overflow-x-auto">{children}</code>
+                          ) : (
+                            <code className="bg-black/30 px-1 rounded font-mono text-proxi-warning">{children}</code>
+                          );
+                        },
+                        pre: ({children}) => <pre className="bg-black/50 p-2 rounded my-2 overflow-x-auto">{children}</pre>,
+                        h1: ({children}) => <h1 className="text-lg font-bold text-proxi-accent mb-2">{children}</h1>,
+                        h2: ({children}) => <h2 className="text-base font-bold text-proxi-accent mb-2">{children}</h2>,
+                        h3: ({children}) => <h3 className="text-sm font-bold text-proxi-accent mb-1">{children}</h3>,
+                        blockquote: ({children}) => <blockquote className="border-l-2 border-proxi-accent pl-3 italic text-gray-400">{children}</blockquote>,
+                      }}
+                    >
+                      {isThought ? filterPlanText(step.content) : step.content}
+                    </ReactMarkdown>
+                  )
+                ) : (
+                  JSON.stringify(step.content)
+                )}
               </div>
             </div>
           </div>

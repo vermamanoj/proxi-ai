@@ -20,9 +20,9 @@ const config: CapacitorConfig = {
 
   // Android-specific settings
   android: {
-    allowMixedContent: false,  // Security: no HTTP content in HTTPS pages
+    allowMixedContent: true,   // Allow during development
     captureInput: true,        // Better keyboard handling
-    webContentsDebuggingEnabled: false  // Disable in production
+    webContentsDebuggingEnabled: true  // Enable for debugging - disable in production
   },
 
   // Plugins configuration
