@@ -556,6 +556,72 @@ async def get_image(image_id: str, request: Request):
     
     return FileResponse(file_path, media_type=img_meta.get("content_type", "image/png"))
 
+# --- FILE TRANSFER (proxied to agent) ---
+
+@app.post("/api/files/download")
+async def proxy_file_download(request: Request):
+    """Download a file from the active agent. Requires auth."""
+    await require_auth(request)
+    import aiohttp
+    
+    from backend.services.desktop.factory import _active_agent_url
+    if not _active_agent_url:
+        raise HTTPException(status_code=400, detail="No agent connected")
+    
+    data = await request.json()
+    file_path = data.get("file_path")
+    if not file_path:
+        raise HTTPException(status_code=400, detail="file_path required")
+    
+    agent_key = os.environ.get("PROXI_AGENT_KEY", "")
+    headers = {"X-Agent-Key": agent_key} if agent_key else {}
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{_active_agent_url}/files/download",
+                json={"file_path": file_path},
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=60)
+            ) as resp:
+                result = await resp.json()
+                return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/files/upload")
+async def proxy_file_upload(request: Request):
+    """Upload a file to the active agent. Requires auth."""
+    await require_auth(request)
+    import aiohttp
+    
+    from backend.services.desktop.factory import _active_agent_url
+    if not _active_agent_url:
+        raise HTTPException(status_code=400, detail="No agent connected")
+    
+    data = await request.json()
+    file_path = data.get("file_path")
+    content_base64 = data.get("content_base64")
+    
+    if not file_path or not content_base64:
+        raise HTTPException(status_code=400, detail="file_path and content_base64 required")
+    
+    agent_key = os.environ.get("PROXI_AGENT_KEY", "")
+    headers = {"X-Agent-Key": agent_key} if agent_key else {}
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{_active_agent_url}/files/upload",
+                json={"file_path": file_path, "content_base64": content_base64},
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=60)
+            ) as resp:
+                result = await resp.json()
+                return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # --- WORKSTATION / AGENT MANAGEMENT ---
 
 @app.get("/api/workstations")

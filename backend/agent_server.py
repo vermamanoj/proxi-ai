@@ -224,6 +224,87 @@ async def execute_tool(call: ToolCall, _: bool = Depends(verify_agent_key)):
     except Exception as e:
         return ToolResult(success=False, error=str(e))
 
+class FileDownloadRequest(BaseModel):
+    file_path: str
+
+class FileDownloadResponse(BaseModel):
+    success: bool
+    filename: str = ""
+    content_base64: str = ""
+    mime_type: str = ""
+    size_bytes: int = 0
+    error: str = ""
+
+class FileUploadRequest(BaseModel):
+    file_path: str
+    content_base64: str
+    filename: str = ""
+
+@app.post("/files/download", response_model=FileDownloadResponse)
+async def download_file(request: FileDownloadRequest, _: bool = Depends(verify_agent_key)):
+    """Download a file from the agent's filesystem as Base64."""
+    import base64
+    import mimetypes
+    
+    file_path = os.path.expanduser(request.file_path)
+    file_path = os.path.expandvars(file_path)
+    
+    if not os.path.exists(file_path):
+        return FileDownloadResponse(success=False, error=f"File not found: {file_path}")
+    
+    if not os.path.isfile(file_path):
+        return FileDownloadResponse(success=False, error=f"Not a file: {file_path}")
+    
+    # Limit file size to 50MB for base64 transfer
+    file_size = os.path.getsize(file_path)
+    if file_size > 50 * 1024 * 1024:
+        return FileDownloadResponse(success=False, error=f"File too large: {file_size} bytes (max 50MB)")
+    
+    try:
+        with open(file_path, 'rb') as f:
+            content = f.read()
+        
+        content_b64 = base64.b64encode(content).decode('utf-8')
+        mime_type, _ = mimetypes.guess_type(file_path)
+        
+        return FileDownloadResponse(
+            success=True,
+            filename=os.path.basename(file_path),
+            content_base64=content_b64,
+            mime_type=mime_type or "application/octet-stream",
+            size_bytes=file_size
+        )
+    except Exception as e:
+        return FileDownloadResponse(success=False, error=str(e))
+
+@app.post("/files/upload")
+async def upload_file(request: FileUploadRequest, _: bool = Depends(verify_agent_key)):
+    """Upload a file to the agent's filesystem from Base64."""
+    import base64
+    
+    file_path = os.path.expanduser(request.file_path)
+    file_path = os.path.expandvars(file_path)
+    
+    # Security: prevent writing outside user directories
+    home = os.path.expanduser("~")
+    if not file_path.startswith(home) and not file_path.startswith("/tmp"):
+        return {"success": False, "error": "Can only write to home directory or /tmp"}
+    
+    try:
+        content = base64.b64decode(request.content_base64)
+        
+        # Ensure directory exists
+        dir_path = os.path.dirname(file_path)
+        if dir_path:
+            os.makedirs(dir_path, exist_ok=True)
+        
+        with open(file_path, 'wb') as f:
+            f.write(content)
+        
+        return {"success": True, "path": file_path, "size_bytes": len(content)}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 @app.get("/capabilities")
 async def get_capabilities():
     """List available tools on this agent."""

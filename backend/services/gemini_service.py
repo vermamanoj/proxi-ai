@@ -147,6 +147,8 @@ class GeminiService:
             "ppt_get_theme_colors": self.ppt_get_theme_colors,
             # Image handling
             "save_uploaded_image": self.save_uploaded_image,
+            # File transfer
+            "send_file_to_user": self.send_file_to_user,
         }
         
         log_system(f"Gemini Service Initialized with {len(self.tools_map)} tools.", "INIT")
@@ -393,6 +395,62 @@ class GeminiService:
             return f"SUCCESS: Image saved to {expanded_path}"
         except Exception as e:
             return f"ERROR: Failed to save image: {str(e)}"
+
+    def send_file_to_user(self, file_path: str, description: str = "File"):
+        """
+        Send a file from the agent's filesystem to the user in the chat.
+        Use this when you have created or modified a file and want to share it with the user.
+        
+        Args:
+            file_path: Full path to the file on the agent's computer (e.g., "C:\\Users\\user\\Desktop\\report.pptx")
+            description: Brief description of the file for the user
+        
+        Returns:
+            Special marker that triggers file download in UI, or error message.
+        """
+        from backend.services.desktop.factory import _active_agent_url
+        import aiohttp
+        import asyncio
+        
+        if not _active_agent_url:
+            return "ERROR: No agent connected - cannot retrieve file"
+        
+        agent_key = os.environ.get("PROXI_AGENT_KEY", "")
+        headers = {"X-Agent-Key": agent_key} if agent_key else {}
+        
+        async def fetch_file():
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"{_active_agent_url}/files/download",
+                        json={"file_path": file_path},
+                        headers=headers,
+                        timeout=aiohttp.ClientTimeout(total=60)
+                    ) as resp:
+                        return await resp.json()
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        # Run async code synchronously
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    future = pool.submit(asyncio.run, fetch_file())
+                    result = future.result()
+            else:
+                result = loop.run_until_complete(fetch_file())
+        except RuntimeError:
+            result = asyncio.run(fetch_file())
+        
+        if not result.get("success"):
+            return f"ERROR: Failed to retrieve file: {result.get('error', 'Unknown error')}"
+        
+        log_system(f"File retrieved for user: {result.get('filename')} ({result.get('size_bytes')} bytes)", "FILE")
+        
+        # Return special marker with file data - handled in streaming loop
+        return f"__FILE__:{result.get('filename')}:{result.get('mime_type')}:{result.get('content_base64')}:__DESC__:{description}"
     
     def approve_command(self, approval_id: str) -> dict:
         """Approve a pending command and execute it."""
@@ -942,6 +1000,27 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                         log_system(f"Screenshot data length: {len(image_data)}, caption: {caption}", "SCREENSHOT")
                         yield json.dumps({"type": "status_change", "phase": "screenshot", "metadata": {"screenshot": image_data}, "content": caption}) + "\n"
                         res = f"Screenshot shared with user: {caption}"
+                    
+                    # Handle file transfer specially
+                    res_str = str(res)
+                    if res_str.startswith("__FILE__:"):
+                        log_system("File marker detected, sending to UI", "FILE")
+                        # Format: __FILE__:filename:mime_type:base64_content:__DESC__:description
+                        parts = res_str.split(":__DESC__:")
+                        file_parts = parts[0].replace("__FILE__:", "").split(":", 2)
+                        filename = file_parts[0] if len(file_parts) > 0 else "file"
+                        mime_type = file_parts[1] if len(file_parts) > 1 else "application/octet-stream"
+                        content_b64 = file_parts[2] if len(file_parts) > 2 else ""
+                        description = parts[1] if len(parts) > 1 else filename
+                        log_system(f"File data: {filename} ({mime_type}), {len(content_b64)} chars", "FILE")
+                        yield json.dumps({
+                            "type": "file_download",
+                            "filename": filename,
+                            "mime_type": mime_type,
+                            "content_base64": content_b64,
+                            "description": description
+                        }) + "\n"
+                        res = f"File sent to user: {filename}"
                     
                     # Check for approval required
                     res_str = str(res)

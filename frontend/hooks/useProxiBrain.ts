@@ -322,6 +322,35 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                             goalUpdate: { goal_id: data.goal_id, status: data.status, result: data.result } 
                         });
                         break;
+                    case 'file_download':
+                        // File sent from agent - trigger browser download
+                        try {
+                            const blob = new Blob(
+                                [Uint8Array.from(atob(data.content_base64), c => c.charCodeAt(0))],
+                                { type: data.mime_type }
+                            );
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = data.filename;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                            addLog(MessageSource.SYSTEM, `📥 File downloaded: ${data.filename}`, { 
+                                file: { filename: data.filename, description: data.description } 
+                            });
+                        } catch (e) {
+                            console.error('Failed to download file:', e);
+                            addLog(MessageSource.SYSTEM, `❌ Failed to download file: ${data.filename}`);
+                        }
+                        break;
+                    case 'cancelled':
+                        // Session was cancelled by user
+                        addLog(MessageSource.SYSTEM, `⏹️ ${data.content || 'Mission stopped'}`);
+                        setMissionState(prev => ({ ...prev, phase: 'idle', active: false }));
+                        setStatus('idle');
+                        break;
                 }
             } catch (e) {
                 console.warn("Failed to parse chunk, probably incomplete JSON:", line);
