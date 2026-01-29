@@ -252,7 +252,6 @@ Invoke-WebRequest http://localhost:4002/api/health
 ```env
 # .env for local development
 GEMINI_API_KEY=your-key-here
-RUNTIME_MODE=DEMO
 LOG_LEVEL=DEBUG
 ```
 
@@ -261,7 +260,8 @@ LOG_LEVEL=DEBUG
 ```env
 # .env for production
 GEMINI_API_KEY=your-key-here
-RUNTIME_MODE=REAL
+VITE_GEMINI_API_KEY=your-key-here   # For voice mode
+PROXI_AGENT_KEY=your-64-char-hex    # Agent authentication
 LOG_LEVEL=INFO
 SESSION_TIMEOUT_MINUTES=60
 ```
@@ -314,4 +314,4 @@ docker system prune -f
 
 ---
 
-*Last updated: 2026-01-27*
+*Last updated: 2026-01-29*
