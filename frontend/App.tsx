@@ -162,7 +162,7 @@ const App: React.FC = () => {
       // Avoid duplicates by using lastTrace only if it has newer content
       return [...liveTrace, ...lastTrace];
     }
-    return lastTrace;
+    return [...liveTrace, ...lastTrace];
   }, [liveConnected, liveTrace, lastTrace]);
   
   // Filter trace based on debug mode - hide thinking when debug is OFF

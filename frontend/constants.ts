@@ -1,8 +1,12 @@
 import { FunctionDeclaration, Type } from "@google/genai";
 
-// API Base URL - always empty for browser requests (use relative URLs)
-// Vite proxy handles routing to backend (see vite.config.ts)
-export const API_BASE = '';
+// API Base URL
+// - Browser/Docker: empty (Vite proxy handles it)
+// - Mobile (Capacitor): uses production URL
+const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
+export const API_BASE = isCapacitor 
+  ? 'https://proxi.audista.com'  // Mobile app - direct to prod
+  : '';                           // Browser - use Vite proxy
 
 // System instruction when backend is enabled - relay mode
 export const SYSTEM_INSTRUCTION_RELAY = `
