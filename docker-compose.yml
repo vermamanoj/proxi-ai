@@ -17,6 +17,8 @@ services:
       - "4000:8000"
     env_file:
       - .env
+    environment:
+      - PROXI_DEV_MODE=${PROXI_DEV_MODE:-false}  # Set true to skip approvals (demos/sandbox)
     restart: unless-stopped
 
   # Proxi Agent - Isolated desktop automation (no DB, no API keys)
