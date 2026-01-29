@@ -406,7 +406,7 @@ const App: React.FC = () => {
               onClick={() => {
                 const newState = !audioEnabled;
                 setAudioEnabled(newState);
-                if (!newState) window.speechSynthesis.cancel();
+                if (!newState && window.speechSynthesis) window.speechSynthesis.cancel();
               }}
               className={`p-2 rounded-lg transition-all relative ${
                 audioEnabled ? 'text-blue-400 hover:bg-blue-500/10' : 'text-gray-500 hover:bg-gray-800'
@@ -446,7 +446,7 @@ const App: React.FC = () => {
         onToggleAudio={() => {
           const newState = !audioEnabled;
           setAudioEnabled(newState);
-          if (!newState) window.speechSynthesis.cancel();
+          if (!newState && window.speechSynthesis) window.speechSynthesis.cancel();
         }}
         onShowHistory={() => setShowSessionHistory(true)}
         onShowSettings={() => setShowSettings(true)}

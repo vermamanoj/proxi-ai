@@ -124,6 +124,36 @@ async def execute_tool(call: ToolCall, _: bool = Depends(verify_agent_key)):
             error=f"Tool execution failed: {str(e)}"
         )
 
+# --- Security: Blocked paths and patterns ---
+BLOCKED_PATHS = [
+    '/etc/passwd', '/etc/shadow', '/etc/sudoers', '/etc/gshadow',
+    '/root/.ssh', '/root/.bash_history', '/root/.bashrc',
+    '/proc/1/environ', '/proc/self/environ',
+]
+
+BLOCKED_PATTERNS = [
+    'passwd', 'shadow', 'sudoers',  # Direct file access
+    '/root/', '~root',  # Root home directory
+    'chmod 777', 'chmod +s',  # Dangerous permissions
+    'curl|bash', 'wget|sh',  # Download and execute
+]
+
+def is_command_blocked(command: str) -> tuple[bool, str]:
+    """Check if command accesses restricted paths or patterns."""
+    cmd_lower = command.lower().strip()
+    
+    # Check for blocked paths
+    for blocked in BLOCKED_PATHS:
+        if blocked in cmd_lower:
+            return True, f"Access to {blocked} is restricted for security training"
+    
+    # Check for blocked patterns
+    for pattern in BLOCKED_PATTERNS:
+        if pattern.lower() in cmd_lower:
+            return True, f"Command pattern '{pattern}' is restricted"
+    
+    return False, ""
+
 # --- Tool Implementations ---
 
 def execute_command(params: dict) -> ToolResult:
@@ -133,6 +163,11 @@ def execute_command(params: dict) -> ToolResult:
     
     if not command:
         return ToolResult(success=False, result="", error="No command provided")
+    
+    # Security check
+    blocked, reason = is_command_blocked(command)
+    if blocked:
+        return ToolResult(success=False, result="", error=f"🔒 BLOCKED: {reason}")
     
     try:
         result = subprocess.run(
