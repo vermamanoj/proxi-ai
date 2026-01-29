@@ -22,7 +22,7 @@ class ToolCall(BaseModel):
 
 class ToolResult(BaseModel):
     success: bool
-    output: str
+    result: str  # Must be 'result' to match ProxyDesktopService expectation
     error: Optional[str] = None
 
 # --- Authentication ---
@@ -114,13 +114,13 @@ async def execute_tool(call: ToolCall, _: bool = Depends(verify_agent_key)):
         else:
             return ToolResult(
                 success=False,
-                output="",
+                result="",
                 error=f"Unknown tool: {call.tool_name}"
             )
     except Exception as e:
         return ToolResult(
             success=False,
-            output="",
+            result="",
             error=f"Tool execution failed: {str(e)}"
         )
 
@@ -132,7 +132,7 @@ def execute_command(params: dict) -> ToolResult:
     timeout = params.get("timeout", 30)
     
     if not command:
-        return ToolResult(success=False, output="", error="No command provided")
+        return ToolResult(success=False, result="", error="No command provided")
     
     try:
         result = subprocess.run(
@@ -144,13 +144,13 @@ def execute_command(params: dict) -> ToolResult:
         )
         return ToolResult(
             success=result.returncode == 0,
-            output=result.stdout + result.stderr,
+            result=result.stdout + result.stderr,
             error=None if result.returncode == 0 else f"Exit code: {result.returncode}"
         )
     except subprocess.TimeoutExpired:
-        return ToolResult(success=False, output="", error="Command timeout")
+        return ToolResult(success=False, result="", error="Command timeout")
     except Exception as e:
-        return ToolResult(success=False, output="", error=str(e))
+        return ToolResult(success=False, result="", error=str(e))
 
 def read_file(params: dict) -> ToolResult:
     """Read file contents."""
@@ -158,7 +158,7 @@ def read_file(params: dict) -> ToolResult:
     max_lines = params.get("max_lines", 100)
     
     if not file_path:
-        return ToolResult(success=False, output="", error="No file path provided")
+        return ToolResult(success=False, result="", error="No file path provided")
     
     try:
         with open(file_path, 'r') as f:
@@ -167,13 +167,13 @@ def read_file(params: dict) -> ToolResult:
         
         return ToolResult(
             success=True,
-            output=f"File: {file_path}\n{content}",
+            result=f"File: {file_path}\n{content}",
             error=None
         )
     except FileNotFoundError:
-        return ToolResult(success=False, output="", error=f"File not found: {file_path}")
+        return ToolResult(success=False, result="", error=f"File not found: {file_path}")
     except Exception as e:
-        return ToolResult(success=False, output="", error=str(e))
+        return ToolResult(success=False, result="", error=str(e))
 
 def search_logs(params: dict) -> ToolResult:
     """Search log files with grep."""
@@ -181,7 +181,7 @@ def search_logs(params: dict) -> ToolResult:
     log_path = params.get("log_path", "/var/log/messages")
     
     if not pattern:
-        return ToolResult(success=False, output="", error="No search pattern provided")
+        return ToolResult(success=False, result="", error="No search pattern provided")
     
     command = f"grep -i '{pattern}' {log_path}"
     return execute_command({"command": command, "timeout": 10})
@@ -209,9 +209,9 @@ def list_processes() -> ToolResult:
         for p in processes[:20]:  # Top 20 processes
             output += f"{p['pid']}\t{p['name'][:15]}\t{p['cpu']:.1f}\t{p['memory']:.1f}\n"
         
-        return ToolResult(success=True, output=output, error=None)
+        return ToolResult(success=True, result=output, error=None)
     except Exception as e:
-        return ToolResult(success=False, output="", error=str(e))
+        return ToolResult(success=False, result="", error=str(e))
 
 def network_connections() -> ToolResult:
     """Show active network connections."""

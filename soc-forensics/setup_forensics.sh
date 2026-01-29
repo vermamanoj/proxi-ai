@@ -181,11 +181,13 @@ echo "  ✓ File timestamps backdated to Dec 6, 2025"
 # --- 8. SETUP RUNNING PROCESS ---
 echo "[5/6] Preparing miner process..."
 
-# Copy fake miner to /tmp with malware name
-cp /usr/local/bin/fake_miner.py /tmp/NCvhHaev
+# The malware binary will be created at runtime by CMD in Dockerfile
+# It copies /usr/local/sbin/apaches.sh to /tmp/NCvhHaev and then deletes it
+# This mimics real malware that deletes itself after execution (fileless)
+touch /tmp/NCvhHaev
 chmod +x /tmp/NCvhHaev
 
-echo "  ✓ Miner binary ready at /tmp/NCvhHaev"
+echo "  ✓ Miner stub ready (real binary created at runtime)"
 
 # --- 9. SET PERMISSIONS ---
 echo "[6/6] Setting file permissions..."

@@ -1,3 +1,5 @@
+// App.tsx
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Settings, Mic, MicOff, Send, Camera, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, LogOut, Plus, History, MessageSquare, Monitor, ChevronDown, ChevronUp, Trash2, Info, Link2, Menu } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
@@ -76,7 +78,7 @@ const App: React.FC = () => {
     cancelAction,
     logSystemError,
     clearSession: brainClearSession
-  } = useProxiBrain(audioEnabled);
+  } = useProxiBrain(audioEnabled, activeWorkstation?.id || null);
 
   // Hook 2: Real-time Voice (Live API / WebRTC)
   const { 

@@ -122,7 +122,7 @@ APPROVAL_REQUIRED_PATTERNS: List[Tuple[str, str]] = [
     (r'schtasks\s+/create', "Create scheduled task"),
     (r'schtasks\s+/delete', "Delete scheduled task"),
     (r'crontab\s+', "Cron job modification"),
-    (r'at\s+', "AT job scheduling"),
+    (r'^at\s+\d', "AT job scheduling"),  # Only match 'at' command with time argument
     
     # Environment changes
     (r'setx\s+', "Set environment variable permanently"),
@@ -204,6 +204,15 @@ SAFE_PATTERNS: List[Tuple[str, str]] = [
     (r'^uname', "System info"),
     (r'^lsb_release', "Distribution info"),
     (r'^systeminfo', "Windows system info"),
+    (r'^journalctl', "View system logs"),
+    (r'^ss(\s|$)', "Socket statistics"),
+    (r'^lsof', "List open files"),
+    (r'^strace', "System trace"),
+    (r'^strings(\s|$)', "Extract strings"),
+    (r'^xxd(\s|$)', "Hex dump"),
+    (r'^hexdump', "Hex dump"),
+    (r'^md5sum', "MD5 checksum"),
+    (r'^sha256sum', "SHA256 checksum"),
     (r'^docker\s+(ps|images|logs|inspect)', "Docker read-only"),
     (r'^git\s+(status|log|diff|branch|show|remote)', "Git read-only"),
     (r'^npm\s+(list|ls|view|info|search)', "NPM read-only"),
@@ -254,6 +263,17 @@ class CommandGuard:
                     matched_pattern=pattern
                 )
         
+        # Check safe patterns FIRST (before approval patterns)
+        # This prevents broad approval patterns from matching safe commands
+        for pattern, description in self.safe_patterns:
+            if re.search(pattern, command, re.IGNORECASE):
+                return CommandCheckResult(
+                    allowed=True,
+                    risk_level=CommandRisk.SAFE,
+                    reason=f"Safe command: {description}",
+                    matched_pattern=pattern
+                )
+        
         # Check approval required patterns
         for pattern, description in self.approval_patterns:
             if re.search(pattern, command, re.IGNORECASE):
@@ -261,16 +281,6 @@ class CommandGuard:
                     allowed=True,
                     risk_level=CommandRisk.NEEDS_APPROVAL,
                     reason=f"Requires approval: {description}",
-                    matched_pattern=pattern
-                )
-        
-        # Check safe patterns
-        for pattern, description in self.safe_patterns:
-            if re.search(pattern, command, re.IGNORECASE):
-                return CommandCheckResult(
-                    allowed=True,
-                    risk_level=CommandRisk.SAFE,
-                    reason=f"Safe command: {description}",
                     matched_pattern=pattern
                 )
         

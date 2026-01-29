@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { LogEntry, MessageSource, Complexity, AgentStatus, PendingAction, TraceStep, MissionState } from '../types';
 import { createSession, updateSession, closeSession as closeSessionApi } from '../services/sessionService';
 
-export const useProxiBrain = (audioEnabled: boolean = true) => {
+export const useProxiBrain = (audioEnabled: boolean = true, workstationId: string | null = null) => {
   const [status, setStatus] = useState<AgentStatus>('idle');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [lastTrace, setLastTrace] = useState<TraceStep[]>([]);
@@ -166,7 +166,7 @@ export const useProxiBrain = (audioEnabled: boolean = true) => {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, complexity, session_id: currentSessionId }),
+        body: JSON.stringify({ message, complexity, session_id: currentSessionId, workstation_id: workstationId }),
         signal: controller.signal
       });
       

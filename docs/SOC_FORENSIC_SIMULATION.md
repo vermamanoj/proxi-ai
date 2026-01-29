@@ -251,3 +251,89 @@ Analyst should identify:
 
 **Demo Duration:** 2-3 minutes  
 **Wow Factor:** High - judges will recognize this as real SOC work
+
+---
+
+## 6. Proxi Agent Integration
+
+### Why Agent Integration is Required
+
+For Gemini to perform the actual investigation, the forensic container must be registered as a Proxi agent. Without this:
+- ❌ Gemini cannot execute commands in the container
+- ❌ Cannot read log files or analyze artifacts
+- ❌ Cannot inspect processes or network connections
+- ❌ Investigation remains theoretical only
+
+**With agent integration:**
+- ✅ Gemini becomes a fully autonomous SOC analyst
+- ✅ Can execute real forensic commands
+- ✅ Can analyze logs and identify root cause
+- ✅ Can map persistence mechanisms
+- ✅ Demonstrates true cross-platform AI capabilities
+
+### Quick Setup
+
+The forensic container now includes a built-in Proxi agent server:
+
+```bash
+# 1. Stop old container (if running)
+docker stop forensic-investigation
+docker rm forensic-investigation
+
+# 2. Build agent-enabled image
+cd soc-forensics
+docker build -t proxi-forensics:v2 .
+
+# 3. Start with agent support
+docker-compose -f docker-compose.forensic.yml up -d
+
+# 4. Verify agent is working
+curl http://localhost:5081/health
+curl http://localhost:5081/capabilities
+```
+
+### Agent Capabilities
+
+The forensic agent provides these tools for Gemini:
+1. **run_terminal_command** - Execute shell commands
+2. **read_file** - Read logs, configs, artifacts
+3. **search_logs** - Grep through log files
+4. **list_processes** - Show running processes
+5. **network_connections** - Display active connections
+
+### Manual Registration (Optional)
+
+If you want to register the agent with Proxi Core UI:
+1. Open Proxi UI at `http://localhost:4002`
+2. Go to **Workstations** tab
+3. Click **Add Workstation**
+4. Fill in:
+   - Name: `forensic-investigation`
+   - URL: `http://forensic-investigation:8081`
+   - Platform: `Linux`
+
+### Investigation Workflow with Agent
+
+```
+User: "Investigate high CPU on forensic-investigation"
+  ↓
+Gemini switches to forensic-investigation workstation
+  ↓
+Gemini: list_processes() → Identifies fake_miner at 58% CPU
+  ↓
+Gemini: search_logs("error") → Finds RCE in app logs
+  ↓
+Gemini: read_file("/tmp/NCvhHaev") → Analyzes malware
+  ↓
+Gemini: run_terminal_command("systemctl list-units") → Finds persistence
+  ↓
+Gemini: Reports findings with evidence and remediation steps
+```
+
+**See `soc-forensics/AGENT_SETUP.md` for detailed setup instructions.**
+
+---
+
+## 7. Hackathon Demo Value
+
+### Why This Showcases Proxi's Unique Capabilities

@@ -278,6 +278,14 @@ async def revoke_magic_link(token: str, request: Request):
 async def chat(request: ChatRequest, http_request: Request):
     """Streaming Endpoint for Agent Thoughts. Requires auth."""
     await require_auth(http_request)
+    
+    # Auto-activate workstation if provided (ensures agent is set even after Core restart)
+    if request.workstation_id:
+        ws = get_workstation(request.workstation_id)
+        if ws:
+            agent_url = f"http://{ws['host']}:{ws['port']}"
+            set_active_agent(agent_url)
+    
     try:
         return StreamingResponse(
             gemini_service.route_and_execute_stream(

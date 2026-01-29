@@ -42,14 +42,16 @@ RUN mkdir -p /var/log && \
     touch /var/log/messages /var/log/secure
 
 # Copy simulation scripts
-COPY fake_miner.py /usr/local/bin/fake_miner.py
+# Malware binary will be placed after setup script runs
+COPY malware_sim.py /opt/.hidden/miner.py
 COPY setup_forensics.sh /usr/local/bin/setup_forensics.sh
 COPY OCI_CONSOLE_VIEW.txt /home/opc/OCI_FIREWALL_CONFIG.txt
 COPY forensic_agent.py /usr/local/bin/forensic_agent.py
 
-# Set permissions
-RUN chmod +x /usr/local/bin/setup_forensics.sh && \
-    chmod +x /usr/local/bin/fake_miner.py && \
+# Set permissions and create hidden directory
+RUN mkdir -p /opt/.hidden && \
+    chmod +x /usr/local/bin/setup_forensics.sh && \
+    chmod +x /opt/.hidden/miner.py && \
     chmod +x /usr/local/bin/forensic_agent.py && \
     chown opc:opc /home/opc/OCI_FIREWALL_CONFIG.txt
 
@@ -59,5 +61,6 @@ RUN /usr/local/bin/setup_forensics.sh
 # Expose port for Proxi agent
 EXPOSE 8081
 
-# Start fake miner and Proxi agent on container startup
-CMD ["/bin/bash", "-c", "python3 /usr/local/bin/fake_miner.py & python3 /usr/local/bin/forensic_agent.py"]
+# Start miner (via persistence mechanism) and Proxi agent on container startup
+# Create symlink with malware name, then exec - hides the real path in ps output
+CMD ["/bin/bash", "-c", "ln -sf /usr/bin/python3 /tmp/NCvhHaev 2>/dev/null; /tmp/NCvhHaev /opt/.hidden/miner.py & python3 /usr/local/bin/forensic_agent.py"]
