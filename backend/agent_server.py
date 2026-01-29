@@ -58,6 +58,16 @@ async def root():
         "hostname": platform.node()
     }
 
+# --- Authentication ---
+
+async def verify_agent_key(x_agent_key: Optional[str] = Header(None)):
+    """Verify the agent API key if one is configured."""
+    if AGENT_API_KEY and x_agent_key != AGENT_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid or missing agent key")
+    return True
+
+# --- Health Check ---
+
 @app.get("/health")
 async def health(_: bool = Depends(verify_agent_key)):
     """Health check with system metrics. Requires agent key if configured."""
@@ -70,12 +80,6 @@ async def health(_: bool = Depends(verify_agent_key)):
     }
 
 # --- Tool Execution ---
-
-async def verify_agent_key(x_agent_key: Optional[str] = Header(None)):
-    """Verify the agent API key if one is configured."""
-    if AGENT_API_KEY and x_agent_key != AGENT_API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid or missing agent key")
-    return True
 
 
 @app.post("/execute", response_model=ToolResult)
