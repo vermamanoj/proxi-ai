@@ -539,6 +539,25 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
 
 
 
+  // Cancel/stop active session execution
+  const stopExecution = useCallback(async () => {
+    if (!sessionId) return;
+    
+    try {
+      const response = await fetch(`${API_BASE}/api/sessions/${sessionId}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        addLog(MessageSource.SYSTEM, "⏹️ Stop requested - mission will halt after current operation.");
+        setMissionState(prev => ({ ...prev, phase: 'idle', active: false }));
+      }
+    } catch (e) {
+      console.warn('[Session] Failed to cancel session:', e);
+    }
+  }, [sessionId, addLog]);
+
   return {
     status,
     logs,
@@ -554,6 +573,7 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
     confirmAction,
     cancelAction,
     logSystemError,
-    clearSession
+    clearSession,
+    stopExecution
   };
 };

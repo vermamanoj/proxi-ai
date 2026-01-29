@@ -93,6 +93,9 @@ class GeminiService:
         
         # Temporary storage for uploaded images (for save_uploaded_image tool)
         self.current_uploaded_image = None  # {"bytes": bytes, "mime_type": str}
+        
+        # Track cancelled sessions for Stop button functionality
+        self.cancelled_sessions = set()  # {session_id}
 
         # EXECUTION MAP - Keys must match function names exactly
         self.tools_map = {
@@ -776,6 +779,13 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
 
             max_turns = 15
             for turn in range(max_turns):
+                # Check for cancellation at start of each turn
+                if session_id in self.cancelled_sessions:
+                    self.cancelled_sessions.discard(session_id)
+                    log_system(f"Session {session_id} cancelled by user", "CANCEL")
+                    yield json.dumps({"type": "cancelled", "content": "Mission stopped by user"}) + "\n"
+                    return
+                
                 # Extract parts safely
                 if not response.candidates or not response.candidates[0].content.parts:
                     break
@@ -885,6 +895,13 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
 
                 response_parts = []
                 for i, call_info in enumerate(safe_calls):
+                    # Check for cancellation before each tool execution
+                    if session_id in self.cancelled_sessions:
+                        self.cancelled_sessions.discard(session_id)
+                        log_system(f"Session {session_id} cancelled during tool execution", "CANCEL")
+                        yield json.dumps({"type": "cancelled", "content": "Mission stopped by user"}) + "\n"
+                        return
+                    
                     name = call_info['name']
                     args = call_info['args']
                     

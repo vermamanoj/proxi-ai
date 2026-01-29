@@ -1,7 +1,7 @@
 // App.tsx
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Settings, Mic, MicOff, Send, Camera, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, LogOut, Plus, History, MessageSquare, Monitor, ChevronDown, ChevronUp, Trash2, Info, Link2, Menu } from 'lucide-react';
+import { Settings, Mic, MicOff, Send, Camera, X, CheckCircle2, Loader2, Zap, BrainCircuit, Volume2, VolumeX, LogOut, Plus, History, MessageSquare, Monitor, ChevronDown, ChevronUp, Trash2, Info, Link2, Menu, Square } from 'lucide-react';
 import { useProxiBrain } from './hooks/useProxiBrain';
 import { useGeminiLive } from './hooks/useGeminiLive';
 import { useBackendHealth } from './hooks/useBackendHealth';
@@ -89,7 +89,8 @@ const App: React.FC = () => {
     confirmAction,
     cancelAction,
     logSystemError,
-    clearSession: brainClearSession
+    clearSession: brainClearSession,
+    stopExecution
   } = useProxiBrain(audioEnabled, activeWorkstation?.id || null);
 
   // Hook 2: Real-time Voice (Live API / WebRTC)
@@ -768,8 +769,18 @@ const App: React.FC = () => {
               {micMuted || !liveConnected ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
             </button>
 
-            {/* Show Voice Uplink OR Send based on input */}
-            {input.trim() || stagedImage ? (
+            {/* Show Stop, Send, or Voice based on state */}
+            {isProcessing ? (
+              /* Stop Button - when processing */
+              <button
+                type="button"
+                onClick={stopExecution}
+                className="p-3 bg-red-500 text-white rounded-xl transition-all hover:bg-red-600 animate-pulse"
+                title="Stop execution"
+              >
+                <Square className="w-5 h-5 fill-current" />
+              </button>
+            ) : input.trim() || stagedImage ? (
               /* Send Button - when there's text */
               <button
                 type="submit"

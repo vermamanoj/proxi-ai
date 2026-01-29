@@ -453,6 +453,13 @@ async def update_session_data(session_id: str, request: Request):
     )
     return {"session_id": session_id, "status": "updated"}
 
+@app.post("/api/sessions/{session_id}/cancel")
+async def cancel_session(session_id: str, request: Request):
+    """Cancel/stop an active session's execution. Requires auth."""
+    await require_auth(request)
+    gemini_service.cancelled_sessions.add(session_id)
+    return {"session_id": session_id, "status": "cancellation_requested"}
+
 @app.post("/api/sessions/{session_id}/messages")
 async def add_session_message(session_id: str, request: Request):
     """Append a message to session history. Requires auth."""
