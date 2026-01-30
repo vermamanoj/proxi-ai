@@ -124,3 +124,15 @@ class NullDesktopService(DesktopInterface):
     
     def ppt_create_business_slide(self, slide_number: int, title: str, points: list, highlight_point: int = None) -> str:
         return f"Error: {self.ERROR_MSG}"
+    
+    def ppt_add_chart(self, slide_number: int, chart_type: str, data: list, left: int = 100, top: int = 150, width: int = 500, height: int = 350, title: str = None) -> str:
+        return f"Error: {self.ERROR_MSG}"
+    
+    def ppt_add_image_from_url(self, slide_number: int, image_url: str, left: int = 100, top: int = 100, width: int = 400, alt_text: str = None) -> str:
+        return f"Error: {self.ERROR_MSG}"
+    
+    def ppt_add_icon(self, slide_number: int, icon_name: str, left: int = 100, top: int = 100, size: int = 64, color: str = None) -> str:
+        return f"Error: {self.ERROR_MSG}"
+    
+    def ppt_insert_smartart(self, slide_number: int, layout_type: str, items: list, left: int = 100, top: int = 150, width: int = 600, height: int = 400) -> str:
+        return f"Error: {self.ERROR_MSG}"

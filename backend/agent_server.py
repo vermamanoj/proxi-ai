@@ -71,6 +71,11 @@ from backend.tools.ppt_tools import (
     ppt_add_textbox,
     ppt_set_shape_style,
     ppt_create_business_slide,
+    # Visual elements
+    ppt_add_chart,
+    ppt_add_image_from_url,
+    ppt_add_icon,
+    ppt_insert_smartart,
 )
 
 # Agent API Key for Core <-> Agent authentication
@@ -358,6 +363,46 @@ async def execute_tool(call: ToolCall, _: bool = Depends(verify_agent_key)):
                 params.get("title", ""),
                 params.get("points", []),
                 params.get("highlight_point")
+            )
+        # Visual elements - charts, images, icons, smartart
+        elif tool_name == "ppt_add_chart":
+            result = ppt_add_chart(
+                int(params.get("slide_number", 1)),
+                params.get("chart_type", "column"),
+                params.get("data", []),
+                int(params.get("left", 100)),
+                int(params.get("top", 150)),
+                int(params.get("width", 500)),
+                int(params.get("height", 350)),
+                params.get("title")
+            )
+        elif tool_name == "ppt_add_image_from_url":
+            result = ppt_add_image_from_url(
+                int(params.get("slide_number", 1)),
+                params.get("image_url", ""),
+                int(params.get("left", 100)),
+                int(params.get("top", 100)),
+                int(params.get("width", 400)),
+                params.get("alt_text")
+            )
+        elif tool_name == "ppt_add_icon":
+            result = ppt_add_icon(
+                int(params.get("slide_number", 1)),
+                params.get("icon_name", "star"),
+                int(params.get("left", 100)),
+                int(params.get("top", 100)),
+                int(params.get("size", 64)),
+                params.get("color")
+            )
+        elif tool_name == "ppt_insert_smartart":
+            result = ppt_insert_smartart(
+                int(params.get("slide_number", 1)),
+                params.get("layout_type", "process"),
+                params.get("items", []),
+                int(params.get("left", 100)),
+                int(params.get("top", 150)),
+                int(params.get("width", 600)),
+                int(params.get("height", 400))
             )
         else:
             elapsed_ms = int((time.time() - start_time) * 1000)

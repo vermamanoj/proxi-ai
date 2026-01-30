@@ -241,3 +241,32 @@ class ProxyDesktopService(DesktopInterface):
         return self._execute_sync("ppt_create_business_slide", {
             "slide_number": slide_number, "title": title, "points": points, "highlight_point": highlight_point
         })
+    
+    # Visual elements - charts, images, icons, smartart
+    def ppt_add_chart(self, slide_number: int, chart_type: str, data: list,
+                      left: int = 100, top: int = 150, width: int = 500, height: int = 350, title: str = None) -> str:
+        return self._execute_sync("ppt_add_chart", {
+            "slide_number": slide_number, "chart_type": chart_type, "data": data,
+            "left": left, "top": top, "width": width, "height": height, "title": title
+        })
+    
+    def ppt_add_image_from_url(self, slide_number: int, image_url: str,
+                               left: int = 100, top: int = 100, width: int = 400, alt_text: str = None) -> str:
+        return self._execute_sync("ppt_add_image_from_url", {
+            "slide_number": slide_number, "image_url": image_url,
+            "left": left, "top": top, "width": width, "alt_text": alt_text
+        })
+    
+    def ppt_add_icon(self, slide_number: int, icon_name: str,
+                     left: int = 100, top: int = 100, size: int = 64, color: str = None) -> str:
+        return self._execute_sync("ppt_add_icon", {
+            "slide_number": slide_number, "icon_name": icon_name,
+            "left": left, "top": top, "size": size, "color": color
+        })
+    
+    def ppt_insert_smartart(self, slide_number: int, layout_type: str, items: list,
+                            left: int = 100, top: int = 150, width: int = 600, height: int = 400) -> str:
+        return self._execute_sync("ppt_insert_smartart", {
+            "slide_number": slide_number, "layout_type": layout_type, "items": items,
+            "left": left, "top": top, "width": width, "height": height
+        })

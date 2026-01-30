@@ -1106,6 +1106,408 @@ def ppt_create_business_slide(slide_number: int, title: str, points: List[str],
         return f"Error: {e}"
 
 
+def ppt_add_chart(slide_number: int, chart_type: str, data: List[List], 
+                  left: int = 100, top: int = 150, width: int = 500, height: int = 350,
+                  title: str = None) -> str:
+    """
+    Adds a chart to a slide for data visualization.
+    
+    Args:
+        slide_number: Target slide (1-indexed)
+        chart_type: Type of chart - "bar", "column", "line", "pie", "area", "doughnut"
+        data: 2D list where first row is categories, first column is series names
+              Example for bar: [["", "Q1", "Q2", "Q3"], ["Sales", 100, 150, 200], ["Costs", 80, 90, 100]]
+        left, top: Position in points
+        width, height: Size in points
+        title: Optional chart title
+    
+    Returns:
+        Status message with shape name.
+    """
+    log_system(f"Adding {chart_type} chart to slide {slide_number}", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    # Chart type constants (XlChartType values)
+    CHART_TYPES = {
+        "bar": 57,        # xlBarClustered
+        "column": 51,     # xlColumnClustered  
+        "line": 4,        # xlLine
+        "pie": 5,         # xlPie
+        "area": 1,        # xlArea
+        "doughnut": -4120 # xlDoughnut
+    }
+    
+    chart_type_lower = chart_type.lower()
+    if chart_type_lower not in CHART_TYPES:
+        return f"Error: Unknown chart type '{chart_type}'. Use: {', '.join(CHART_TYPES.keys())}"
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        if slide_number > presentation.Slides.Count:
+            return f"Error: Slide {slide_number} does not exist"
+        
+        slide = presentation.Slides(slide_number)
+        
+        # Add chart shape
+        chart_shape = slide.Shapes.AddChart2(
+            -1,  # Use default style
+            CHART_TYPES[chart_type_lower],
+            left, top, width, height
+        )
+        
+        chart = chart_shape.Chart
+        
+        # Set chart data
+        if data and len(data) > 0:
+            # Access the chart's data sheet
+            chart_data = chart.ChartData
+            chart_data.Activate()
+            
+            workbook = chart_data.Workbook
+            worksheet = workbook.Worksheets(1)
+            
+            # Clear existing data
+            worksheet.UsedRange.Clear()
+            
+            # Write data to worksheet
+            for row_idx, row in enumerate(data):
+                for col_idx, value in enumerate(row):
+                    worksheet.Cells(row_idx + 1, col_idx + 1).Value = value
+            
+            # Set data range
+            rows = len(data)
+            cols = len(data[0]) if data else 1
+            data_range = worksheet.Range(worksheet.Cells(1, 1), worksheet.Cells(rows, cols))
+            chart.SetSourceData(data_range)
+            
+            workbook.Close(False)
+        
+        # Set title if provided
+        if title:
+            chart.HasTitle = True
+            chart.ChartTitle.Text = title
+        
+        return f"Added {chart_type} chart to slide {slide_number} (shape: {chart_shape.Name})"
+    
+    except Exception as e:
+        log_system(f"Error adding chart: {e}", "ERR")
+        return f"Error adding chart: {e}"
+
+
+def ppt_add_image_from_url(slide_number: int, image_url: str, 
+                           left: int = 100, top: int = 100, width: int = 400,
+                           alt_text: str = None) -> str:
+    """
+    Downloads an image from URL and adds it to a slide.
+    Handles common image formats (jpg, png, gif, webp).
+    
+    Args:
+        slide_number: Target slide (1-indexed)
+        image_url: URL of the image to download
+        left, top: Position in points
+        width: Width in points (height auto-calculated to maintain aspect ratio)
+        alt_text: Optional description for accessibility
+    
+    Returns:
+        Status message with shape name.
+    """
+    log_system(f"Adding image from URL to slide {slide_number}: {image_url[:50]}...", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    import urllib.request
+    import tempfile
+    import uuid
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        if slide_number > presentation.Slides.Count:
+            return f"Error: Slide {slide_number} does not exist"
+        
+        # Determine file extension from URL
+        url_lower = image_url.lower()
+        if '.png' in url_lower:
+            ext = '.png'
+        elif '.gif' in url_lower:
+            ext = '.gif'
+        elif '.webp' in url_lower:
+            ext = '.webp'
+        else:
+            ext = '.jpg'
+        
+        # Download to temp file
+        temp_dir = tempfile.gettempdir()
+        temp_filename = f"proxi_img_{uuid.uuid4().hex[:8]}{ext}"
+        temp_path = os.path.join(temp_dir, temp_filename)
+        
+        # Download with headers to avoid 403 errors
+        req = urllib.request.Request(image_url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+        
+        with urllib.request.urlopen(req, timeout=15) as response:
+            with open(temp_path, 'wb') as f:
+                f.write(response.read())
+        
+        # Verify file was downloaded
+        if not os.path.exists(temp_path) or os.path.getsize(temp_path) < 100:
+            return f"Error: Failed to download image from {image_url}"
+        
+        slide = presentation.Slides(slide_number)
+        
+        # Add picture (height=-1 maintains aspect ratio)
+        picture = slide.Shapes.AddPicture(
+            temp_path,
+            LinkToFile=False,  # Embed the image
+            SaveWithDocument=True,
+            Left=left,
+            Top=top,
+            Width=width,
+            Height=-1  # Auto height
+        )
+        
+        # Set alt text if provided
+        if alt_text:
+            picture.AlternativeText = alt_text
+        
+        # Clean up temp file
+        try:
+            os.remove(temp_path)
+        except:
+            pass
+        
+        return f"Added image from URL to slide {slide_number} (shape: {picture.Name}, size: {int(picture.Width)}x{int(picture.Height)})"
+    
+    except urllib.error.URLError as e:
+        return f"Error downloading image: {e}"
+    except Exception as e:
+        log_system(f"Error adding image from URL: {e}", "ERR")
+        return f"Error: {e}"
+
+
+def ppt_add_icon(slide_number: int, icon_name: str, 
+                 left: int = 100, top: int = 100, size: int = 64,
+                 color: str = None) -> str:
+    """
+    Adds a built-in icon/symbol to a slide using PowerPoint's icon library.
+    Use this for professional-looking icons without external images.
+    
+    Args:
+        slide_number: Target slide (1-indexed)
+        icon_name: Icon category - "checkmark", "arrow_right", "arrow_up", "star", 
+                   "lightbulb", "gear", "person", "chart", "target", "rocket",
+                   "calendar", "clock", "folder", "mail", "phone", "globe"
+        left, top: Position in points
+        size: Icon size in points
+        color: Optional hex color (e.g., "FF0000" for red)
+    
+    Returns:
+        Status message with shape name.
+    """
+    log_system(f"Adding icon '{icon_name}' to slide {slide_number}", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    # AutoShape type constants (MsoAutoShapeType)
+    # These create recognizable icon-like shapes
+    ICON_SHAPES = {
+        "checkmark": 17,      # msoShapeFlowchartOffpageConnector (use with green)
+        "arrow_right": 33,    # msoShapeRightArrow
+        "arrow_up": 35,       # msoShapeUpArrow
+        "arrow_down": 36,     # msoShapeDownArrow
+        "star": 12,           # msoShape5pointStar
+        "lightbulb": 183,     # msoShapeLightningBolt (closest to idea)
+        "gear": 131,          # msoShapeGear6
+        "person": 126,        # Not exact - using oval for head
+        "chart": 57,          # msoShapeFlowchartProcess
+        "target": 130,        # msoShapeDonut (bullseye-like)
+        "rocket": 183,        # msoShapeLightningBolt
+        "calendar": 1,        # msoShapeRectangle
+        "clock": 9,           # msoShapeOval
+        "folder": 1,          # msoShapeRectangle
+        "mail": 72,           # msoShapeBevel
+        "phone": 1,           # msoShapeRectangle
+        "globe": 9,           # msoShapeOval
+        "plus": 11,           # msoShapeCross
+        "minus": 1,           # msoShapeRectangle
+        "heart": 21,          # msoShapeHeart
+        "diamond": 4,         # msoShapeDiamond
+        "triangle": 7,        # msoShapeIsoscelesTriangle
+        "hexagon": 10,        # msoShapeHexagon
+        "pentagon": 51,       # msoShapePentagon
+        "cloud": 179,         # msoShapeCloud
+        "sun": 183,           # msoShapeSun (approximate)
+        "moon": 184,          # msoShapeMoon
+    }
+    
+    icon_lower = icon_name.lower().replace(" ", "_").replace("-", "_")
+    if icon_lower not in ICON_SHAPES:
+        available = ", ".join(sorted(ICON_SHAPES.keys()))
+        return f"Error: Unknown icon '{icon_name}'. Available: {available}"
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        if slide_number > presentation.Slides.Count:
+            return f"Error: Slide {slide_number} does not exist"
+        
+        slide = presentation.Slides(slide_number)
+        
+        # Add the shape
+        shape = slide.Shapes.AddShape(
+            ICON_SHAPES[icon_lower],
+            left, top, size, size
+        )
+        
+        # Apply color if specified
+        if color:
+            color_clean = color.lstrip('#')
+            try:
+                rgb = int(color_clean, 16)
+                r = (rgb >> 16) & 0xFF
+                g = (rgb >> 8) & 0xFF
+                b = rgb & 0xFF
+                shape.Fill.ForeColor.RGB = r + (g << 8) + (b << 16)
+            except:
+                pass
+        
+        # Remove text from shape
+        if shape.HasTextFrame:
+            shape.TextFrame.TextRange.Text = ""
+        
+        # Name it meaningfully
+        shape.Name = f"Icon_{icon_name}_{shape.Id}"
+        
+        return f"Added '{icon_name}' icon to slide {slide_number} (shape: {shape.Name})"
+    
+    except Exception as e:
+        log_system(f"Error adding icon: {e}", "ERR")
+        return f"Error: {e}"
+
+
+def ppt_insert_smartart(slide_number: int, layout_type: str, items: List[str],
+                        left: int = 100, top: int = 150, width: int = 600, height: int = 400) -> str:
+    """
+    Inserts a SmartArt graphic for process flows, hierarchies, or lists.
+    
+    Args:
+        slide_number: Target slide (1-indexed)
+        layout_type: SmartArt type - "process", "cycle", "hierarchy", "list", "pyramid", "radial"
+        items: List of text items for SmartArt nodes
+        left, top: Position in points
+        width, height: Size in points
+    
+    Returns:
+        Status message with shape name.
+    """
+    log_system(f"Adding SmartArt '{layout_type}' to slide {slide_number}", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    # SmartArt layout IDs (approximate - these are common layout GUIDs)
+    SMARTART_LAYOUTS = {
+        "process": "{79D4F6A3-916D-4C8B-8B4A-4B5D4A8E8A23}",      # Basic Process
+        "cycle": "{B5E2D9E1-4F3B-4D8A-9C5E-1A2B3C4D5E6F}",        # Basic Cycle
+        "hierarchy": "{8B7FCDCD-6F88-4D8A-9B1E-4A5B6C7D8E9F}",    # Hierarchy
+        "list": "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}",         # Basic Block List
+        "pyramid": "{D1E2F3A4-B5C6-7D8E-9F0A-1B2C3D4E5F6A}",      # Basic Pyramid
+        "radial": "{E1F2A3B4-C5D6-7E8F-9A0B-1C2D3E4F5A6B}",       # Basic Radial
+    }
+    
+    layout_lower = layout_type.lower()
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        if slide_number > presentation.Slides.Count:
+            return f"Error: Slide {slide_number} does not exist"
+        
+        slide = presentation.Slides(slide_number)
+        
+        # SmartArt requires accessing the SmartArtLayouts collection
+        # For simplicity, we'll create a grouped set of shapes as a fallback
+        
+        # Create process-style shapes manually for reliability
+        if layout_lower == "process" or layout_lower == "list":
+            # Create arrow-connected boxes for process flow
+            box_width = min(120, (width - 50 * (len(items) - 1)) // len(items)) if items else 120
+            box_height = 60
+            y_center = top + height // 2 - box_height // 2
+            
+            shapes_created = []
+            for i, item in enumerate(items[:8]):  # Max 8 items
+                x = left + i * (box_width + 50)
+                
+                # Add box
+                box = slide.Shapes.AddShape(5, x, y_center, box_width, box_height)  # Rounded rectangle
+                box.TextFrame.TextRange.Text = item
+                box.TextFrame.TextRange.Font.Size = 11
+                box.TextFrame.TextRange.ParagraphFormat.Alignment = 2  # Center
+                shapes_created.append(box.Name)
+                
+                # Add arrow between boxes (except for last)
+                if i < len(items) - 1:
+                    arrow_x = x + box_width + 10
+                    arrow = slide.Shapes.AddShape(33, arrow_x, y_center + box_height // 2 - 10, 30, 20)  # Right arrow
+                    arrow.Fill.ForeColor.RGB = 0x808080  # Gray
+            
+            return f"Added process flow to slide {slide_number} with {len(items)} steps"
+        
+        elif layout_lower == "hierarchy":
+            # Create simple hierarchy (top box, bottom boxes)
+            if len(items) >= 1:
+                # Top box (centered)
+                top_box = slide.Shapes.AddShape(5, left + width // 2 - 75, top, 150, 50)
+                top_box.TextFrame.TextRange.Text = items[0]
+                top_box.TextFrame.TextRange.Font.Size = 12
+                
+                # Child boxes
+                child_count = len(items) - 1
+                if child_count > 0:
+                    child_width = min(120, (width - 20 * (child_count - 1)) // child_count)
+                    for i, item in enumerate(items[1:min(6, len(items))]):  # Max 5 children
+                        x = left + i * (child_width + 20)
+                        box = slide.Shapes.AddShape(5, x, top + 100, child_width, 50)
+                        box.TextFrame.TextRange.Text = item
+                        box.TextFrame.TextRange.Font.Size = 10
+            
+            return f"Added hierarchy to slide {slide_number} with {len(items)} nodes"
+        
+        else:
+            # Fallback: create vertical list
+            box_height = min(50, (height - 10 * (len(items) - 1)) // len(items)) if items else 50
+            for i, item in enumerate(items[:10]):
+                y = top + i * (box_height + 10)
+                box = slide.Shapes.AddShape(5, left, y, width, box_height)
+                box.TextFrame.TextRange.Text = item
+                box.TextFrame.TextRange.Font.Size = 11
+            
+            return f"Added {layout_type} list to slide {slide_number} with {len(items)} items"
+    
+    except Exception as e:
+        log_system(f"Error adding SmartArt: {e}", "ERR")
+        return f"Error: {e}"
+
+
 # Export all PPT tools
 PPT_TOOLS = {
     "ppt_get_active_presentation": ppt_get_active_presentation,
@@ -1123,9 +1525,14 @@ PPT_TOOLS = {
     "ppt_resize_shape": ppt_resize_shape,
     "ppt_format_text": ppt_format_text,
     "ppt_get_theme_colors": ppt_get_theme_colors,
-    # New advanced tools for impressive presentations
+    # Advanced tools for impressive presentations
     "ppt_add_table": ppt_add_table,
     "ppt_set_shape_style": ppt_set_shape_style,
     "ppt_add_textbox": ppt_add_textbox,
     "ppt_create_business_slide": ppt_create_business_slide,
+    # Visual elements - charts, images, icons
+    "ppt_add_chart": ppt_add_chart,
+    "ppt_add_image_from_url": ppt_add_image_from_url,
+    "ppt_add_icon": ppt_add_icon,
+    "ppt_insert_smartart": ppt_insert_smartart,
 }

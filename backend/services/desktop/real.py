@@ -668,3 +668,23 @@ class RealDesktopService(DesktopInterface):
     def ppt_create_business_slide(self, slide_number: int, title: str, points: list, highlight_point: int = None):
         from backend.tools.ppt_tools import ppt_create_business_slide
         return ppt_create_business_slide(slide_number, title, points, highlight_point)
+    
+    def ppt_add_chart(self, slide_number: int, chart_type: str, data: list,
+                      left: int = 100, top: int = 150, width: int = 500, height: int = 350, title: str = None):
+        from backend.tools.ppt_tools import ppt_add_chart
+        return ppt_add_chart(slide_number, chart_type, data, left, top, width, height, title)
+    
+    def ppt_add_image_from_url(self, slide_number: int, image_url: str,
+                               left: int = 100, top: int = 100, width: int = 400, alt_text: str = None):
+        from backend.tools.ppt_tools import ppt_add_image_from_url
+        return ppt_add_image_from_url(slide_number, image_url, left, top, width, alt_text)
+    
+    def ppt_add_icon(self, slide_number: int, icon_name: str,
+                     left: int = 100, top: int = 100, size: int = 64, color: str = None):
+        from backend.tools.ppt_tools import ppt_add_icon
+        return ppt_add_icon(slide_number, icon_name, left, top, size, color)
+    
+    def ppt_insert_smartart(self, slide_number: int, layout_type: str, items: list,
+                            left: int = 100, top: int = 150, width: int = 600, height: int = 400):
+        from backend.tools.ppt_tools import ppt_insert_smartart
+        return ppt_insert_smartart(slide_number, layout_type, items, left, top, width, height)

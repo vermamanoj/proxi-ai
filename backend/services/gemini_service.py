@@ -186,6 +186,11 @@ class GeminiService:
             "ppt_set_shape_style": self.ppt_set_shape_style,
             "ppt_add_textbox": self.ppt_add_textbox,
             "ppt_create_business_slide": self.ppt_create_business_slide,
+            # Visual elements - charts, images, icons
+            "ppt_add_chart": self.ppt_add_chart,
+            "ppt_add_image_from_url": self.ppt_add_image_from_url,
+            "ppt_add_icon": self.ppt_add_icon,
+            "ppt_insert_smartart": self.ppt_insert_smartart,
             # Image handling
             "save_uploaded_image": self.save_uploaded_image,
             # File transfer
@@ -434,6 +439,26 @@ class GeminiService:
     def ppt_create_business_slide(self, slide_number: int, title: str, points: list, highlight_point: int = None):
         """Creates a professional business case slide with title and bullet points. Perfect for executive summaries."""
         return get_desktop_service().ppt_create_business_slide(slide_number, title, points, highlight_point)
+
+    def ppt_add_chart(self, slide_number: int, chart_type: str, data: list,
+                      left: int = 100, top: int = 150, width: int = 500, height: int = 350, title: str = None):
+        """Adds a data chart (bar, column, line, pie, area, doughnut) to a slide. Perfect for visualizing metrics."""
+        return get_desktop_service().ppt_add_chart(slide_number, chart_type, data, left, top, width, height, title)
+    
+    def ppt_add_image_from_url(self, slide_number: int, image_url: str,
+                               left: int = 100, top: int = 100, width: int = 400, alt_text: str = None):
+        """Downloads image from URL and inserts it into slide. Use for web images, logos, photos."""
+        return get_desktop_service().ppt_add_image_from_url(slide_number, image_url, left, top, width, alt_text)
+    
+    def ppt_add_icon(self, slide_number: int, icon_name: str,
+                     left: int = 100, top: int = 100, size: int = 64, color: str = None):
+        """Adds built-in icon shapes (star, arrow, gear, heart, cloud, etc). Use for visual accents."""
+        return get_desktop_service().ppt_add_icon(slide_number, icon_name, left, top, size, color)
+    
+    def ppt_insert_smartart(self, slide_number: int, layout_type: str, items: list,
+                            left: int = 100, top: int = 150, width: int = 600, height: int = 400):
+        """Inserts SmartArt-style graphics (process flow, hierarchy, list). Great for workflows and org charts."""
+        return get_desktop_service().ppt_insert_smartart(slide_number, layout_type, items, left, top, width, height)
 
     def look_at_screen(self, purpose: str):
         """
@@ -1544,23 +1569,35 @@ When creating or editing presentations, follow this goal-based workflow:
    - Decide which reference slide to duplicate as template
    - Plan visual elements (shapes, images) if needed
 
-3. BUILD PHASE:
+3. BUILD PHASE (use COM automation for speed):
    - ppt_duplicate_slide() to clone a well-designed reference slide
    - ppt_edit_text() to replace content while preserving formatting
    - ppt_add_shape() for visual elements (arrows, callouts)
-   - ppt_add_picture() to insert images
+   - ppt_add_picture() to insert local images
    - ppt_move_shape() and ppt_resize_shape() for layout adjustments
    
-   ADVANCED TOOLS (use for professional presentations):
+   DATA & TABLES:
    - ppt_add_table(slide, rows, cols, data) - Add formatted data tables with headers
-   - ppt_add_textbox(slide, text, left, top) - Add custom positioned text boxes
+   - ppt_add_chart(slide, "column"|"bar"|"pie"|"line", data, title) - Data visualization charts
+   
+   VISUAL ELEMENTS:
+   - ppt_add_image_from_url(slide, url, left, top, width) - Download & insert web images
+   - ppt_add_icon(slide, "star"|"arrow_right"|"gear"|"heart"|"cloud", left, top, size, color) - Built-in icons
+   - ppt_insert_smartart(slide, "process"|"hierarchy"|"list", items) - Process flows & org charts
+   - ppt_add_textbox(slide, text, left, top) - Custom positioned text boxes
    - ppt_set_shape_style(slide, shape, fill_color, line_color) - Style shapes with brand colors
+   
+   MACRO-ACTIONS:
    - ppt_create_business_slide(slide, title, points) - Create executive summary slides in ONE call
 
-4. VERIFY PHASE:
-   - ppt_goto_slide() and look_at_screen() to verify result
+4. VERIFY PHASE (use visual inspection):
+   - ppt_goto_slide() and look_at_screen() to VISUALLY verify the result
+   - Check that charts, images, icons rendered correctly
    - Ensure consistency with original theme
    - ppt_save_presentation() when complete
+
+HYBRID APPROACH: Use COM automation for fast bulk edits, then look_at_screen() to visually confirm results.
+For complex layouts, alternate between COM tools and visual inspection to ensure accuracy.
 
 IMPORTANT: Duplicate existing slides rather than creating blank ones - this preserves theme formatting perfectly."""
 
