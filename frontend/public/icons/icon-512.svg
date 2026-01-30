@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0a"/>
+      <stop offset="100%" style="stop-color:#1a1a2e"/>
+    </linearGradient>
+    <linearGradient id="accentGrad512" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00f0ff"/>
+      <stop offset="100%" style="stop-color:#66B2B0"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="url(#bgGrad512)"/>
+  
+  <!-- Outer rings - represents remote connectivity -->
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#accentGrad512)" stroke-width="6" opacity="0.3"/>
+  <circle cx="256" cy="256" r="192" fill="none" stroke="url(#accentGrad512)" stroke-width="3" opacity="0.15"/>
+  <circle cx="256" cy="256" r="220" fill="none" stroke="url(#accentGrad512)" stroke-width="1.5" opacity="0.08"/>
+  
+  <!-- Central node - the orchestrator -->
+  <circle cx="256" cy="256" r="64" fill="url(#accentGrad512)" opacity="0.9" filter="url(#glow)"/>
+  <circle cx="256" cy="256" r="44" fill="#0a0a0a"/>
+  <circle cx="256" cy="256" r="22" fill="#00f0ff" filter="url(#glow)"/>
+  
+  <!-- Connection nodes - remote endpoints (6 nodes in hexagonal pattern) -->
+  <g filter="url(#glow)">
+    <circle cx="256" cy="96" r="26" fill="#00f0ff" opacity="0.85"/>
+    <circle cx="395" cy="176" r="26" fill="#66B2B0" opacity="0.85"/>
+    <circle cx="395" cy="336" r="26" fill="#00f0ff" opacity="0.85"/>
+    <circle cx="256" cy="416" r="26" fill="#66B2B0" opacity="0.85"/>
+    <circle cx="117" cy="336" r="26" fill="#00f0ff" opacity="0.85"/>
+    <circle cx="117" cy="176" r="26" fill="#66B2B0" opacity="0.85"/>
+  </g>
+  
+  <!-- Connection lines with animated dash effect -->
+  <g stroke-width="4" opacity="0.7">
+    <line x1="256" y1="192" x2="256" y2="122" stroke="#00f0ff"/>
+    <line x1="306" y1="220" x2="369" y2="186" stroke="#66B2B0"/>
+    <line x1="306" y1="292" x2="369" y2="326" stroke="#00f0ff"/>
+    <line x1="256" y1="320" x2="256" y2="390" stroke="#66B2B0"/>
+    <line x1="206" y1="292" x2="143" y2="326" stroke="#00f0ff"/>
+    <line x1="206" y1="220" x2="143" y2="186" stroke="#66B2B0"/>
+  </g>
+  
+  <!-- Small data dots on connection lines -->
+  <circle cx="256" cy="150" r="4" fill="#fff" opacity="0.8"/>
+  <circle cx="340" cy="200" r="4" fill="#fff" opacity="0.8"/>
+  <circle cx="340" cy="312" r="4" fill="#fff" opacity="0.8"/>
+  <circle cx="256" cy="360" r="4" fill="#fff" opacity="0.8"/>
+  <circle cx="172" cy="312" r="4" fill="#fff" opacity="0.8"/>
+  <circle cx="172" cy="200" r="4" fill="#fff" opacity="0.8"/>
+</svg>

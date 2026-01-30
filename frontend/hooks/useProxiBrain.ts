@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { LogEntry, MessageSource, Complexity, AgentStatus, PendingAction, TraceStep, MissionState } from '../types';
 import { createSession, updateSession, closeSession as closeSessionApi } from '../services/sessionService';
 import { API_BASE } from '../constants';
+import { compressImage } from '../utils/imageUtils';
 
 export const useProxiBrain = (audioEnabled: boolean = true, workstationId: string | null = null) => {
   const [status, setStatus] = useState<AgentStatus>('idle');
@@ -451,8 +452,16 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
     // Update trace for this vision request
     updateTrace({ step_type: 'user_input', content: `[Image: ${file.name}] ${message}`, metadata: { hasImage: true } });
 
+    // Compress image to prevent "low memory" errors on mobile
+    let processedFile = file;
+    try {
+      processedFile = await compressImage(file);
+    } catch (e) {
+      console.warn('[Vision] Image compression failed, using original:', e);
+    }
+
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', processedFile);
     formData.append('prompt', message);
     formData.append('complexity', complexity);
 

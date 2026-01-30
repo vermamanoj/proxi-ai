@@ -20,6 +20,12 @@ services:
     environment:
       - PROXI_DEV_MODE=${PROXI_DEV_MODE:-false}  # Set true to skip approvals (demos/sandbox)
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   # Proxi Agent - Isolated desktop automation (no DB, no API keys)
   agent:
@@ -58,8 +64,15 @@ services:
     environment:
       - VITE_API_URL=http://core:8000  # Docker internal networking
     depends_on:
-      - core
+      core:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   # Nginx reverse proxy (for production)
   nginx:

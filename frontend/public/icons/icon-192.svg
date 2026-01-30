@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0a"/>
+      <stop offset="100%" style="stop-color:#1a1a2e"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00f0ff"/>
+      <stop offset="100%" style="stop-color:#66B2B0"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="192" height="192" rx="40" fill="url(#bgGrad)"/>
+  
+  <!-- Outer ring - represents remote connectivity -->
+  <circle cx="96" cy="96" r="60" fill="none" stroke="url(#accentGrad)" stroke-width="4" opacity="0.3"/>
+  <circle cx="96" cy="96" r="72" fill="none" stroke="url(#accentGrad)" stroke-width="2" opacity="0.15"/>
+  
+  <!-- Central node - the orchestrator -->
+  <circle cx="96" cy="96" r="24" fill="url(#accentGrad)" opacity="0.9"/>
+  <circle cx="96" cy="96" r="16" fill="#0a0a0a"/>
+  <circle cx="96" cy="96" r="8" fill="#00f0ff"/>
+  
+  <!-- Connection nodes - remote endpoints -->
+  <circle cx="96" cy="36" r="10" fill="#00f0ff" opacity="0.8"/>
+  <circle cx="148" cy="76" r="10" fill="#66B2B0" opacity="0.8"/>
+  <circle cx="148" cy="116" r="10" fill="#00f0ff" opacity="0.8"/>
+  <circle cx="96" cy="156" r="10" fill="#66B2B0" opacity="0.8"/>
+  <circle cx="44" cy="116" r="10" fill="#00f0ff" opacity="0.8"/>
+  <circle cx="44" cy="76" r="10" fill="#66B2B0" opacity="0.8"/>
+  
+  <!-- Connection lines -->
+  <line x1="96" y1="72" x2="96" y2="46" stroke="#00f0ff" stroke-width="2" opacity="0.6"/>
+  <line x1="116" y1="84" x2="138" y2="76" stroke="#66B2B0" stroke-width="2" opacity="0.6"/>
+  <line x1="116" y1="108" x2="138" y2="116" stroke="#00f0ff" stroke-width="2" opacity="0.6"/>
+  <line x1="96" y1="120" x2="96" y2="146" stroke="#66B2B0" stroke-width="2" opacity="0.6"/>
+  <line x1="76" y1="108" x2="54" y2="116" stroke="#00f0ff" stroke-width="2" opacity="0.6"/>
+  <line x1="76" y1="84" x2="54" y2="76" stroke="#66B2B0" stroke-width="2" opacity="0.6"/>
+</svg>
