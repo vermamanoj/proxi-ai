@@ -179,6 +179,11 @@ class GeminiService:
             "save_uploaded_image": self.save_uploaded_image,
             # File transfer
             "send_file_to_user": self.send_file_to_user,
+            # Macro-action tools (action chunking for smoother automation)
+            "navigate_app": self.navigate_app,
+            "interact_element": self.interact_element,
+            "fill_form": self.fill_form,
+            "perform_workflow": self.perform_workflow,
         }
         
         log_system(f"Gemini Service Initialized with {len(self.tools_map)} tools.", "INIT")
@@ -640,6 +645,185 @@ class GeminiService:
         log_system(f"Command denied by user: {command[:50]}...", "APPROVAL")
         return {"success": True, "message": "Command denied"}
 
+    # ============ MACRO-ACTION TOOLS (Action Chunking) ============
+    # These combine multiple atomic actions into semantic operations
+    # for smoother, more natural automation
+    
+    def navigate_app(self, app_name: str, destination: str, wait_seconds: float = 2.0):
+        """
+        Open an application and navigate to a specific location within it.
+        This is a macro-action that combines: focus/open app → wait → visual grounding → navigation.
+        
+        Args:
+            app_name: Name of the app to open (e.g., "Chrome", "Settings", "File Explorer")
+            destination: Where to navigate within the app (e.g., "Network settings", "Downloads folder", "oracle.com")
+            wait_seconds: How long to wait for app to load (default 2.0)
+        
+        Returns:
+            Summary of navigation result
+        """
+        import time
+        ds = get_desktop_service()
+        steps_log = []
+        
+        # Step 1: Try to focus existing window or open app
+        focus_result = ds.focus_window(app_name)
+        if "not found" in str(focus_result).lower():
+            # App not open, try to open it
+            if app_name.lower() in ["chrome", "google chrome"]:
+                open_result = ds.open_target(f"https://{destination}" if "." in destination else "https://google.com")
+                steps_log.append(f"Opened Chrome with {destination}")
+            elif app_name.lower() in ["settings", "windows settings"]:
+                open_result = ds.run_terminal_command("start ms-settings:")
+                steps_log.append("Opened Windows Settings")
+            elif app_name.lower() in ["file explorer", "explorer"]:
+                open_result = ds.run_terminal_command("start explorer")
+                steps_log.append("Opened File Explorer")
+            else:
+                open_result = ds.open_target(app_name)
+                steps_log.append(f"Attempted to open {app_name}")
+            time.sleep(wait_seconds)
+        else:
+            steps_log.append(f"Focused existing window: {app_name}")
+        
+        # Step 2: Wait for app to be ready
+        time.sleep(wait_seconds)
+        
+        # Step 3: Use visual grounding to find and click destination if it's a UI element
+        if destination and not destination.startswith("http"):
+            try:
+                # Try ground_and_click for UI navigation
+                ground_result = self.ground_and_click(destination)
+                if "Found and clicked" in str(ground_result):
+                    steps_log.append(f"Navigated to: {destination}")
+                else:
+                    steps_log.append(f"Could not find '{destination}' visually - may need manual navigation")
+            except Exception as e:
+                steps_log.append(f"Navigation attempt: {str(e)[:100]}")
+        
+        return f"NAVIGATE_APP completed: {' → '.join(steps_log)}"
+
+    def interact_element(self, element_description: str, action: str = "click", text_to_type: str = None):
+        """
+        Find a UI element by description and perform an action on it.
+        This is a macro-action that combines: visual grounding → action execution.
+        
+        Args:
+            element_description: Natural language description of the element (e.g., "Submit button", "Email input field", "Settings menu")
+            action: Action to perform - "click", "double_click", "right_click", "type", "hover"
+            text_to_type: Text to type if action is "type"
+        
+        Returns:
+            Result of the interaction
+        """
+        ds = get_desktop_service()
+        
+        # Use ground_and_click to find the element
+        ground_result = self.ground_and_click(element_description)
+        
+        if "Could not find" in str(ground_result) or "error" in str(ground_result).lower():
+            return f"Could not find element: {element_description}. Try a more specific description."
+        
+        # For type action, we've already clicked, now type
+        if action == "type" and text_to_type:
+            import time
+            time.sleep(0.3)  # Brief pause after click
+            type_result = ds.type_text(text_to_type)
+            return f"Clicked '{element_description}' and typed: {text_to_type}"
+        
+        # For double_click, click again
+        if action == "double_click":
+            import time
+            time.sleep(0.1)
+            # Extract coordinates from ground_result if possible
+            ground_result_str = str(ground_result)
+            if "at (" in ground_result_str:
+                try:
+                    coords = ground_result_str.split("at (")[1].split(")")[0]
+                    x, y = map(float, coords.split(","))
+                    ds.click_at(int(x), int(y))
+                    return f"Double-clicked '{element_description}'"
+                except:
+                    pass
+        
+        return ground_result
+
+    def fill_form(self, fields: list):
+        """
+        Fill multiple form fields in sequence.
+        This is a macro-action that combines: visual grounding → click → type for each field.
+        
+        Args:
+            fields: List of dicts with 'label' and 'value' keys.
+                    Example: [{"label": "Email", "value": "user@example.com"}, {"label": "Password", "value": "secret123"}]
+        
+        Returns:
+            Summary of form filling results
+        """
+        import time
+        results = []
+        
+        for field in fields:
+            label = field.get("label", "")
+            value = field.get("value", "")
+            
+            if not label or not value:
+                results.append(f"Skipped invalid field: {field}")
+                continue
+            
+            # Try to find and click the field
+            try:
+                field_result = self.interact_element(f"{label} input field", action="type", text_to_type=value)
+                results.append(f"✓ {label}: filled")
+                time.sleep(0.5)  # Brief pause between fields
+            except Exception as e:
+                results.append(f"✗ {label}: failed - {str(e)[:50]}")
+        
+        return f"FILL_FORM completed: {len([r for r in results if '✓' in r])}/{len(fields)} fields filled. Details: {'; '.join(results)}"
+
+    def perform_workflow(self, workflow_name: str, steps: list):
+        """
+        Execute a named workflow with multiple steps.
+        Each step can be a tool call with arguments.
+        
+        Args:
+            workflow_name: Name for this workflow (for logging)
+            steps: List of step dicts with 'action' and 'args' keys.
+                   Example: [{"action": "focus_window", "args": {"title": "Chrome"}}, 
+                            {"action": "type_text", "args": {"text": "hello"}}]
+        
+        Returns:
+            Summary of workflow execution
+        """
+        import time
+        results = []
+        log_system(f"Starting workflow: {workflow_name} with {len(steps)} steps", "WORKFLOW")
+        
+        for i, step in enumerate(steps):
+            action = step.get("action", "")
+            args = step.get("args", {})
+            wait = step.get("wait", 0.5)  # Default wait between steps
+            
+            if action not in self.tools_map:
+                results.append(f"Step {i+1}: Unknown action '{action}'")
+                continue
+            
+            try:
+                func = self.tools_map[action]
+                if asyncio.iscoroutinefunction(func):
+                    import asyncio
+                    result = asyncio.get_event_loop().run_until_complete(func(**args))
+                else:
+                    result = func(**args)
+                results.append(f"Step {i+1} ({action}): OK")
+                time.sleep(wait)
+            except Exception as e:
+                results.append(f"Step {i+1} ({action}): FAILED - {str(e)[:50]}")
+                # Don't stop on failure, continue with remaining steps
+        
+        success_count = len([r for r in results if "OK" in r])
+        return f"WORKFLOW '{workflow_name}' completed: {success_count}/{len(steps)} steps succeeded. {'; '.join(results)}"
+
     async def _execute_with_index(self, index: int, name: str, args: dict, session_id: str = None):
         func = self.tools_map.get(name)
         if not func: return (index, name, f"Error: Tool {name} not found")
@@ -811,6 +995,12 @@ YOU HAVE ACCESS TO THESE CAPABILITIES - USE THEM:
 - click_at, type_text, press_hotkey: Control mouse and keyboard (use coordinates from look_at_screen)
 - ppt_* tools: Edit PowerPoint presentations
 - get_system_health: Check CPU, memory, disk usage
+
+MACRO-ACTIONS (preferred for complex UI workflows):
+- navigate_app(app_name, destination): Open app and navigate to location in ONE call
+- interact_element(description, action, text): Find element and click/type in ONE call  
+- fill_form(fields): Fill multiple form fields in sequence
+- perform_workflow(name, steps): Execute multi-step workflows smoothly
 
 FOR GUI INTERACTIONS (buttons, links, forms):
 1. PREFERRED: Use ground_and_click("Submit button") - automatically finds and clicks elements
