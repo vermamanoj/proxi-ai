@@ -857,6 +857,7 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
         current_mission_id = None
         current_criteria = None
 
+        accumulated_content = []  # Track all model responses for session recovery (init before try)
         try:
             # Create model with tools
             log_system(f"Creating model: {model_name} with {len(tools)} tools", "MODEL")
@@ -917,7 +918,6 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
             # Tracking variables
             last_activity_had_response = False  # Track if we got a proper response
             total_tool_calls = 0  # Track total tool executions across all turns
-            accumulated_content = []  # Track all model responses for session recovery
             
             for turn in range(max_turns):
                 # Check for cancellation at start of each turn
