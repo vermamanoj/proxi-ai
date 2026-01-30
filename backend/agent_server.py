@@ -14,11 +14,26 @@ import platform
 import os
 
 # Load .env file if present (for GEMINI_API_KEY on Windows agents)
+# Try multiple locations: current dir, script dir, parent dir
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    from pathlib import Path
+    
+    # Try current directory first
+    if not load_dotenv():
+        # Try script directory
+        script_dir = Path(__file__).parent
+        if not load_dotenv(script_dir / ".env"):
+            # Try parent directory (repo root)
+            load_dotenv(script_dir.parent / ".env")
+    
+    # Log if GEMINI_API_KEY was loaded
+    if os.environ.get("GEMINI_API_KEY"):
+        print(f"[AGENT] GEMINI_API_KEY loaded from .env")
+    else:
+        print(f"[AGENT] WARNING: GEMINI_API_KEY not found in environment - visual grounding will be unavailable")
 except ImportError:
-    pass  # dotenv not required
+    print("[AGENT] python-dotenv not installed - .env file not loaded")
 import json
 import time
 import uuid

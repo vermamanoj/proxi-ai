@@ -121,6 +121,9 @@ class GeminiService:
         # Track cancelled sessions for Stop button functionality
         self.cancelled_sessions = set()  # {session_id}
         
+        # Track last active agent per session (for switch notifications)
+        self.session_agents = {}  # {session_id: "agent_name"}
+        
         # Evidence store for "evidence on demand" pattern
         # Claims are presented first, artifacts fetched when user asks
         self.evidence_store = {}  # {evidence_id: {claim, evidence_type, data, timestamp}}
@@ -221,6 +224,21 @@ class GeminiService:
         if local_os == "Windows":
             return ("Windows", "PowerShell (use `;` not `&&`)")
         return ("Linux", "bash (use `&&` for chaining)")
+
+    def _get_active_agent_name(self) -> str:
+        """Get the active agent's display name."""
+        from backend.services.desktop.factory import _active_agent_url
+        
+        if _active_agent_url:
+            # Find the workstation by URL
+            registry = get_registry()
+            for ws_id, ws in registry.workstations.items():
+                if ws.api_url == _active_agent_url:
+                    return ws.name or ws_id
+        
+        # Default: local execution
+        import platform
+        return f"Local ({platform.system()})"
 
     # --- DESKTOP WRAPPERS (names must match tools_map keys for SDK inference) ---
     def get_system_health(self): 
@@ -680,6 +698,9 @@ class GeminiService:
         settings_uri_map = {
             "network": "ms-settings:network",
             "network settings": "ms-settings:network",
+            "network & internet": "ms-settings:network",
+            "network and internet": "ms-settings:network",
+            "network section": "ms-settings:network",
             "wifi": "ms-settings:network-wifi",
             "ethernet": "ms-settings:network-ethernet",
             "vpn": "ms-settings:network-vpn",
@@ -1173,9 +1194,31 @@ class GeminiService:
         prompt_suffix = mode_config["prompt_suffix"]
         log_system(f"Using model: {model_name} (mode: {mode}, max_turns: {max_turns}, max_tools: {max_tool_calls}, timeout: {mode_timeout}s)", "ROUTER")
 
-        # Get active agent's OS context
+        # Get active agent's OS context and name
         agent_os, shell_type = self._get_active_agent_os()
+        agent_name = self._get_active_agent_name()
         log_system(f"Active agent OS: {agent_os}, Shell: {shell_type}", "ROUTER")
+        
+        # Check for agent switch and emit notification
+        previous_agent = self.session_agents.get(session_id)
+        if previous_agent != agent_name:
+            if previous_agent is None:
+                # First message in session - show current agent
+                switch_msg = f"🖥️ Connected to: **{agent_name}** ({agent_os})"
+                log_system(f"Session {session_id} started on agent: {agent_name}", "AGENT")
+            else:
+                # Agent switched mid-session
+                switch_msg = f"🔄 Switched to: **{agent_name}** ({agent_os})"
+                log_system(f"Session {session_id} switched from {previous_agent} to {agent_name}", "AGENT")
+            
+            # Update tracking
+            self.session_agents[session_id] = agent_name
+            
+            # Emit notification to chat
+            yield json.dumps({"type": "agent_switch", "agent": agent_name, "os": agent_os, "content": switch_msg}) + "\n"
+            
+            # Save to session history so LLM knows about the switch
+            self.sessions[session_id].append({"role": "user", "parts": [f"[System: {switch_msg}]"]})
 
         # System instruction for transparency - dynamic OS context
         system_instruction = f"""You are Proxi, a Headless Operator with FULL OS-level access on this {agent_os} computer.
