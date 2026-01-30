@@ -184,6 +184,8 @@ class GeminiService:
             "interact_element": self.interact_element,
             "fill_form": self.fill_form,
             "perform_workflow": self.perform_workflow,
+            # Attack path visualization
+            "render_attack_path": self.render_attack_path,
         }
         
         log_system(f"Gemini Service Initialized with {len(self.tools_map)} tools.", "INIT")
@@ -824,6 +826,81 @@ class GeminiService:
         success_count = len([r for r in results if "OK" in r])
         return f"WORKFLOW '{workflow_name}' completed: {success_count}/{len(steps)} steps succeeded. {'; '.join(results)}"
 
+    def render_attack_path(self, title: str, stages: list, annotations: dict = None):
+        """
+        Generate a Mermaid attack path diagram for forensic investigations.
+        The diagram will be automatically rendered in the chat UI.
+        
+        Args:
+            title: Title for the attack path (e.g., "Cryptominer Infection Chain")
+            stages: List of attack stages in order. Each stage is a dict with:
+                    - id: Short identifier (e.g., "RCE", "PERSIST", "C2")
+                    - label: Description of the stage
+                    - type: Optional - "entry", "execution", "persistence", "c2", "impact"
+            annotations: Optional dict mapping stage IDs to evidence counts or notes
+        
+        Returns:
+            Mermaid diagram code that will render in the UI
+        
+        Example:
+            render_attack_path(
+                title="Attack Chain",
+                stages=[
+                    {"id": "RCE", "label": "Next.js Server Action RCE", "type": "entry"},
+                    {"id": "DROP", "label": "Payload dropped to /tmp", "type": "execution"},
+                    {"id": "PERSIST", "label": "Systemd service installed", "type": "persistence"},
+                    {"id": "C2", "label": "Fake PostgreSQL on 5432", "type": "c2"}
+                ],
+                annotations={"RCE": "4 log lines", "PERSIST": "2 files"}
+            )
+        """
+        # Build Mermaid flowchart
+        lines = ["```mermaid", "flowchart TD"]
+        lines.append(f"    title[{title}]")
+        lines.append("    style title fill:#1a1a2e,stroke:#6366f1,color:#fff")
+        
+        # Node type styles
+        type_styles = {
+            "entry": "fill:#dc2626,stroke:#991b1b,color:#fff",      # Red
+            "execution": "fill:#f59e0b,stroke:#b45309,color:#000",   # Orange
+            "persistence": "fill:#8b5cf6,stroke:#6d28d9,color:#fff", # Purple
+            "c2": "fill:#06b6d4,stroke:#0891b2,color:#000",          # Cyan
+            "impact": "fill:#ef4444,stroke:#b91c1c,color:#fff",      # Dark red
+            "default": "fill:#6366f1,stroke:#4f46e5,color:#fff"      # Indigo
+        }
+        
+        prev_id = "title"
+        for i, stage in enumerate(stages):
+            stage_id = stage.get("id", f"S{i}")
+            label = stage.get("label", stage_id)
+            stage_type = stage.get("type", "default")
+            
+            # Add annotation if present
+            if annotations and stage_id in annotations:
+                label = f"{label}<br/><small>📎 {annotations[stage_id]}</small>"
+            
+            # Define node
+            lines.append(f"    {stage_id}[{label}]")
+            
+            # Apply style based on type
+            style = type_styles.get(stage_type, type_styles["default"])
+            lines.append(f"    style {stage_id} {style}")
+            
+            # Connect to previous
+            if prev_id != "title":
+                lines.append(f"    {prev_id} --> {stage_id}")
+            else:
+                lines.append(f"    {prev_id} -.-> {stage_id}")
+            
+            prev_id = stage_id
+        
+        lines.append("```")
+        
+        diagram = "\n".join(lines)
+        log_system(f"Generated attack path diagram: {title} with {len(stages)} stages", "DIAGRAM")
+        
+        return f"ATTACK_PATH_DIAGRAM:\n{diagram}\n\nThis diagram will render automatically in the chat. Use it to explain the attack chain to the user."
+
     async def _execute_with_index(self, index: int, name: str, args: dict, session_id: str = None):
         func = self.tools_map.get(name)
         if not func: return (index, name, f"Error: Tool {name} not found")
@@ -1001,6 +1078,11 @@ MACRO-ACTIONS (preferred for complex UI workflows):
 - interact_element(description, action, text): Find element and click/type in ONE call  
 - fill_form(fields): Fill multiple form fields in sequence
 - perform_workflow(name, steps): Execute multi-step workflows smoothly
+
+FOR FORENSIC/SECURITY INVESTIGATIONS:
+- render_attack_path(title, stages, annotations): Generate visual attack chain diagram
+  Use this after completing an investigation to show the user a clear attack timeline.
+  The diagram renders automatically in the chat with color-coded stages (entry→execution→persistence→c2).
 
 FOR GUI INTERACTIONS (buttons, links, forms):
 1. PREFERRED: Use ground_and_click("Submit button") - automatically finds and clicks elements
