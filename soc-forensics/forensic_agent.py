@@ -153,6 +153,11 @@ async def capabilities(_: bool = Depends(verify_agent_key)):
                 "name": "network_connections",
                 "description": "Show active network connections",
                 "parameters": []
+            },
+            {
+                "name": "get_system_health",
+                "description": "Get system health metrics (CPU, memory, disk, uptime)",
+                "parameters": []
             }
         ]
     }
@@ -179,6 +184,8 @@ async def execute_tool(call: ToolCall, _: bool = Depends(verify_agent_key)):
             result = list_processes()
         elif call.tool_name == "network_connections":
             result = network_connections()
+        elif call.tool_name == "get_system_health":
+            result = get_system_health()
         else:
             result = ToolResult(
                 success=False,
@@ -330,6 +337,37 @@ def network_connections() -> ToolResult:
     """Show active network connections."""
     command = "ss -tunap 2>/dev/null || netstat -tunap 2>/dev/null"
     return execute_command({"command": command, "timeout": 10})
+
+
+def get_system_health() -> ToolResult:
+    """Get system health metrics."""
+    try:
+        cpu_percent = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        load_avg = os.getloadavg() if hasattr(os, 'getloadavg') else (0, 0, 0)
+        
+        output = f"""=== System Health Report ===
+Hostname: {platform.node()}
+Platform: {platform.system()} {platform.release()}
+
+CPU Usage: {cpu_percent}%
+Load Average: {load_avg[0]:.2f}, {load_avg[1]:.2f}, {load_avg[2]:.2f}
+
+Memory:
+  Total: {memory.total // (1024**3)} GB
+  Used: {memory.used // (1024**3)} GB ({memory.percent}%)
+  Available: {memory.available // (1024**3)} GB
+
+Disk (/):
+  Total: {disk.total // (1024**3)} GB
+  Used: {disk.used // (1024**3)} GB ({disk.percent}%)
+  Free: {disk.free // (1024**3)} GB
+"""
+        return ToolResult(success=True, result=output, error=None)
+    except Exception as e:
+        return ToolResult(success=False, result="", error=str(e))
+
 
 if __name__ == "__main__":
     import uvicorn
