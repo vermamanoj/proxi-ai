@@ -1096,15 +1096,16 @@ class GeminiService:
                 yield json.dumps({"type": "final_response", "content": f"```\n{result}\n```"}) + "\n"
             return
         
-        # Get or create session history - limit to last 6 messages (3 exchanges) to prevent stale command re-execution
+        # Get or create session history - limit based on config to prevent stale command re-execution
+        history_size = GeminiService.MODE_CONFIGS.get("session_history_size", 6)
         if session_id not in self.sessions:
             self.sessions[session_id] = []
             log_system(f"New session created: {session_id}", "SESSION")
         else:
             # Trim old history to prevent model from re-executing old commands
-            if len(self.sessions[session_id]) > 6:
-                self.sessions[session_id] = self.sessions[session_id][-6:]
-                log_system(f"Trimmed session history to last 6 messages", "SESSION")
+            if len(self.sessions[session_id]) > history_size:
+                self.sessions[session_id] = self.sessions[session_id][-history_size:]
+                log_system(f"Trimmed session history to last {history_size} messages", "SESSION")
             log_system(f"Continuing session: {session_id} with {len(self.sessions[session_id])} messages", "SESSION")
 
         if not self.api_key:
@@ -1372,18 +1373,21 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                 voice_mode_prefix = "MODE: SUMMARIZE - Provide a brief, bullet-point summary. Key findings only. No new actions.\n\n"
                 log_system("Voice mode: SUMMARIZE", "MODE")
             
+            # Inject current OS context into EVERY message (handles mid-session agent switches)
+            os_context_prefix = f"[CURRENT AGENT: {agent_os} - use {shell_type}] "
+            
             if len(history) > 0:
                 # This is a follow-up message
                 # Detect "continue" requests and add context to resume, not restart
                 if msg_lower in ("continue", "go on", "proceed", "keep going", "please continue", "continue where you left off", "please continue where you left off"):
-                    user_message = "CONTINUE: Resume exactly where you left off. Do NOT restart analysis or create a new plan. Continue from your last action/thought and complete the remaining goals. Do NOT call get_system_health or other tools you already called."
+                    user_message = os_context_prefix + "CONTINUE: Resume exactly where you left off. Do NOT restart analysis or create a new plan. Continue from your last action/thought and complete the remaining goals. Do NOT call get_system_health or other tools you already called."
                     log_system(f"Continue request detected - instructing LLM to resume", "SESSION")
                 else:
-                    user_message = voice_mode_prefix + message
+                    user_message = os_context_prefix + voice_mode_prefix + message
                     log_system(f"Follow-up message in session: {message}", "SESSION")
             else:
                 # New conversation - prefix with GOAL
-                user_message = voice_mode_prefix + f"GOAL: {message}"
+                user_message = os_context_prefix + voice_mode_prefix + f"GOAL: {message}"
             
             # Check if message contains embedded image data (from vision-action endpoint)
             message_content = user_message

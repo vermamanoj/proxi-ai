@@ -1,6 +1,9 @@
 {
   "_comment": "Execution mode configurations - editable without code changes",
-  "_updated": "2026-01-30",
+  "_updated": "2026-01-31",
+  
+  "session_history_size": 6,
+  "_session_history_comment": "Max messages to keep in session history (prevents stale command re-execution)",
   
   "quick": {
     "display_name": "Quick ⚡",
