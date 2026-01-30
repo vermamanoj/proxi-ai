@@ -1661,23 +1661,20 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                 if total_tool_calls > max_tool_calls:
                     break
                 
-                # Save model's function calls to session history for "continue" to work
-                # This allows the LLM to see what it already did when resuming
-                model_parts = []
+                # Save model's text content to session history for "continue" to work
+                # NOTE: Do NOT save tool call syntax to history - the model will mimic it as text!
+                # Instead, save a natural language summary of actions taken
                 if text_content:
-                    model_parts.append(text_content)
-                for fc in function_calls:
-                    model_parts.append(f"[TOOL_CALL: {fc.name}({proto_to_dict(fc.args)})]")
-                if model_parts:
-                    self.sessions[session_id].append({"role": "model", "parts": model_parts})
+                    self.sessions[session_id].append({"role": "model", "parts": [text_content]})
                 
-                # Save tool results to session history
-                tool_results = []
+                # Save tool execution summaries as context (not tool call syntax!)
+                action_summaries = []
                 for i, call_info in enumerate(safe_calls):
-                    if i < len(response_parts):
-                        tool_results.append(f"[TOOL_RESULT: {call_info['name']} -> {str(response_parts[i])[:200]}]")
-                if tool_results:
-                    self.sessions[session_id].append({"role": "user", "parts": tool_results})
+                    result_preview = str(response_parts[i])[:150] if i < len(response_parts) else "executed"
+                    action_summaries.append(f"• Executed {call_info['name']}: {result_preview}")
+                if action_summaries:
+                    summary_text = "Actions completed:\n" + "\n".join(action_summaries)
+                    self.sessions[session_id].append({"role": "user", "parts": [f"[System: {summary_text}]"]})
                     
                 # Send results back
                 response = await self._send_with_retry(chat, response_parts, timeout_seconds=mode_timeout)
