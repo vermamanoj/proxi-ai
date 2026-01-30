@@ -315,8 +315,9 @@ async def chat(request: ChatRequest, http_request: Request):
                     history.append({"role": "user", "parts": [text]})
                 elif source in ("agent", "assistant", "model"):
                     history.append({"role": "model", "parts": [text]})
-            if len(history) > 6:
-                history = history[-6:]
+            # Keep more history for better context retention (was 6, now 20)
+            if len(history) > 20:
+                history = history[-20:]
             gemini_service.sessions[session_id] = history
 
         append_session_message(

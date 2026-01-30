@@ -188,8 +188,13 @@ const App: React.FC = () => {
       return rawTrace; // Show everything including thinking
     }
     // Hide verbose messages when debug is OFF
-    return rawTrace.filter(step => {
-      // Always hide llm_thought
+    const filtered = rawTrace.filter(step => {
+      // Always show user input and final responses
+      if (step.step_type === 'user_input') return true;
+      if (step.step_type === 'final_response') return true;
+      if (step.step_type === 'verification') return true;
+      
+      // Hide llm_thought in non-debug mode
       if (step.step_type === 'llm_thought') return false;
       
       // Hide delegation-related verbose messages
@@ -201,6 +206,9 @@ const App: React.FC = () => {
       
       return true;
     });
+    
+    // Fallback: if nothing passes filter, show raw trace (prevents blank screen)
+    return filtered.length > 0 ? filtered : rawTrace;
   }, [rawTrace, showDebugLogs]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

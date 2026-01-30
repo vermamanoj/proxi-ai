@@ -1,9 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import mermaid from 'mermaid';
 
 interface MermaidDiagramProps {
   chart: string;
 }
+
+// Track rendered diagrams to avoid re-rendering same content
+const renderedCache = new Map<string, string>();
 
 mermaid.initialize({
   startOnLoad: false,
@@ -38,14 +41,35 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  
+  // Stable ID based on chart content hash to prevent re-renders
+  const chartId = useMemo(() => {
+    const trimmed = chart?.trim() || '';
+    // Simple hash for stable ID
+    let hash = 0;
+    for (let i = 0; i < trimmed.length; i++) {
+      hash = ((hash << 5) - hash) + trimmed.charCodeAt(i);
+      hash |= 0;
+    }
+    return `mermaid-${Math.abs(hash).toString(36)}`;
+  }, [chart]);
 
   useEffect(() => {
     const renderDiagram = async () => {
-      if (!chart || !containerRef.current) return;
+      const trimmed = chart?.trim();
+      if (!trimmed || !containerRef.current) return;
+
+      // Check cache first to prevent flickering
+      const cached = renderedCache.get(trimmed);
+      if (cached) {
+        setSvg(cached);
+        setError(null);
+        return;
+      }
 
       try {
-        const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
-        const { svg } = await mermaid.render(id, chart.trim());
+        const { svg } = await mermaid.render(chartId, trimmed);
+        renderedCache.set(trimmed, svg);
         setSvg(svg);
         setError(null);
       } catch (err) {
@@ -55,7 +79,7 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
     };
 
     renderDiagram();
-  }, [chart]);
+  }, [chart, chartId]);
 
   if (error) {
     return (
