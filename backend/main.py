@@ -1,6 +1,9 @@
 
 import uvicorn
 import os
+import json
+import datetime
+import uuid
 import logging
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Body
@@ -282,7 +285,7 @@ async def revoke_magic_link(token: str, request: Request):
 @app.post("/api/chat")
 async def chat(request: ChatRequest, http_request: Request):
     """Streaming Endpoint for Agent Thoughts. Requires auth."""
-    await require_auth(http_request)
+    user = await require_auth(http_request)
     
     # Auto-activate workstation if provided (ensures agent is set even after Core restart)
     if request.workstation_id:
@@ -292,12 +295,73 @@ async def chat(request: ChatRequest, http_request: Request):
             set_active_agent(agent_url)
     
     try:
+        session_id = request.session_id
+        if not session_id:
+            session_id = f"session_{uuid.uuid4().hex[:12]}"
+
+        session = get_session(session_id)
+        if not session:
+            create_session(session_id, request.message[:50], user_id=user["username"])
+            session = get_session(session_id)
+
+        if session_id not in gemini_service.sessions and session and session.get("messages"):
+            history = []
+            for m in session.get("messages", []):
+                source = (m or {}).get("source")
+                text = (m or {}).get("text")
+                if not text:
+                    continue
+                if source == "user":
+                    history.append({"role": "user", "parts": [text]})
+                elif source in ("agent", "assistant", "model"):
+                    history.append({"role": "model", "parts": [text]})
+            if len(history) > 6:
+                history = history[-6:]
+            gemini_service.sessions[session_id] = history
+
+        append_session_message(
+            session_id,
+            {
+                "id": f"msg_{uuid.uuid4().hex[:10]}",
+                "timestamp": datetime.datetime.utcnow().isoformat(),
+                "source": "user",
+                "text": request.message,
+            },
+        )
+
+        async def stream_with_persistence():
+            last_agent_text = None
+            try:
+                async for line in gemini_service.route_and_execute_stream(
+                    request.message,
+                    request.complexity,
+                    session_id,
+                ):
+                    if line:
+                        try:
+                            data = json.loads(line.strip())
+                            msg_type = data.get("type")
+                            if msg_type == "final_response":
+                                last_agent_text = data.get("content")
+                            elif msg_type == "response" and last_agent_text is None:
+                                last_agent_text = data.get("content")
+                        except Exception:
+                            pass
+                    yield line
+            finally:
+                if last_agent_text:
+                    append_session_message(
+                        session_id,
+                        {
+                            "id": f"msg_{uuid.uuid4().hex[:10]}",
+                            "timestamp": datetime.datetime.utcnow().isoformat(),
+                            "source": "agent",
+                            "text": last_agent_text,
+                        },
+                    )
+
         return StreamingResponse(
-            gemini_service.route_and_execute_stream(
-                request.message, 
-                request.complexity,
-                request.session_id
-            ),
+            stream_with_persistence(),
             media_type="application/x-ndjson"
         )
     except Exception as e:
