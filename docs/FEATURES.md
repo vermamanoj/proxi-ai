@@ -1,7 +1,7 @@
 # Proxi Feature Tracker
 
-**Last Updated:** January 30, 2026  
-**Last Commit:** `0376b4d` - Add SoM overlay, combined observation, and local Gemini grounding  
+**Last Updated:** January 31, 2026  
+**Last Commit:** `b91418a` - Add action chunking, voice modes, attack paths, evidence on demand  
 **Status:** ⚠️ Testing Pending  
 **Target:** Google Gemini Hackathon (Judging: Feb 10-27, 2026)
 
@@ -25,7 +25,7 @@
 | Gemini Vision | ✅ | Screenshot analysis |
 | Gemini Live (Voice) | ✅ | WebRTC in frontend |
 | **Local agent Gemini** | 🔄 | **NEW v3.2.0** - Visual grounding on agent (requires GEMINI_API_KEY on agent) |
-| 48+ registered tools | ✅ | System, desktop, integrations (was 45+, added 3 new) |
+| 55+ registered tools | ✅ | System, desktop, integrations (added 7 new in v3.3.0) |
 | Streaming responses (NDJSON) | ✅ | Real-time updates |
 | Multi-turn conversation | ✅ | Session-based history |
 
@@ -57,6 +57,7 @@
 | **Combined observation** | 🔄 | Windows | **NEW v3.2.0** - Screenshot + UI tree in one call |
 | **Local visual grounding** | 🔄 | Windows | **NEW v3.2.0** - Agent-side Gemini for UI element finding |
 | **ground_and_click tool** | 🔄 | Windows | **NEW v3.2.0** - Find and click UI elements by description |
+| **Macro-actions (chunking)** | 🔄 | All | **NEW v3.3.0** - navigate_app, interact_element, fill_form, perform_workflow |
 | Terminal commands | ✅ | Windows + Linux |
 | System health metrics | ✅ | Windows + Linux |
 | File operations | ✅ | Windows + Linux |
@@ -154,7 +155,19 @@
 
 ---
 
-## 10. Future Roadmap (Post-Hackathon)
+## 10. v3.3.0 New Features (Jan 31, 2026)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Action Chunking (Macro-actions)** | 🔄 | `navigate_app`, `interact_element`, `fill_form`, `perform_workflow` - combine multiple atomic actions |
+| **Voice Modes** | 🔄 | Detect "explain", "investigate", "prove", "summarize" and adjust LLM behavior |
+| **Attack Path Visualization** | 🔄 | `render_attack_path` generates Mermaid diagrams with color-coded stages |
+| **Evidence on Demand** | 🔄 | `store_evidence`, `get_evidence`, `list_evidence` - claims first, details on request |
+| **Mission Planner UI** | ✅ | Already existed - horizontal stepper, goals, progress tracking |
+
+---
+
+## 11. Future Roadmap (Post-Hackathon)
 
 | Feature | Priority | Notes |
 |---------|----------|-------|
