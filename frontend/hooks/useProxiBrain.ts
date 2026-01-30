@@ -154,14 +154,24 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
     const controller = new AbortController();
     let activityTimer: number | undefined;
 
+    const getInactivityTimeoutMs = (mode: Complexity) => {
+      if (mode === 'quick' || mode === 'fast') return 60000;
+      if (mode === 'balanced') return 120000;
+      if (mode === 'thorough' || mode === 'deep') return 180000;
+      return 120000;
+    };
+
     const resetActivityTimer = () => {
       if (activityTimer !== undefined) window.clearTimeout(activityTimer);
       activityTimer = window.setTimeout(() => {
           controller.abort();
-          addLog(MessageSource.SYSTEM, "System Alert: Network Timeout. No data received for 60 seconds.");
+          const timeoutMs = getInactivityTimeoutMs(complexity);
+          const msg = `System Alert: No data received for ${Math.round(timeoutMs / 1000)} seconds. The request may have stalled. You can click Continue or send a follow-up message.`;
+          addLog(MessageSource.SYSTEM, msg);
+          updateTrace({ step_type: 'status_change', content: msg, metadata: { phase: 'stalled' } });
           setStatus('idle');
-          setMissionState(prev => ({ ...prev, phase: 'failed', active: false }));
-      }, 60000); 
+          setMissionState(prev => ({ ...prev, phase: 'stalled', active: false }));
+      }, getInactivityTimeoutMs(complexity)); 
     };
 
     resetActivityTimer();
@@ -310,7 +320,9 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                         break;
                     case 'error':
                         addLog(MessageSource.SYSTEM, `Error: ${data.content}`);
+                        updateTrace({ step_type: 'status_change', content: `Error: ${data.content}`, metadata: { phase: 'failed' } });
                         setMissionState(prev => ({ ...prev, phase: 'failed', active: false }));
+                        setStatus('idle');
                         break;
                     case 'plan':
                         // Mission plan with goals - add to logs with metadata for MissionPlan UI
@@ -354,6 +366,7 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                     case 'stalled':
                         // Model stopped responding - notify user they can continue
                         addLog(MessageSource.SYSTEM, `⚠️ ${data.content || 'The model stopped responding. Send a follow-up message to continue.'}`);
+                        updateTrace({ step_type: 'status_change', content: data.content || 'The model stopped responding. Send a follow-up message to continue.', metadata: { phase: 'stalled' } });
                         setMissionState(prev => ({ ...prev, phase: 'stalled', active: false }));
                         setStatus('idle');
                         speak('The model stopped responding. You can send a follow-up message to continue.');
