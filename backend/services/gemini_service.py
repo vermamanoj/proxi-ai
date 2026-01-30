@@ -121,6 +121,10 @@ class GeminiService:
         # Track cancelled sessions for Stop button functionality
         self.cancelled_sessions = set()  # {session_id}
         
+        # Evidence store for "evidence on demand" pattern
+        # Claims are presented first, artifacts fetched when user asks
+        self.evidence_store = {}  # {evidence_id: {claim, evidence_type, data, timestamp}}
+        
         # Log dev mode status at startup
         dev_mode = os.environ.get("PROXI_DEV_MODE", "").lower() in ("true", "1", "yes")
         if dev_mode:
@@ -186,6 +190,10 @@ class GeminiService:
             "perform_workflow": self.perform_workflow,
             # Attack path visualization
             "render_attack_path": self.render_attack_path,
+            # Evidence on demand
+            "store_evidence": self.store_evidence,
+            "get_evidence": self.get_evidence,
+            "list_evidence": self.list_evidence,
         }
         
         log_system(f"Gemini Service Initialized with {len(self.tools_map)} tools.", "INIT")
@@ -901,6 +909,82 @@ class GeminiService:
         
         return f"ATTACK_PATH_DIAGRAM:\n{diagram}\n\nThis diagram will render automatically in the chat. Use it to explain the attack chain to the user."
 
+    # ============ EVIDENCE ON DEMAND ============
+    # Pattern: Present claims first, fetch artifacts when user asks
+    
+    def store_evidence(self, claim: str, evidence_type: str, data: str, confidence: str = "high"):
+        """
+        Store evidence to support a claim. The evidence can be retrieved later when user asks.
+        Use this to build an evidence-backed investigation without overwhelming the user with details.
+        
+        Args:
+            claim: The claim this evidence supports (e.g., "Attacker used RCE via Next.js")
+            evidence_type: Type of evidence - "log", "file", "process", "network", "screenshot", "config"
+            data: The actual evidence data (log lines, file contents, command output, etc.)
+            confidence: "high", "medium", or "low"
+        
+        Returns:
+            Evidence ID that can be referenced later
+        """
+        import time
+        import hashlib
+        
+        # Generate short evidence ID
+        evidence_id = hashlib.md5(f"{claim}{time.time()}".encode()).hexdigest()[:8]
+        
+        self.evidence_store[evidence_id] = {
+            "claim": claim,
+            "evidence_type": evidence_type,
+            "data": data[:5000],  # Limit data size
+            "confidence": confidence,
+            "timestamp": time.time()
+        }
+        
+        log_system(f"Evidence stored: {evidence_id} for claim: {claim[:50]}...", "EVIDENCE")
+        return f"📎 Evidence #{evidence_id} stored for: {claim} (Type: {evidence_type}, Confidence: {confidence})"
+
+    def get_evidence(self, evidence_id: str):
+        """
+        Retrieve stored evidence by ID. Use when user asks "show me proof" or "what's the evidence".
+        
+        Args:
+            evidence_id: The evidence ID returned by store_evidence
+        
+        Returns:
+            The full evidence details including raw data
+        """
+        if evidence_id not in self.evidence_store:
+            return f"Evidence #{evidence_id} not found. Use list_evidence to see available evidence."
+        
+        evidence = self.evidence_store[evidence_id]
+        return f"""📎 EVIDENCE #{evidence_id}
+**Claim:** {evidence['claim']}
+**Type:** {evidence['evidence_type']}
+**Confidence:** {evidence['confidence']}
+
+**Raw Data:**
+```
+{evidence['data']}
+```"""
+
+    def list_evidence(self):
+        """
+        List all stored evidence with their IDs and claims.
+        Use this to show the user what evidence is available.
+        
+        Returns:
+            Summary of all stored evidence
+        """
+        if not self.evidence_store:
+            return "No evidence stored yet. Use store_evidence during investigation to build an evidence trail."
+        
+        lines = ["📋 **Available Evidence:**\n"]
+        for eid, ev in self.evidence_store.items():
+            lines.append(f"- **#{eid}** ({ev['evidence_type']}, {ev['confidence']}): {ev['claim'][:60]}...")
+        
+        lines.append(f"\nTotal: {len(self.evidence_store)} items. Say 'show evidence #ID' to view details.")
+        return "\n".join(lines)
+
     async def _execute_with_index(self, index: int, name: str, args: dict, session_id: str = None):
         func = self.tools_map.get(name)
         if not func: return (index, name, f"Error: Tool {name} not found")
@@ -1083,6 +1167,12 @@ FOR FORENSIC/SECURITY INVESTIGATIONS:
 - render_attack_path(title, stages, annotations): Generate visual attack chain diagram
   Use this after completing an investigation to show the user a clear attack timeline.
   The diagram renders automatically in the chat with color-coded stages (entry→execution→persistence→c2).
+
+EVIDENCE ON DEMAND PATTERN (for audit-grade investigations):
+- store_evidence(claim, type, data): Store evidence as you find it (don't dump everything to user)
+- list_evidence(): Show user what evidence is available  
+- get_evidence(id): Retrieve specific evidence when user asks "show me proof"
+Best practice: Present CLAIMS first (brief verdicts), let user request details. This keeps mobile UI clean.
 
 FOR GUI INTERACTIONS (buttons, links, forms):
 1. PREFERRED: Use ground_and_click("Submit button") - automatically finds and clicks elements
