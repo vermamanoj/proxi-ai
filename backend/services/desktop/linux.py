@@ -84,6 +84,10 @@ class LinuxDesktopService(DesktopInterface):
         """Not applicable for headless Linux."""
         return {"status": "not_available", "message": "No display in container"}
     
+    def get_observation(self, include_som: bool = True):
+        """Not applicable for headless Linux."""
+        return {"status": "not_available", "message": "No GUI in container"}
+    
     # GUI operations - not available on headless Linux
     def click_at(self, x: int, y: int):
         return {"status": "not_available", "message": "No GUI in container"}

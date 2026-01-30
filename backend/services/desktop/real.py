@@ -238,6 +238,127 @@ class RealDesktopService(DesktopInterface):
             print(f"[ERROR] Screenshot failed: {e}", flush=True)
             return None
 
+    def get_observation(self, include_som: bool = True):
+        """
+        Get combined observation: screenshot + UI tree + optional Set-of-Mark overlay.
+        
+        Returns dict with:
+        - screenshot_base64: Raw screenshot (for vision analysis)
+        - som_screenshot_base64: Screenshot with numbered element boxes (if include_som=True)
+        - ui_elements: List of UI elements with {id, text, type, x, y, width, height}
+        - element_count: Number of interactive elements found
+        """
+        ok, msg = self._check_availability()
+        if not ok:
+            return {"error": msg}
+        
+        try:
+            # 1. Capture screenshot
+            screenshot = pyautogui.screenshot()
+            img_np = np.array(screenshot)
+            orig_height, orig_width = img_np.shape[:2]
+            
+            # Scale if needed
+            scale = 1.0
+            if orig_width > 1920:
+                scale = 1920 / orig_width
+                img_np = cv2.resize(img_np, (0, 0), fx=scale, fy=scale)
+            
+            # Convert to BGR for cv2
+            img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+            
+            # 2. Get UI elements
+            ui_elements = []
+            if USE_ACCESSIBILITY:
+                ui_elements = self._scan_accessibility_tree_with_bounds()
+            
+            # 3. Create SoM overlay if requested
+            som_base64 = None
+            if include_som and ui_elements:
+                som_img = img_bgr.copy()
+                for elem in ui_elements:
+                    eid = elem.get("id", 0)
+                    x, y = int(elem["x"] * scale), int(elem["y"] * scale)
+                    w, h = int(elem.get("width", 50) * scale), int(elem.get("height", 20) * scale)
+                    
+                    # Draw bounding box
+                    x1, y1 = x - w//2, y - h//2
+                    x2, y2 = x + w//2, y + h//2
+                    cv2.rectangle(som_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    
+                    # Draw element number
+                    label = str(eid)
+                    (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+                    cv2.rectangle(som_img, (x1, y1 - th - 6), (x1 + tw + 6, y1), (0, 255, 0), -1)
+                    cv2.putText(som_img, label, (x1 + 3, y1 - 3), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
+                
+                _, som_buffer = cv2.imencode(".jpg", som_img, [cv2.IMWRITE_JPEG_QUALITY, 60])
+                som_base64 = base64.b64encode(som_buffer).decode("utf-8")
+            
+            # 4. Encode raw screenshot
+            _, raw_buffer = cv2.imencode(".jpg", img_bgr, [cv2.IMWRITE_JPEG_QUALITY, 50])
+            raw_base64 = base64.b64encode(raw_buffer).decode("utf-8")
+            
+            return {
+                "screenshot_base64": raw_base64,
+                "som_screenshot_base64": som_base64,
+                "ui_elements": ui_elements,
+                "element_count": len(ui_elements),
+                "screen_size": {"width": orig_width, "height": orig_height}
+            }
+            
+        except Exception as e:
+            print(f"[ERROR] get_observation failed: {e}", flush=True)
+            return {"error": str(e)}
+
+    def _scan_accessibility_tree_with_bounds(self):
+        """Scan UI tree and return elements with full bounds for SoM overlay."""
+        elements = []
+        try:
+            hwnd = ctypes.windll.user32.GetForegroundWindow()
+            if not hwnd:
+                return []
+            app = Application(backend="uia").connect(handle=hwnd)
+            active_window = app.top_window()
+            controls = active_window.descendants()
+            
+            elem_id = 1
+            for ctrl in controls:
+                try:
+                    rect = ctrl.rectangle()
+                    text = ctrl.window_text()
+                    ctrl_type = ctrl.friendly_class_name()
+                    
+                    # Skip invisible or empty elements
+                    if rect.width() < 5 or rect.height() < 5:
+                        continue
+                    if not text.strip() and ctrl_type not in ["Button", "Edit", "ComboBox", "CheckBox", "RadioButton", "ListItem", "MenuItem", "TabItem", "Link"]:
+                        continue
+                    
+                    # Skip if off-screen
+                    if rect.left < 0 or rect.top < 0:
+                        continue
+                    
+                    elements.append({
+                        "id": elem_id,
+                        "text": text[:100] if text else "",
+                        "type": ctrl_type,
+                        "x": int((rect.left + rect.right) / 2),
+                        "y": int((rect.top + rect.bottom) / 2),
+                        "width": rect.width(),
+                        "height": rect.height()
+                    })
+                    elem_id += 1
+                    
+                    if len(elements) >= 80:  # Limit to prevent overload
+                        break
+                except:
+                    continue
+        except Exception as e:
+            print(f"[DEBUG] Accessibility scan error: {e}", flush=True)
+        
+        return elements
+
     def _scan_accessibility_tree(self):
         elements = []
         try:

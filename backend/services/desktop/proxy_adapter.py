@@ -114,6 +114,10 @@ class ProxyDesktopService(DesktopInterface):
             return None
         return result
     
+    def get_observation(self, include_som: bool = True) -> dict:
+        """Get combined observation from remote agent."""
+        return self._execute_sync("get_observation", {"include_som": include_som})
+    
     def focus_window(self, title: str) -> dict:
         return self._execute_sync("focus_window", {"title": title})
     

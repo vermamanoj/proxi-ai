@@ -55,6 +55,9 @@ class NullDesktopService(DesktopInterface):
     def get_screenshot_base64(self) -> str:
         return None
     
+    def get_observation(self, include_som: bool = True) -> dict:
+        return {"error": self.ERROR_MSG}
+    
     def focus_window(self, title: str) -> dict:
         return {"error": self.ERROR_MSG}
     

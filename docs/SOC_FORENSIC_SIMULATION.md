@@ -337,3 +337,46 @@ Gemini: Reports findings with evidence and remediation steps
 ## 7. Hackathon Demo Value
 
 ### Why This Showcases Proxi's Unique Capabilities
+
+
+
+
+
+-------------------
+{
+"win-desktop": {
+    "id": "win-desktop",
+    "name": "Windows Desktop (Home)",
+    "description": "Test win",
+    "host": "100.107.2.119",
+    "port": 8081,
+    "workstation_type": "windows",
+    "capabilities": ["terminal", "screenshot", "desktop", "file_operations"],
+    "is_default": false
+  },
+  "linux-docker": {
+    "id": "linux-docker",
+    "name": "Linux Agent (Docker)",
+    "description": "Docker container - terminal only",
+    "workstation_type": "linux",
+    "host": "agent",
+    "port": 8081,
+    "capabilities": [
+      "terminal",
+      "system_health"
+    ],
+    "status": "online",
+    "last_seen": "2026-01-28T14:38:23.632268",
+    "created_at": "2026-01-27T20:46:01.703721",
+    "owner": "",
+    "tags": [],
+    "is_default": true
+  },
+  "forensics-linux": {
+    "name": "Compromised Server (Forensics)",
+    "host": "localhost",
+    "port": 4003,
+    "capabilities": ["terminal", "filesystem", "network"]
+  }
+}
+   

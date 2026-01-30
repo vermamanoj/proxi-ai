@@ -52,6 +52,19 @@ class DesktopInterface(ABC):
         pass
 
     @abstractmethod
+    def get_observation(self, include_som: bool = True):
+        """
+        Get combined observation: screenshot + UI tree + Set-of-Mark overlay.
+        
+        Returns dict with:
+        - screenshot_base64: Raw screenshot
+        - som_screenshot_base64: Screenshot with numbered element boxes
+        - ui_elements: List of {id, text, type, x, y, width, height}
+        - element_count: Number of elements
+        """
+        pass
+
+    @abstractmethod
     def browser_command(self, action: str, url: str = None):
         """
         Executes a semantic browser action using hotkeys.

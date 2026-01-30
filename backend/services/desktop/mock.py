@@ -95,6 +95,20 @@ user       512  0.1  1.0 1048576  524288 ?   Sl   08:10   0:02 /usr/bin/code"""
             return json.dumps([{"text": "CRITICAL ALERT: HIGH CPU LOAD", "type": "Window", "x": 500, "y": 300}, {"text": "Process Monitor", "type": "Window", "x": 0, "y": 0}])
         return json.dumps([{"text": "Desktop", "type": "Pane", "x": 0, "y": 0}])
 
+    def get_observation(self, include_som: bool = True):
+        """Simulated observation with SoM elements."""
+        elements = [
+            {"id": 1, "text": "CRITICAL ALERT" if self.incident_active else "Desktop", "type": "Window", "x": 500, "y": 300, "width": 400, "height": 200},
+            {"id": 2, "text": "OK Button", "type": "Button", "x": 520, "y": 450, "width": 80, "height": 30},
+        ]
+        return {
+            "screenshot_base64": self.get_screenshot_base64(),
+            "som_screenshot_base64": self.get_screenshot_base64() if include_som else None,
+            "ui_elements": elements,
+            "element_count": len(elements),
+            "screen_size": {"width": 1920, "height": 1080}
+        }
+
     # Boilerplate simulations
     def click_at(self, x, y): return f"Simulated Click at {x},{y}"
     def drag_mouse(self, sx, sy, ex, ey): return f"Simulated Drag from {sx},{sy} to {ex},{ey}"

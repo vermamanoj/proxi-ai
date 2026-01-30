@@ -147,6 +147,7 @@ class GeminiService:
             "press_hotkey": self.press_hotkey,
             "look_at_screen": self.look_at_screen,
             "share_screenshot": self.share_screenshot,
+            "ground_and_click": self.ground_and_click,
             "scan_ui_tree": self.scan_ui_tree,
             "wait_seconds": self.wait_seconds,
             "run_terminal_command": self.run_terminal_command,
@@ -376,7 +377,42 @@ class GeminiService:
         return get_desktop_service().ppt_get_theme_colors(slide_number)
 
     def look_at_screen(self, purpose: str):
-        base64_img = get_desktop_service().get_screenshot_base64()
+        """
+        Enhanced observation: screenshot + UI tree + Set-of-Mark overlay.
+        Returns vision analysis with numbered element references for precise clicking.
+        """
+        ds = get_desktop_service()
+        
+        # Try new combined observation first
+        obs = ds.get_observation(include_som=True)
+        
+        if isinstance(obs, dict) and "error" not in obs:
+            # Use the SoM screenshot for better grounding
+            img_b64 = obs.get("som_screenshot_base64") or obs.get("screenshot_base64")
+            ui_elements = obs.get("ui_elements", [])
+            
+            # Build element context for LLM
+            elem_context = ""
+            if ui_elements:
+                elem_context = "\n\nNUMBERED UI ELEMENTS (green boxes in image):\n"
+                for elem in ui_elements[:40]:
+                    elem_context += f"[{elem['id']}] {elem['type']}: \"{elem['text']}\" at ({elem['x']}, {elem['y']})\n"
+                elem_context += "\nTo click an element, use click_at(x, y) with coordinates from above."
+            
+            if img_b64:
+                try:
+                    model = genai.GenerativeModel(self.VISION_MODEL)
+                    response = model.generate_content([
+                        f"Purpose: {purpose}. Describe the UI layout and identify elements by their [N] numbers from the green boxes.{elem_context}",
+                        {'mime_type': 'image/jpeg', 'data': base64.b64decode(img_b64)}
+                    ])
+                    log_system(f"Vision analysis complete with SoM for: {purpose}", "VISION")
+                    return f"VISION: {response.text}{elem_context}"
+                except Exception as e:
+                    return f"Vision Error: {e}"
+        
+        # Fallback to old method
+        base64_img = ds.get_screenshot_base64()
         if not base64_img: return "Screenshot failed"
         try:
             model = genai.GenerativeModel(self.VISION_MODEL)
@@ -406,6 +442,77 @@ class GeminiService:
         log_system(f"Screenshot captured for user: {caption}", "SCREENSHOT")
         # Return special marker with base64 data - handled in streaming loop
         return f"__SCREENSHOT__:data:image/jpeg;base64,{base64_img}:__CAPTION__:{caption}"
+
+    def ground_and_click(self, target: str):
+        """
+        Uses local Gemini on the agent to find and click a UI element.
+        
+        This is more reliable than look_at_screen + click_at because:
+        1. Visual grounding happens locally on the agent (lower latency)
+        2. Uses Set-of-Mark numbered elements for precision
+        3. Returns coordinates directly without round-trip to Core
+        
+        Args:
+            target: Description of what to click, e.g., "Submit button", "Sign In link", "element [5]"
+        
+        Returns:
+            Result of the click action or error if element not found.
+        """
+        from backend.services.desktop.factory import _active_agent_url
+        import aiohttp
+        import asyncio
+        
+        if not _active_agent_url:
+            return "Error: No agent selected. Cannot use ground_and_click."
+        
+        agent_key = os.environ.get("PROXI_AGENT_KEY", "")
+        
+        async def _ground():
+            url = f"{_active_agent_url}/ground"
+            headers = {"X-Agent-Key": agent_key} if agent_key else {}
+            payload = {"query": target, "include_som": True}
+            
+            try:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as session:
+                    async with session.post(url, json=payload, headers=headers) as response:
+                        if response.status == 200:
+                            return await response.json()
+                        return {"success": False, "error": f"Agent returned {response.status}"}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        # Run async
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    future = pool.submit(asyncio.run, _ground())
+                    result = future.result()
+            else:
+                result = loop.run_until_complete(_ground())
+        except RuntimeError:
+            result = asyncio.run(_ground())
+        
+        if not result.get("success"):
+            error = result.get("error", "Unknown error")
+            log_system(f"Ground failed for '{target}': {error}", "GROUND")
+            return f"Could not find '{target}': {error}"
+        
+        action = result.get("action", "none")
+        x, y = result.get("x"), result.get("y")
+        reasoning = result.get("reasoning", "")
+        confidence = result.get("confidence", "unknown")
+        
+        if action == "none" or x is None or y is None:
+            log_system(f"Ground found no target for '{target}': {reasoning}", "GROUND")
+            return f"Could not locate '{target}'. {reasoning}"
+        
+        # Perform the click
+        log_system(f"Ground found '{target}' at ({x}, {y}) with {confidence} confidence: {reasoning}", "GROUND")
+        click_result = get_desktop_service().click_at(x, y)
+        
+        return f"Found and clicked '{target}' at ({x}, {y}). Confidence: {confidence}. {reasoning}. Click result: {click_result}"
 
     def save_uploaded_image(self, file_path: str):
         """Save the currently uploaded image to the specified file path. Use this when user uploads an image and asks to save it."""
@@ -696,17 +803,23 @@ IMPORTANT: You are connected to a {agent_os} system. Use {shell_type} for comman
 
 YOU HAVE ACCESS TO THESE CAPABILITIES - USE THEM:
 - run_terminal_command: Execute PowerShell commands (dir, ls, Get-Process, etc.)
-- look_at_screen: Take screenshot and analyze what's visible (for YOUR analysis only)
+- look_at_screen: Take screenshot with Set-of-Mark overlay showing numbered [N] UI elements
+- ground_and_click: BEST FOR GUI - finds and clicks UI elements by description (uses local Gemini on agent)
 - share_screenshot: Take screenshot and SHOW it to the user in the chat UI
 - save_uploaded_image: Save an image the user uploaded to a file path (e.g. Desktop)
 - open_target: Open files, folders, URLs, or applications
-- click_at, type_text, press_hotkey: Control mouse and keyboard
+- click_at, type_text, press_hotkey: Control mouse and keyboard (use coordinates from look_at_screen)
 - ppt_* tools: Edit PowerPoint presentations
 - get_system_health: Check CPU, memory, disk usage
 
+FOR GUI INTERACTIONS (buttons, links, forms):
+1. PREFERRED: Use ground_and_click("Submit button") - automatically finds and clicks elements
+2. ALTERNATIVE: Use look_at_screen first to see numbered [N] elements, then click_at(x, y) using coordinates
+
 TO LIST FILES ON DESKTOP, use: run_terminal_command with "dir $env:USERPROFILE\\Desktop" or "ls ~/Desktop"
 TO OPEN AN IMAGE, use: open_target with the image path
-TO SEE THE SCREEN (for your analysis), use: look_at_screen
+TO SEE THE SCREEN (for your analysis), use: look_at_screen - shows numbered elements [N] you can reference
+TO CLICK A UI ELEMENT, use: ground_and_click("element description") - finds and clicks automatically
 TO SHOW THE USER A SCREENSHOT, use: share_screenshot - this displays it in the chat!
 TO SAVE AN UPLOADED IMAGE, use: save_uploaded_image with full path like "C:\\Users\\azureuser\\Desktop\\image.jpg"
 

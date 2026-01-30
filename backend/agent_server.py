@@ -196,6 +196,8 @@ async def execute_tool(call: ToolCall, _: bool = Depends(verify_agent_key)):
             result = ds.press_hotkey(params.get("keys", []))
         elif tool_name == "get_screenshot_base64":
             result = ds.get_screenshot_base64()
+        elif tool_name == "get_observation":
+            result = ds.get_observation(params.get("include_som", True))
         elif tool_name == "scan_ui_tree":
             result = ds.scan_ui_tree()
         elif tool_name == "focus_window":
@@ -377,6 +379,132 @@ async def upload_file(request: FileUploadRequest, _: bool = Depends(verify_agent
         return {"success": True, "path": file_path, "size_bytes": len(content)}
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+# --- Visual Grounding with Local Gemini ---
+
+class GroundRequest(BaseModel):
+    """Request for visual grounding - find element coordinates from description."""
+    query: str  # e.g., "Find the Submit button" or "Click element 5"
+    include_som: bool = True  # Include Set-of-Mark overlay
+    
+class GroundResponse(BaseModel):
+    success: bool
+    action: Optional[str] = None  # "click", "type", "scroll", etc.
+    x: Optional[int] = None
+    y: Optional[int] = None
+    element_id: Optional[int] = None
+    element_text: Optional[str] = None
+    confidence: Optional[str] = None  # "high", "medium", "low"
+    reasoning: Optional[str] = None
+    error: Optional[str] = None
+
+@app.post("/ground", response_model=GroundResponse)
+async def visual_ground(request: GroundRequest, _: bool = Depends(verify_agent_key)):
+    """
+    Visual grounding endpoint - uses local Gemini to find UI elements.
+    
+    This allows the agent to interpret screenshots locally without
+    round-tripping to Core, significantly improving performance.
+    
+    Requires GEMINI_API_KEY environment variable on the agent.
+    """
+    import base64
+    
+    # Check for Gemini API key
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return GroundResponse(
+            success=False,
+            error="GEMINI_API_KEY not configured on agent. Visual grounding unavailable."
+        )
+    
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+    except ImportError:
+        return GroundResponse(
+            success=False,
+            error="google-generativeai not installed on agent"
+        )
+    
+    ds = get_desktop_service(allow_local=True)
+    
+    # Get observation with SoM
+    obs = ds.get_observation(include_som=request.include_som)
+    if "error" in obs:
+        return GroundResponse(success=False, error=obs["error"])
+    
+    # Build element list for context
+    elements_desc = ""
+    if obs.get("ui_elements"):
+        elements_desc = "Available UI elements:\n"
+        for elem in obs["ui_elements"][:50]:  # Limit to 50
+            elements_desc += f"[{elem['id']}] {elem['type']}: \"{elem['text']}\" at ({elem['x']}, {elem['y']})\n"
+    
+    # Use the SoM screenshot if available, otherwise raw
+    img_b64 = obs.get("som_screenshot_base64") or obs.get("screenshot_base64")
+    if not img_b64:
+        return GroundResponse(success=False, error="Failed to capture screenshot")
+    
+    # Build prompt for Gemini
+    prompt = f"""You are a visual grounding assistant. Analyze the screenshot and find the UI element matching this query:
+
+QUERY: {request.query}
+
+{elements_desc}
+
+The screenshot has numbered green boxes around interactive elements (Set-of-Mark).
+
+RESPOND IN THIS EXACT JSON FORMAT:
+{{
+    "action": "click",  // or "type", "scroll_down", "scroll_up", "none"
+    "element_id": 5,    // The [N] number from the green box, or null
+    "x": 500,           // Center X coordinate to click
+    "y": 300,           // Center Y coordinate to click  
+    "element_text": "Submit",  // Text of the element
+    "confidence": "high",      // "high", "medium", or "low"
+    "reasoning": "Found Submit button labeled [5] in the form"
+}}
+
+If you cannot find the element, set action to "none" and explain in reasoning.
+ONLY output the JSON, no other text."""
+
+    try:
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        response = model.generate_content([
+            prompt,
+            {'mime_type': 'image/jpeg', 'data': base64.b64decode(img_b64)}
+        ])
+        
+        # Parse response
+        import json
+        import re
+        
+        text = response.text.strip()
+        # Extract JSON from response (handle markdown code blocks)
+        json_match = re.search(r'\{[\s\S]*\}', text)
+        if json_match:
+            result = json.loads(json_match.group())
+            
+            return GroundResponse(
+                success=True,
+                action=result.get("action"),
+                x=result.get("x"),
+                y=result.get("y"),
+                element_id=result.get("element_id"),
+                element_text=result.get("element_text"),
+                confidence=result.get("confidence"),
+                reasoning=result.get("reasoning")
+            )
+        else:
+            return GroundResponse(
+                success=False,
+                error=f"Could not parse Gemini response: {text[:200]}"
+            )
+            
+    except Exception as e:
+        return GroundResponse(success=False, error=f"Gemini error: {str(e)}")
+
 
 @app.get("/capabilities")
 async def get_capabilities():
