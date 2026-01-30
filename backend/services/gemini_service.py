@@ -676,6 +676,46 @@ class GeminiService:
         ds = get_desktop_service()
         steps_log = []
         
+        # Windows Settings URI shortcuts - open directly without visual grounding
+        settings_uri_map = {
+            "network": "ms-settings:network",
+            "network settings": "ms-settings:network",
+            "wifi": "ms-settings:network-wifi",
+            "ethernet": "ms-settings:network-ethernet",
+            "vpn": "ms-settings:network-vpn",
+            "display": "ms-settings:display",
+            "sound": "ms-settings:sound",
+            "notifications": "ms-settings:notifications",
+            "power": "ms-settings:powersleep",
+            "battery": "ms-settings:batterysaver",
+            "storage": "ms-settings:storagesense",
+            "apps": "ms-settings:appsfeatures",
+            "default apps": "ms-settings:defaultapps",
+            "bluetooth": "ms-settings:bluetooth",
+            "printers": "ms-settings:printers",
+            "mouse": "ms-settings:mousetouchpad",
+            "keyboard": "ms-settings:keyboard",
+            "updates": "ms-settings:windowsupdate",
+            "windows update": "ms-settings:windowsupdate",
+            "security": "ms-settings:windowsdefender",
+            "firewall": "ms-settings:windowsdefender",
+            "accounts": "ms-settings:accounts",
+            "privacy": "ms-settings:privacy",
+            "time": "ms-settings:dateandtime",
+            "language": "ms-settings:regionlanguage",
+            "about": "ms-settings:about",
+        }
+        
+        # Check if this is a direct Settings navigation (use URI shortcut)
+        dest_lower = destination.lower() if destination else ""
+        if app_name.lower() in ["settings", "windows settings"]:
+            if dest_lower in settings_uri_map:
+                uri = settings_uri_map[dest_lower]
+                ds.run_terminal_command(f"start {uri}")
+                steps_log.append(f"Opened Settings > {destination} directly via {uri}")
+                time.sleep(wait_seconds)
+                return f"NAVIGATE_APP completed: {' → '.join(steps_log)}"
+        
         # Step 1: Try to focus existing window or open app
         focus_result = ds.focus_window(app_name)
         if "not found" in str(focus_result).lower():
@@ -684,13 +724,21 @@ class GeminiService:
                 open_result = ds.open_target(f"https://{destination}" if "." in destination else "https://google.com")
                 steps_log.append(f"Opened Chrome with {destination}")
             elif app_name.lower() in ["settings", "windows settings"]:
-                open_result = ds.run_terminal_command("start ms-settings:")
+                # Check if destination matches a known URI
+                for key, uri in settings_uri_map.items():
+                    if key in dest_lower:
+                        ds.run_terminal_command(f"start {uri}")
+                        steps_log.append(f"Opened Settings > {destination} via {uri}")
+                        time.sleep(wait_seconds)
+                        return f"NAVIGATE_APP completed: {' → '.join(steps_log)}"
+                # Fallback to generic settings
+                ds.run_terminal_command("start ms-settings:")
                 steps_log.append("Opened Windows Settings")
             elif app_name.lower() in ["file explorer", "explorer"]:
-                open_result = ds.run_terminal_command("start explorer")
+                ds.run_terminal_command("start explorer")
                 steps_log.append("Opened File Explorer")
             else:
-                open_result = ds.open_target(app_name)
+                ds.open_target(app_name)
                 steps_log.append(f"Attempted to open {app_name}")
             time.sleep(wait_seconds)
         else:
