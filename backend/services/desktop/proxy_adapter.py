@@ -212,3 +212,32 @@ class ProxyDesktopService(DesktopInterface):
     
     def ppt_get_theme_colors(self, slide_number: int = 1) -> str:
         return self._execute_sync("ppt_get_theme_colors", {"slide_number": slide_number})
+    
+    def ppt_add_table(self, slide_number: int, rows: int, cols: int, data: list,
+                      left: int = 50, top: int = 150, width: int = 600) -> str:
+        return self._execute_sync("ppt_add_table", {
+            "slide_number": slide_number, "rows": rows, "cols": cols,
+            "data": data, "left": left, "top": top, "width": width
+        })
+    
+    def ppt_set_shape_style(self, slide_number: int, shape_name: str, fill_color: str = None,
+                            line_color: str = None, line_weight: float = None, transparency: float = None) -> str:
+        return self._execute_sync("ppt_set_shape_style", {
+            "slide_number": slide_number, "shape_name": shape_name,
+            "fill_color": fill_color, "line_color": line_color,
+            "line_weight": line_weight, "transparency": transparency
+        })
+    
+    def ppt_add_textbox(self, slide_number: int, text: str, left: int, top: int,
+                        width: int = 300, height: int = 50, font_size: int = None,
+                        font_color: str = None, bold: bool = False, align: str = "left") -> str:
+        return self._execute_sync("ppt_add_textbox", {
+            "slide_number": slide_number, "text": text, "left": left, "top": top,
+            "width": width, "height": height, "font_size": font_size,
+            "font_color": font_color, "bold": bold, "align": align
+        })
+    
+    def ppt_create_business_slide(self, slide_number: int, title: str, points: list, highlight_point: int = None) -> str:
+        return self._execute_sync("ppt_create_business_slide", {
+            "slide_number": slide_number, "title": title, "points": points, "highlight_point": highlight_point
+        })

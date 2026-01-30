@@ -805,6 +805,307 @@ def ppt_get_theme_colors(slide_number: int = 1) -> str:
         return f"Error: {e}"
 
 
+def ppt_add_table(slide_number: int, rows: int, cols: int, data: List[List[str]], 
+                  left: int = 50, top: int = 150, width: int = 600) -> str:
+    """
+    Adds a professional table to a slide with data. Tables auto-inherit theme styling.
+    Perfect for business cases, comparisons, and data summaries.
+    
+    Args:
+        slide_number: 1-indexed slide number.
+        rows: Number of rows (including header).
+        cols: Number of columns.
+        data: 2D list of cell values, e.g., [["Header1", "Header2"], ["Value1", "Value2"]].
+        left: X position in points (default 50).
+        top: Y position in points (default 150).
+        width: Table width in points (default 600).
+    
+    Returns:
+        Status message with table info.
+    """
+    log_system(f"Adding {rows}x{cols} table to slide {slide_number}", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        
+        if slide_number > presentation.Slides.Count:
+            return f"Error: Slide {slide_number} does not exist"
+        
+        slide = presentation.Slides(slide_number)
+        
+        # Calculate row height based on content
+        row_height = 30  # Default row height
+        table_height = rows * row_height
+        
+        # Add table shape
+        table_shape = slide.Shapes.AddTable(rows, cols, left, top, width, table_height)
+        table = table_shape.Table
+        
+        # Populate cells with data
+        for row_idx, row_data in enumerate(data):
+            for col_idx, cell_value in enumerate(row_data):
+                if row_idx < rows and col_idx < cols:
+                    table.Cell(row_idx + 1, col_idx + 1).Shape.TextFrame.TextRange.Text = str(cell_value)
+        
+        # Style header row (first row bold)
+        for col_idx in range(1, cols + 1):
+            try:
+                table.Cell(1, col_idx).Shape.TextFrame.TextRange.Font.Bold = True
+            except:
+                pass
+        
+        return f"Added {rows}x{cols} table to slide {slide_number} (shape: {table_shape.Name})"
+    
+    except Exception as e:
+        log_system(f"Error adding table: {e}", "ERR")
+        return f"Error: {e}"
+
+
+def ppt_set_shape_style(slide_number: int, shape_name: str, fill_color: str = None, 
+                        line_color: str = None, line_weight: float = None,
+                        transparency: float = None) -> str:
+    """
+    Styles a shape with fill color, border, and transparency. Use theme colors for brand consistency.
+    
+    Args:
+        slide_number: 1-indexed slide number.
+        shape_name: Name of the shape to style.
+        fill_color: Fill color as hex (e.g., "0066CC" for blue). Use "none" for no fill.
+        line_color: Border color as hex. Use "none" for no border.
+        line_weight: Border thickness in points (e.g., 1.5).
+        transparency: Fill transparency 0-100 (0=opaque, 100=invisible).
+    
+    Returns:
+        Status message.
+    """
+    log_system(f"Styling shape '{shape_name}' on slide {slide_number}", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        slide = presentation.Slides(slide_number)
+        
+        # Find shape
+        target_shape = None
+        for shape in slide.Shapes:
+            if shape_name.lower() in shape.Name.lower():
+                target_shape = shape
+                break
+        
+        if not target_shape:
+            available = [s.Name for s in slide.Shapes]
+            return f"Error: Shape '{shape_name}' not found. Available: {available}"
+        
+        changes = []
+        
+        # Set fill color
+        if fill_color:
+            if fill_color.lower() == "none":
+                target_shape.Fill.Visible = False
+                changes.append("fill=none")
+            else:
+                target_shape.Fill.Visible = True
+                target_shape.Fill.Solid()
+                rgb = int(fill_color, 16)
+                # Convert BGR to RGB for PowerPoint
+                r = (rgb >> 16) & 0xFF
+                g = (rgb >> 8) & 0xFF
+                b = rgb & 0xFF
+                target_shape.Fill.ForeColor.RGB = r + (g << 8) + (b << 16)
+                changes.append(f"fill=#{fill_color}")
+        
+        # Set line/border
+        if line_color:
+            if line_color.lower() == "none":
+                target_shape.Line.Visible = False
+                changes.append("line=none")
+            else:
+                target_shape.Line.Visible = True
+                rgb = int(line_color, 16)
+                r = (rgb >> 16) & 0xFF
+                g = (rgb >> 8) & 0xFF
+                b = rgb & 0xFF
+                target_shape.Line.ForeColor.RGB = r + (g << 8) + (b << 16)
+                changes.append(f"line=#{line_color}")
+        
+        if line_weight is not None:
+            target_shape.Line.Weight = line_weight
+            changes.append(f"weight={line_weight}pt")
+        
+        # Set transparency
+        if transparency is not None:
+            target_shape.Fill.Transparency = transparency / 100.0
+            changes.append(f"transparency={transparency}%")
+        
+        return f"Styled '{shape_name}': {', '.join(changes)}"
+    
+    except Exception as e:
+        log_system(f"Error styling shape: {e}", "ERR")
+        return f"Error: {e}"
+
+
+def ppt_add_textbox(slide_number: int, text: str, left: int, top: int, 
+                    width: int = 300, height: int = 50, 
+                    font_size: int = None, font_color: str = None,
+                    bold: bool = False, align: str = "left") -> str:
+    """
+    Adds a text box to a slide with custom positioning and formatting.
+    Great for labels, callouts, and annotations.
+    
+    Args:
+        slide_number: 1-indexed slide number.
+        text: Text content for the textbox.
+        left: X position in points.
+        top: Y position in points.
+        width: Width in points (default 300).
+        height: Height in points (default 50).
+        font_size: Optional font size in points.
+        font_color: Optional hex color (e.g., "333333").
+        bold: Make text bold (default False).
+        align: Text alignment - "left", "center", "right" (default "left").
+    
+    Returns:
+        Status message with textbox info.
+    """
+    log_system(f"Adding textbox to slide {slide_number}", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    # Alignment constants
+    ALIGN = {"left": 1, "center": 2, "right": 3}
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        
+        if slide_number > presentation.Slides.Count:
+            return f"Error: Slide {slide_number} does not exist"
+        
+        slide = presentation.Slides(slide_number)
+        
+        # Add textbox (msoTextOrientationHorizontal = 1)
+        textbox = slide.Shapes.AddTextbox(1, left, top, width, height)
+        textbox.TextFrame.TextRange.Text = text
+        
+        # Apply formatting
+        font = textbox.TextFrame.TextRange.Font
+        
+        if font_size:
+            font.Size = font_size
+        
+        if font_color:
+            rgb = int(font_color, 16)
+            r = (rgb >> 16) & 0xFF
+            g = (rgb >> 8) & 0xFF
+            b = rgb & 0xFF
+            font.Color.RGB = r + (g << 8) + (b << 16)
+        
+        if bold:
+            font.Bold = True
+        
+        # Set alignment
+        textbox.TextFrame.TextRange.ParagraphFormat.Alignment = ALIGN.get(align.lower(), 1)
+        
+        # Make textbox background transparent
+        textbox.Fill.Visible = False
+        textbox.Line.Visible = False
+        
+        return f"Added textbox to slide {slide_number}: \"{text[:30]}...\" (shape: {textbox.Name})"
+    
+    except Exception as e:
+        log_system(f"Error adding textbox: {e}", "ERR")
+        return f"Error: {e}"
+
+
+def ppt_create_business_slide(slide_number: int, title: str, points: List[str], 
+                               highlight_point: int = None) -> str:
+    """
+    Creates a professional business case slide with title and bullet points.
+    Automatically uses brand template styling. Perfect for executive summaries.
+    
+    Args:
+        slide_number: 1-indexed slide number to modify (must exist).
+        title: Slide title text.
+        points: List of bullet point strings.
+        highlight_point: Optional 1-indexed point to highlight (make bold/colored).
+    
+    Returns:
+        Status message.
+    """
+    log_system(f"Creating business slide {slide_number}: {title}", "PPT")
+    
+    if not COM_AVAILABLE:
+        return "Error: PowerPoint COM automation not available"
+    
+    try:
+        ppt = _get_ppt_app()
+        if not ppt or ppt.Presentations.Count == 0:
+            return "Error: No presentation is open"
+        
+        presentation = ppt.ActivePresentation
+        
+        if slide_number > presentation.Slides.Count:
+            return f"Error: Slide {slide_number} does not exist"
+        
+        slide = presentation.Slides(slide_number)
+        
+        # Set title
+        if slide.Shapes.HasTitle:
+            slide.Shapes.Title.TextFrame.TextRange.Text = title
+        
+        # Find content placeholder
+        content_shape = None
+        for shape in slide.Shapes:
+            if "content" in shape.Name.lower() or "text" in shape.Name.lower():
+                if shape.HasTextFrame:
+                    content_shape = shape
+                    break
+        
+        if not content_shape:
+            # Use first text shape that's not title
+            for shape in slide.Shapes:
+                if shape.HasTextFrame and shape != slide.Shapes.Title:
+                    content_shape = shape
+                    break
+        
+        if content_shape:
+            # Build bullet text with proper line breaks
+            bullet_text = "\n".join([f"• {point}" for point in points])
+            content_shape.TextFrame.TextRange.Text = bullet_text
+            
+            # Highlight specific point if requested
+            if highlight_point and 1 <= highlight_point <= len(points):
+                try:
+                    # Find the paragraph and make it bold
+                    para = content_shape.TextFrame.TextRange.Paragraphs(highlight_point)
+                    para.Font.Bold = True
+                except:
+                    pass
+        
+        return f"Created business slide {slide_number}: '{title}' with {len(points)} points"
+    
+    except Exception as e:
+        log_system(f"Error creating business slide: {e}", "ERR")
+        return f"Error: {e}"
+
+
 # Export all PPT tools
 PPT_TOOLS = {
     "ppt_get_active_presentation": ppt_get_active_presentation,
@@ -822,4 +1123,9 @@ PPT_TOOLS = {
     "ppt_resize_shape": ppt_resize_shape,
     "ppt_format_text": ppt_format_text,
     "ppt_get_theme_colors": ppt_get_theme_colors,
+    # New advanced tools for impressive presentations
+    "ppt_add_table": ppt_add_table,
+    "ppt_set_shape_style": ppt_set_shape_style,
+    "ppt_add_textbox": ppt_add_textbox,
+    "ppt_create_business_slide": ppt_create_business_slide,
 }

@@ -182,6 +182,10 @@ class GeminiService:
             "ppt_resize_shape": self.ppt_resize_shape,
             "ppt_format_text": self.ppt_format_text,
             "ppt_get_theme_colors": self.ppt_get_theme_colors,
+            "ppt_add_table": self.ppt_add_table,
+            "ppt_set_shape_style": self.ppt_set_shape_style,
+            "ppt_add_textbox": self.ppt_add_textbox,
+            "ppt_create_business_slide": self.ppt_create_business_slide,
             # Image handling
             "save_uploaded_image": self.save_uploaded_image,
             # File transfer
@@ -410,6 +414,26 @@ class GeminiService:
     def ppt_get_theme_colors(self, slide_number: int = 1):
         """Extracts theme colors from the presentation for consistency."""
         return get_desktop_service().ppt_get_theme_colors(slide_number)
+    
+    def ppt_add_table(self, slide_number: int, rows: int, cols: int, data: list,
+                      left: int = 50, top: int = 150, width: int = 600):
+        """Adds a professional table to a slide with data. Perfect for business cases."""
+        return get_desktop_service().ppt_add_table(slide_number, rows, cols, data, left, top, width)
+    
+    def ppt_set_shape_style(self, slide_number: int, shape_name: str, fill_color: str = None,
+                            line_color: str = None, line_weight: float = None, transparency: float = None):
+        """Styles a shape with fill color, border, and transparency. Use theme colors for brand consistency."""
+        return get_desktop_service().ppt_set_shape_style(slide_number, shape_name, fill_color, line_color, line_weight, transparency)
+    
+    def ppt_add_textbox(self, slide_number: int, text: str, left: int, top: int,
+                        width: int = 300, height: int = 50, font_size: int = None,
+                        font_color: str = None, bold: bool = False, align: str = "left"):
+        """Adds a text box to a slide with custom positioning and formatting."""
+        return get_desktop_service().ppt_add_textbox(slide_number, text, left, top, width, height, font_size, font_color, bold, align)
+    
+    def ppt_create_business_slide(self, slide_number: int, title: str, points: list, highlight_point: int = None):
+        """Creates a professional business case slide with title and bullet points. Perfect for executive summaries."""
+        return get_desktop_service().ppt_create_business_slide(slide_number, title, points, highlight_point)
 
     def look_at_screen(self, purpose: str):
         """
