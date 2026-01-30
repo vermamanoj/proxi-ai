@@ -1,5 +1,9 @@
 # Windows Agent Setup Guide
 
+**Last Updated:** January 30, 2026  
+**Last Commit:** `0376b4d` - Add SoM overlay, combined observation, and local Gemini grounding  
+**Status:** ⚠️ Testing Pending
+
 ## Connecting a Windows Desktop to Proxi Core (Production)
 
 This guide explains how to register a Windows machine as a remote agent that Proxi can control.
@@ -11,6 +15,7 @@ This guide explains how to register a Windows machine as a remote agent that Pro
 - Windows 10/11 with Python 3.10+
 - **Tailscale** installed (for secure connection to production server)
 - Admin rights (for some automation features)
+- **GEMINI_API_KEY** (optional but recommended for local visual grounding via `/ground` endpoint)
 
 ---
 
@@ -58,12 +63,18 @@ python -m venv venv
 pip install -r backend/requirements-agent.txt
 ```
 
-### 3. Set Agent Key (Security)
+### 3. Set Environment Variables
 
 ```powershell
 # Must match PROXI_AGENT_KEY in production .env
 $env:PROXI_AGENT_KEY = "your-production-agent-key"
+
+# Optional: Enable local visual grounding (v3.2.0+)
+# This allows the agent to use Gemini locally for finding UI elements
+$env:GEMINI_API_KEY = "your-gemini-api-key"
 ```
+
+> **NEW in v3.2.0:** Setting `GEMINI_API_KEY` on the agent enables the `/ground` endpoint for local visual grounding. This significantly improves GUI interaction performance by eliminating round-trips to Core for screenshot analysis.
 
 ### 4. Start the Agent
 
@@ -261,6 +272,7 @@ These endpoints run on the Windows agent (port 8081):
 |----------|--------|-------------|
 | `/health` | GET | Returns agent status, OS info |
 | `/execute` | POST | Execute a tool (terminal, screenshot, etc.) |
+| `/ground` | POST | **NEW v3.2.0** Visual grounding - find UI element coordinates (requires `GEMINI_API_KEY`) |
 
 ### Execute Request
 
@@ -289,4 +301,14 @@ X-Agent-Key: {PROXI_AGENT_KEY}
 
 ---
 
-*Last updated: 2026-01-29*
+---
+
+## Breaking Changes (v3.2.0 - January 30, 2026)
+
+| Change | Impact | Action Required |
+|--------|--------|----------------|
+| New `/ground` endpoint | Enables local visual grounding | Set `GEMINI_API_KEY` on agent for best performance |
+| New `get_observation` tool | Returns screenshot + UI tree + SoM overlay | No action - backward compatible |
+| New `ground_and_click` Core tool | Preferred method for GUI interactions | No action - agents work without it |
+
+*Last updated: 2026-01-30*

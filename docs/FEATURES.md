@@ -1,6 +1,8 @@
 # Proxi Feature Tracker
 
-**Last Updated:** January 29, 2026  
+**Last Updated:** January 30, 2026  
+**Last Commit:** `0376b4d` - Add SoM overlay, combined observation, and local Gemini grounding  
+**Status:** ⚠️ Testing Pending  
 **Target:** Google Gemini Hackathon (Judging: Feb 10-27, 2026)
 
 ---
@@ -22,7 +24,8 @@
 | Gemini Pro integration | ✅ | Deep reasoning for complex tasks |
 | Gemini Vision | ✅ | Screenshot analysis |
 | Gemini Live (Voice) | ✅ | WebRTC in frontend |
-| 45+ registered tools | ✅ | System, desktop, integrations |
+| **Local agent Gemini** | 🔄 | **NEW v3.2.0** - Visual grounding on agent (requires GEMINI_API_KEY on agent) |
+| 48+ registered tools | ✅ | System, desktop, integrations (was 45+, added 3 new) |
 | Streaming responses (NDJSON) | ✅ | Real-time updates |
 | Multi-turn conversation | ✅ | Session-based history |
 
@@ -50,6 +53,10 @@
 | Screenshot capture | ✅ | Windows |
 | Window management | ✅ | Windows |
 | UI tree scanning | ✅ | Windows |
+| **Set-of-Mark (SoM) overlay** | 🔄 | Windows | **NEW v3.2.0** - Numbered boxes on UI elements |
+| **Combined observation** | 🔄 | Windows | **NEW v3.2.0** - Screenshot + UI tree in one call |
+| **Local visual grounding** | 🔄 | Windows | **NEW v3.2.0** - Agent-side Gemini for UI element finding |
+| **ground_and_click tool** | 🔄 | Windows | **NEW v3.2.0** - Find and click UI elements by description |
 | Terminal commands | ✅ | Windows + Linux |
 | System health metrics | ✅ | Windows + Linux |
 | File operations | ✅ | Windows + Linux |

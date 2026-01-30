@@ -1,5 +1,9 @@
 # Proxi Deployment Guide
 
+**Last Updated:** January 30, 2026  
+**Last Commit:** `0376b4d` - Add SoM overlay, combined observation, and local Gemini grounding  
+**Status:** ⚠️ Testing Pending
+
 > **Note:** This document has been restructured. See the new documentation:
 > - [docs/DEPLOY_OPS.md](./docs/DEPLOY_OPS.md) - Deployment & Operations
 > - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) - System Architecture
@@ -7,6 +11,22 @@
 > - [docs/FEATURES.md](./docs/FEATURES.md) - Feature Tracker
 >
 > The original content is archived in `docs/archive/DEPLOYMENT.md`.
+
+---
+
+## ⚠️ Breaking Changes (v3.2.0 - January 30, 2026)
+
+| Change | Component | Action Required |
+|--------|-----------|-----------------|
+| New `/ground` endpoint | Windows Agent | **Optional:** Set `GEMINI_API_KEY` on agent for local visual grounding |
+| New `get_observation` tool | All Agents | No action - backward compatible |
+| New `ground_and_click` tool | Core | No action - new capability for GUI automation |
+| Updated `look_at_screen` | Core | No action - now returns Set-of-Mark overlay with numbered elements |
+
+**For best GUI automation performance**, set `GEMINI_API_KEY` on Windows agents:
+```powershell
+$env:GEMINI_API_KEY = "your-api-key"
+```
 
 ---
 
@@ -18,6 +38,7 @@ git clone https://github.com/vermamanoj/proxi-ai.git
 cd proxi-ai
 cp .env.example .env
 # Edit .env with your GEMINI_API_KEY and PROXI_AGENT_KEY
+# NEW: Also set GEMINI_API_KEY on Windows agents for local visual grounding
 
 # Run the full deployment script
 ./deploy.sh

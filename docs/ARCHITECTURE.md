@@ -1,7 +1,9 @@
 # Proxi System Architecture
 
-**Version:** v3.1.0  
-**Last Updated:** January 30, 2026
+**Version:** v3.2.0  
+**Last Updated:** January 30, 2026  
+**Last Commit:** `0376b4d` - Add SoM overlay, combined observation, and local Gemini grounding  
+**Status:** ⚠️ Testing Pending
 
 ---
 
@@ -170,6 +172,7 @@ POST /execute
 | `type_text` | ✗ | ✓ | Keyboard input |
 | `press_hotkey` | ✗ | ✓ | Key combinations |
 | `get_screenshot_base64` | ✗ | ✓ | Screen capture |
+| `get_observation` | ✗ | ✓ | **NEW** Combined screenshot + UI tree + SoM overlay |
 | `scan_ui_tree` | ✗ | ✓ | Windows UI automation |
 | `focus_window` | ✗ | ✓ | Window management |
 | `list_windows` | ✗ | ✓ | List open windows |
@@ -269,6 +272,7 @@ If the Gemini API stops responding mid-conversation:
 | `/health` | GET | Agent health + metrics |
 | `/execute` | POST | Execute a tool |
 | `/capabilities` | GET | List available tools |
+| `/ground` | POST | **NEW** Visual grounding with local Gemini (requires `GEMINI_API_KEY` on agent) |
 
 ---
 
