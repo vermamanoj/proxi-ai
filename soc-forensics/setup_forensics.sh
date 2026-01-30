@@ -104,6 +104,12 @@ echo "  ✓ Application logs created (RCE wget command visible)"
 echo "[2/6] Creating malware artifacts..."
 
 # Persistence: Systemd service
+
+# Create the extra services mentioned in logs to be consistent
+touch /etc/systemd/system/lived.service
+touch /etc/systemd/system/alive.service
+touch /etc/systemd/system/networkerd.service
+
 echo "  → Creating systemd service..."
 mkdir -p /etc/systemd/system
 cat <<'EOF' > /etc/systemd/system/apaches-main.service

@@ -7,6 +7,9 @@ import os
 import platform
 import subprocess
 import psutil
+import json
+import time
+import uuid
 from typing import Optional
 from fastapi import FastAPI, Header, HTTPException, Depends
 from pydantic import BaseModel
@@ -24,6 +27,63 @@ class ToolResult(BaseModel):
     success: bool
     result: str  # Must be 'result' to match ProxyDesktopService expectation
     error: Optional[str] = None
+
+
+def _sanitize_params(params: dict, max_value_len: int = 200) -> dict:
+    if not isinstance(params, dict):
+        return {"_": str(params)[:max_value_len]}
+    redacted_keys = {
+        "content_base64",
+        "screenshot",
+        "image",
+        "data",
+        "file",
+        "bytes",
+        "api_key",
+        "token",
+        "password",
+        "secret",
+        "key",
+    }
+    out: dict = {}
+    for k, v in params.items():
+        lk = str(k).lower()
+        if lk in redacted_keys or any(rk in lk for rk in ["password", "secret", "token", "api_key", "content_base64"]):
+            if isinstance(v, str):
+                out[k] = f"<redacted len={len(v)}>"
+            else:
+                out[k] = "<redacted>"
+            continue
+        if isinstance(v, str) and len(v) > max_value_len:
+            out[k] = v[:max_value_len] + "..."
+        else:
+            out[k] = v
+    return out
+
+
+def _preview(value: object, max_len: int = 220) -> str:
+    try:
+        if value is None:
+            return "null"
+        if isinstance(value, (bool, int, float)):
+            return str(value)
+        if isinstance(value, str):
+            s = value.replace("\n", "\\n")
+            s = s.encode("ascii", "backslashreplace").decode("ascii")
+            return s if len(s) <= max_len else s[:max_len] + "..."
+        if isinstance(value, dict):
+            s = json.dumps(_sanitize_params(value, max_value_len=80), ensure_ascii=True)
+            return s if len(s) <= max_len else s[:max_len] + "..."
+        if isinstance(value, list):
+            s = json.dumps(value[:3], ensure_ascii=True)
+            if len(value) > 3:
+                s = s[:-1] + ', "..." ]'
+            return s if len(s) <= max_len else s[:max_len] + "..."
+        s = str(value)
+        s = s.encode("ascii", "backslashreplace").decode("ascii")
+        return s if len(s) <= max_len else s[:max_len] + "..."
+    except Exception:
+        return "<unprintable>"
 
 # --- Authentication ---
 
@@ -100,24 +160,42 @@ async def capabilities(_: bool = Depends(verify_agent_key)):
 @app.post("/execute", response_model=ToolResult)
 async def execute_tool(call: ToolCall, _: bool = Depends(verify_agent_key)):
     """Execute a forensic investigation tool."""
+    req_id = uuid.uuid4().hex[:8]
+    start_time = time.time()
+    try:
+        params_preview = json.dumps(_sanitize_params(call.parameters), ensure_ascii=True)
+    except Exception:
+        params_preview = "{}"
+    print(f"[AGENT_EXEC] START id={req_id} tool={call.tool_name} params={params_preview}", flush=True)
+
     try:
         if call.tool_name == "run_terminal_command":
-            return execute_command(call.parameters)
+            result = execute_command(call.parameters)
         elif call.tool_name == "read_file":
-            return read_file(call.parameters)
+            result = read_file(call.parameters)
         elif call.tool_name == "search_logs":
-            return search_logs(call.parameters)
+            result = search_logs(call.parameters)
         elif call.tool_name == "list_processes":
-            return list_processes()
+            result = list_processes()
         elif call.tool_name == "network_connections":
-            return network_connections()
+            result = network_connections()
         else:
-            return ToolResult(
+            result = ToolResult(
                 success=False,
                 result="",
                 error=f"Unknown tool: {call.tool_name}"
             )
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        ok = 1 if getattr(result, "success", False) else 0
+        print(
+            f"[AGENT_EXEC] END id={req_id} tool={call.tool_name} ok={ok} ms={elapsed_ms} "
+            f"result={_preview(getattr(result, 'result', ''))} error={_preview(getattr(result, 'error', None))}",
+            flush=True
+        )
+        return result
     except Exception as e:
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        print(f"[AGENT_EXEC] END id={req_id} tool={call.tool_name} ok=0 ms={elapsed_ms} error={_preview(str(e))}", flush=True)
         return ToolResult(
             success=False,
             result="",

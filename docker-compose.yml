@@ -35,6 +35,9 @@ services:
 
   # SOC Forensics Container - Simulated compromised server for training
   forensic-investigation:
+    build:
+      context: ./soc-forensics
+      dockerfile: Dockerfile
     image: proxi-forensics:v2
     ports:
       - "5081:8081"
