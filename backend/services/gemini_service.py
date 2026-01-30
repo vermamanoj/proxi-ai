@@ -1259,19 +1259,41 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
             log_system(f"Chat started with {len(history)} history items", "MODEL")
 
             # Format message based on context
+            # Detect voice modes: explain, investigate, prove, summarize
+            msg_lower = message.strip().lower()
+            voice_mode = None
+            voice_mode_prefix = ""
+            
+            # Check for voice mode triggers
+            if msg_lower.startswith("explain ") or msg_lower == "explain" or "explain why" in msg_lower or "explain this" in msg_lower:
+                voice_mode = "explain"
+                voice_mode_prefix = "MODE: EXPLAIN - Provide a clear, concise explanation. Focus on the 'why' and use simple language. No new actions needed.\n\n"
+                log_system("Voice mode: EXPLAIN", "MODE")
+            elif msg_lower.startswith("investigate ") or msg_lower == "investigate" or "look into" in msg_lower:
+                voice_mode = "investigate"
+                voice_mode_prefix = "MODE: INVESTIGATE - Dig deeper into this. Use available tools to gather evidence. Be thorough but focused.\n\n"
+                log_system("Voice mode: INVESTIGATE", "MODE")
+            elif msg_lower.startswith("prove ") or "prove it" in msg_lower or "show me proof" in msg_lower or "show evidence" in msg_lower:
+                voice_mode = "prove"
+                voice_mode_prefix = "MODE: PROVE - Provide concrete evidence for your claims. Show specific logs, files, or screenshots. Each assertion must have supporting data.\n\n"
+                log_system("Voice mode: PROVE", "MODE")
+            elif msg_lower.startswith("summarize") or "give me a summary" in msg_lower or "tldr" in msg_lower:
+                voice_mode = "summarize"
+                voice_mode_prefix = "MODE: SUMMARIZE - Provide a brief, bullet-point summary. Key findings only. No new actions.\n\n"
+                log_system("Voice mode: SUMMARIZE", "MODE")
+            
             if len(history) > 0:
                 # This is a follow-up message
                 # Detect "continue" requests and add context to resume, not restart
-                msg_lower = message.strip().lower()
                 if msg_lower in ("continue", "go on", "proceed", "keep going", "please continue", "continue where you left off", "please continue where you left off"):
                     user_message = "CONTINUE: Resume exactly where you left off. Do NOT restart analysis or create a new plan. Continue from your last action/thought and complete the remaining goals. Do NOT call get_system_health or other tools you already called."
                     log_system(f"Continue request detected - instructing LLM to resume", "SESSION")
                 else:
-                    user_message = message
+                    user_message = voice_mode_prefix + message
                     log_system(f"Follow-up message in session: {message}", "SESSION")
             else:
                 # New conversation - prefix with GOAL
-                user_message = f"GOAL: {message}"
+                user_message = voice_mode_prefix + f"GOAL: {message}"
             
             # Check if message contains embedded image data (from vision-action endpoint)
             message_content = user_message
