@@ -86,6 +86,7 @@ const App: React.FC = () => {
     sendCommand, 
     sendVisionCommand,
     toggleComplexity,
+    setExecutionMode,
     confirmAction,
     cancelAction,
     logSystemError,
@@ -508,23 +509,23 @@ const App: React.FC = () => {
             
             {/* Settings Options */}
             <div className="space-y-4">
-              {/* Reasoning Mode */}
+              {/* Execution Mode */}
               <div>
-                <label className="text-xs text-gray-500 uppercase tracking-wider">Reasoning Mode</label>
-                <button
-                  onClick={toggleComplexity}
-                  className={`mt-2 w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
-                    complexity === 'deep'
-                      ? 'border-purple-500 bg-purple-500/10 text-purple-400'
-                      : 'border-gray-700 bg-gray-800 text-gray-400'
-                  }`}
+                <label className="text-xs text-gray-500 uppercase tracking-wider">Execution Mode</label>
+                <select
+                  value={complexity}
+                  onChange={(e) => setExecutionMode(e.target.value as any)}
+                  className="mt-2 w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 text-sm focus:outline-none focus:border-proxi-accent"
                 >
-                  <span className="flex items-center gap-2">
-                    {complexity === 'deep' ? <BrainCircuit className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
-                    {complexity === 'deep' ? 'Deep Thought' : 'Fast Reflex'}
-                  </span>
-                  <span className="text-xs opacity-50">{complexity === 'deep' ? 'Pro' : 'Flash'}</span>
-                </button>
+                  <option value="quick">⚡ Quick - Simple queries (Flash, no verify)</option>
+                  <option value="balanced">⚖️ Balanced - Default mode (Flash, auto verify)</option>
+                  <option value="thorough">🔬 Thorough - Critical ops (Pro, full verify)</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  {complexity === 'quick' && 'Fast execution, skips verification'}
+                  {complexity === 'balanced' && 'Verifies action tasks automatically'}
+                  {complexity === 'thorough' && 'Deep analysis with full verification'}
+                </p>
               </div>
               
               {/* Debug Logs Toggle */}

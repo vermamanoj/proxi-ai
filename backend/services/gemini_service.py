@@ -65,6 +65,31 @@ class GeminiService:
     SMART_TEXT_MODEL = "gemini-3-pro-preview"   # Deep reasoning mode
     VISION_MODEL = "gemini-3-flash-preview"     # Vision analysis
     IMAGE_GEN_MODEL = "gemini-3-pro-image-preview"    # Image generation
+    
+    # Execution mode configurations
+    MODE_CONFIGS = {
+        "quick": {
+            "model": "flash",
+            "verify": False,
+            "max_turns": 5,
+            "prompt_suffix": "Be concise and direct. Skip verification for simple tasks.",
+            "description": "Fast execution for simple queries and status checks"
+        },
+        "balanced": {
+            "model": "flash",
+            "verify": "auto",  # Verify only action tasks
+            "max_turns": 10,
+            "prompt_suffix": "",
+            "description": "Default mode - verification for action tasks"
+        },
+        "thorough": {
+            "model": "pro",
+            "verify": True,
+            "max_turns": 15,
+            "prompt_suffix": "Double-check your work. Verify each step before proceeding.",
+            "description": "Deep analysis with full verification for critical operations"
+        }
+    }
 
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
@@ -567,8 +592,24 @@ class GeminiService:
         return (False, "")
 
     # --- MAIN ORCHESTRATOR ---
-    async def route_and_execute_stream(self, message: str, complexity_request: str = "fast", session_id: str = None):
-        log_system(f"NEW REQUEST: {message} (Mode: {complexity_request}, Session: {session_id})", "ROUTER")
+    async def route_and_execute_stream(self, message: str, complexity_request: str = "balanced", session_id: str = None):
+        """
+        Main orchestrator for processing user requests.
+        
+        Args:
+            message: User's request
+            complexity_request: Execution mode - "quick", "balanced", or "thorough"
+                              (legacy "fast"/"deep" mapped to balanced/thorough)
+            session_id: Session identifier for conversation continuity
+        """
+        # Map legacy complexity values to new modes
+        mode_mapping = {"fast": "balanced", "deep": "thorough"}
+        mode = mode_mapping.get(complexity_request, complexity_request)
+        if mode not in self.MODE_CONFIGS:
+            mode = "balanced"
+        
+        mode_config = self.MODE_CONFIGS[mode]
+        log_system(f"NEW REQUEST: {message} (Mode: {mode}, Session: {session_id})", "ROUTER")
         
         # Generate unique session ID if not provided - use microseconds for uniqueness
         import uuid
@@ -623,9 +664,12 @@ class GeminiService:
         tools = list(self.tools_map.values())
         log_system(f"Tools loaded: {len(tools)} functions", "ROUTER")
 
-        # Model selection
-        model_name = self.SMART_TEXT_MODEL if complexity_request == "deep" else self.FAST_TEXT_MODEL
-        log_system(f"Using model: {model_name} (complexity: {complexity_request})", "ROUTER")
+        # Model selection based on mode config
+        model_name = self.SMART_TEXT_MODEL if mode_config["model"] == "pro" else self.FAST_TEXT_MODEL
+        max_turns = mode_config["max_turns"]
+        verify_mode = mode_config["verify"]
+        prompt_suffix = mode_config["prompt_suffix"]
+        log_system(f"Using model: {model_name} (mode: {mode}, max_turns: {max_turns}, verify: {verify_mode})", "ROUTER")
 
         # Get active agent's OS context
         agent_os, shell_type = self._get_active_agent_os()
@@ -634,7 +678,14 @@ class GeminiService:
         # System instruction for transparency - dynamic OS context
         system_instruction = f"""You are Proxi, a Headless Operator with FULL OS-level access on this {agent_os} computer.
 
+EXPERTISE: You are an IT systems administrator and desktop automation specialist with deep knowledge of:
+- Windows: PowerShell, Registry, Services, Event Viewer, Task Manager, Group Policy
+- Linux: Bash, systemd, journalctl, top/htop, networking (netstat, ss, iptables)
+- Security: Log analysis, process forensics, malware identification, incident response
+- Automation: Desktop GUI control, file management, application scripting
+
 IMPORTANT: You are connected to a {agent_os} system. Use {shell_type} for commands.
+{f"MODE: {prompt_suffix}" if prompt_suffix else ""}
 
 YOU HAVE ACCESS TO THESE CAPABILITIES - USE THEM:
 - run_terminal_command: Execute PowerShell commands (dir, ls, Get-Process, etc.)
@@ -855,7 +906,7 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
             # Update session history with user message
             self.sessions[session_id].append({"role": "user", "parts": [user_message]})
 
-            max_turns = 15
+            # max_turns set from mode_config earlier
             last_activity_had_response = False  # Track if we got a proper response
             
             for turn in range(max_turns):

@@ -25,7 +25,7 @@ const isStatusMessage = (text: string): boolean => {
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'listening' | 'error';
 
-export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled: boolean = true, complexity: 'fast' | 'deep' = 'fast') => {
+export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled: boolean = true, complexity: string = 'balanced') => {
   const [connected, setConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const connectedRef = useRef(false); // Ref for use in audio callback

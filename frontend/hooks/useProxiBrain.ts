@@ -8,7 +8,7 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
   const [status, setStatus] = useState<AgentStatus>('idle');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [lastTrace, setLastTrace] = useState<TraceStep[]>([]);
-  const [complexity, setComplexity] = useState<Complexity>('fast');
+  const [complexity, setComplexity] = useState<Complexity>('balanced');
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionTimestamp, setSessionTimestamp] = useState<number>(0); // Track when session was created
@@ -540,6 +540,7 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
     }
   };
   const toggleComplexity = () => setComplexity(prev => prev === 'fast' ? 'deep' : 'fast');
+  const setExecutionMode = (mode: Complexity) => setComplexity(mode);
   const logSystemError = (msg: string) => addLog(MessageSource.SYSTEM, msg);
   
   // Save current session and start fresh
@@ -606,6 +607,7 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
     sendCommand,
     sendVisionCommand,
     toggleComplexity,
+    setExecutionMode,
     confirmAction,
     cancelAction,
     logSystemError,
