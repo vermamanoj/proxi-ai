@@ -1550,6 +1550,12 @@ When creating or editing presentations, follow this goal-based workflow:
    - ppt_add_shape() for visual elements (arrows, callouts)
    - ppt_add_picture() to insert images
    - ppt_move_shape() and ppt_resize_shape() for layout adjustments
+   
+   ADVANCED TOOLS (use for professional presentations):
+   - ppt_add_table(slide, rows, cols, data) - Add formatted data tables with headers
+   - ppt_add_textbox(slide, text, left, top) - Add custom positioned text boxes
+   - ppt_set_shape_style(slide, shape, fill_color, line_color) - Style shapes with brand colors
+   - ppt_create_business_slide(slide, title, points) - Create executive summary slides in ONE call
 
 4. VERIFY PHASE:
    - ppt_goto_slide() and look_at_screen() to verify result
@@ -1685,7 +1691,7 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                 # Stream thought/text to UI
                 if text_content:
                     accumulated_content.append(text_content)  # Track for session recovery
-                    msg_type = "llm_thought" if function_calls else "response"
+                    msg_type = "llm_thought" if function_calls else "final_response"
                     log_system(f"LLM: {text_content[:100]}...", "THOUGHT" if function_calls else "RESPONSE")
                     yield json.dumps({"type": msg_type, "content": text_content}) + "\n"
                     if not function_calls:
@@ -1913,6 +1919,13 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                 # Send results back
                 response = await self._send_with_retry(chat, response_parts, timeout_seconds=mode_timeout)
 
+            # Ensure we always yield a final response if model only returned tools
+            if accumulated_content and not last_activity_had_response:
+                # Model finished with tools but no final text - generate completion message
+                summary = f"✅ Completed {total_tool_calls} actions successfully."
+                yield json.dumps({"type": "final_response", "content": summary}) + "\n"
+                log_system(f"Generated completion summary after {total_tool_calls} tool calls", "RESPONSE")
+            
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
 
         except Exception as e:
