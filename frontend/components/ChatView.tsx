@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { TraceStep } from '../types';
 import { User, BrainCircuit, Wrench, Terminal, MessageSquare, ChevronDown, ChevronUp, CheckCircle2, XCircle, Loader2, Monitor } from 'lucide-react';
 import { ScreenshotBubble } from './ScreenshotBubble';
+import { MermaidDiagram } from './MermaidDiagram';
 
 interface ChatViewProps {
   trace: TraceStep[];
@@ -236,7 +237,13 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
                         ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
                         li: ({children}) => <li className="ml-2">{children}</li>,
                         code: ({children, className}) => {
+                          const isMermaid = className?.includes('language-mermaid');
                           const isBlock = className?.includes('language-');
+                          
+                          if (isMermaid && typeof children === 'string') {
+                            return <MermaidDiagram chart={children} />;
+                          }
+                          
                           return isBlock ? (
                             <code className="block bg-black/50 p-2 rounded my-2 font-mono text-xs overflow-x-auto">{children}</code>
                           ) : (

@@ -161,6 +161,16 @@ async def capabilities(_: bool = Depends(verify_agent_key)):
                 "name": "get_system_health",
                 "description": "Get system health metrics (CPU, memory, disk, uptime)",
                 "parameters": []
+            },
+            {
+                "name": "list_logs",
+                "description": "List available log files for forensic investigation. Returns paths to system logs, application logs, and authentication logs.",
+                "parameters": []
+            },
+            {
+                "name": "find_recent_files",
+                "description": "Find recently modified files in a directory (useful for finding attacker artifacts)",
+                "parameters": ["directory", "days"]
             }
         ]
     }
@@ -189,6 +199,10 @@ async def execute_tool(call: ToolCall, _: bool = Depends(verify_agent_key)):
             result = network_connections()
         elif call.tool_name == "get_system_health":
             result = get_system_health()
+        elif call.tool_name == "list_logs":
+            result = list_logs()
+        elif call.tool_name == "find_recent_files":
+            result = find_recent_files(call.parameters)
         else:
             result = ToolResult(
                 success=False,
@@ -371,6 +385,79 @@ Disk (/):
   Used: {disk.used // (1024**3)} GB ({disk.percent}%)
   Free: {disk.free // (1024**3)} GB
 """
+        return ToolResult(success=True, result=output, error=None)
+    except Exception as e:
+        return ToolResult(success=False, result="", error=str(e))
+
+
+def list_logs() -> ToolResult:
+    """List available log files for forensic investigation."""
+    try:
+        log_files = []
+        
+        # Standard log locations
+        log_paths = [
+            ("/var/log/secure", "SSH/Authentication logs - check for brute force attacks"),
+            ("/var/log/messages", "System messages - check for service startups, errors"),
+            ("/var/log/ideaforge-frontend.log", "Application logs - check for RCE, exploits, errors"),
+            ("/var/log/audit/audit.log", "Audit logs - system call auditing"),
+            ("/var/log/cron", "Cron job execution logs"),
+        ]
+        
+        output = "=== Available Log Files for Investigation ===\n\n"
+        output += "RECOMMENDED INVESTIGATION ORDER:\n"
+        output += "1. Check /var/log/ideaforge-frontend.log for application-level attacks (RCE, injection)\n"
+        output += "2. Check /var/log/secure for SSH brute force or unauthorized access\n"
+        output += "3. Check /var/log/messages for suspicious service startups\n"
+        output += "4. Check ~/OCI_FIREWALL_CONFIG.txt for cloud firewall rules\n\n"
+        
+        output += "LOG FILES:\n"
+        output += "-" * 60 + "\n"
+        
+        for path, description in log_paths:
+            if os.path.exists(path):
+                size = os.path.getsize(path)
+                mtime = os.path.getmtime(path)
+                mtime_str = time.strftime('%Y-%m-%d %H:%M', time.localtime(mtime))
+                output += f"✓ {path}\n"
+                output += f"  Size: {size} bytes | Modified: {mtime_str}\n"
+                output += f"  Purpose: {description}\n\n"
+            else:
+                output += f"✗ {path} (not found)\n\n"
+        
+        # Check for OCI firewall config
+        oci_config = os.path.expanduser("~/OCI_FIREWALL_CONFIG.txt")
+        if os.path.exists(oci_config):
+            output += f"\n✓ {oci_config}\n"
+            output += "  Purpose: Oracle Cloud firewall rules - verify external port exposure\n"
+        
+        return ToolResult(success=True, result=output, error=None)
+    except Exception as e:
+        return ToolResult(success=False, result="", error=str(e))
+
+
+def find_recent_files(params: dict) -> ToolResult:
+    """Find recently modified files in a directory."""
+    try:
+        directory = params.get("directory", "/home/opc")
+        days = int(params.get("days", 7))
+        
+        # Use find command to locate recent files
+        command = f"find {directory} -type f -mtime -{days} -ls 2>/dev/null | head -50"
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        
+        output = f"=== Files modified in last {days} days in {directory} ===\n\n"
+        if result.stdout:
+            output += result.stdout
+        else:
+            output += "No recently modified files found."
+        
         return ToolResult(success=True, result=output, error=None)
     except Exception as e:
         return ToolResult(success=False, result="", error=str(e))
