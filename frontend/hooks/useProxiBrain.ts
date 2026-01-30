@@ -320,9 +320,18 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                         break;
                     case 'error':
                         addLog(MessageSource.SYSTEM, `Error: ${data.content}`);
-                        updateTrace({ step_type: 'status_change', content: `Error: ${data.content}`, metadata: { phase: 'failed' } });
-                        setMissionState(prev => ({ ...prev, phase: 'failed', active: false }));
+                        // Treat timeout/stall errors as recoverable (stalled) not terminal (failed)
+                        const errorText = (data.content || '').toLowerCase();
+                        const isRecoverableError = errorText.includes('timeout') || 
+                                                   errorText.includes('stalled') ||
+                                                   errorText.includes('overloaded');
+                        const errorPhase = isRecoverableError ? 'stalled' : 'failed';
+                        updateTrace({ step_type: 'status_change', content: `Error: ${data.content}`, metadata: { phase: errorPhase } });
+                        setMissionState(prev => ({ ...prev, phase: errorPhase, active: false }));
                         setStatus('idle');
+                        if (isRecoverableError) {
+                            speak('The model timed out. You can send a follow-up message to continue.');
+                        }
                         break;
                     case 'plan':
                         // Mission plan with goals - add to logs with metadata for MissionPlan UI

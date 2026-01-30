@@ -331,6 +331,32 @@ async def chat(request: ChatRequest, http_request: Request):
 
         async def stream_with_persistence():
             last_agent_text = None
+            collected_thoughts = []
+            last_checkpoint = datetime.datetime.utcnow()
+            CHECKPOINT_INTERVAL_SEC = 60  # Save checkpoint every 60 seconds
+            
+            def save_checkpoint(final=False):
+                nonlocal last_checkpoint, collected_thoughts
+                # Build checkpoint text from collected content
+                text_to_save = last_agent_text
+                if not text_to_save and collected_thoughts:
+                    text_to_save = "\n".join(collected_thoughts[-5:])  # Last 5 thoughts
+                if text_to_save:
+                    msg_id = f"msg_{uuid.uuid4().hex[:10]}"
+                    append_session_message(
+                        session_id,
+                        {
+                            "id": msg_id,
+                            "timestamp": datetime.datetime.utcnow().isoformat(),
+                            "source": "agent",
+                            "text": text_to_save,
+                            "checkpoint": not final,  # Mark as checkpoint if not final
+                        },
+                    )
+                    if not final:
+                        collected_thoughts = []  # Reset after checkpoint
+                last_checkpoint = datetime.datetime.utcnow()
+            
             try:
                 async for line in gemini_service.route_and_execute_stream(
                     request.message,
@@ -345,20 +371,20 @@ async def chat(request: ChatRequest, http_request: Request):
                                 last_agent_text = data.get("content")
                             elif msg_type == "response" and last_agent_text is None:
                                 last_agent_text = data.get("content")
+                            elif msg_type == "llm_thought":
+                                collected_thoughts.append(data.get("content", ""))
+                            
+                            # Periodic checkpoint save
+                            elapsed = (datetime.datetime.utcnow() - last_checkpoint).total_seconds()
+                            if elapsed >= CHECKPOINT_INTERVAL_SEC and (collected_thoughts or last_agent_text):
+                                save_checkpoint(final=False)
                         except Exception:
                             pass
                     yield line
             finally:
-                if last_agent_text:
-                    append_session_message(
-                        session_id,
-                        {
-                            "id": f"msg_{uuid.uuid4().hex[:10]}",
-                            "timestamp": datetime.datetime.utcnow().isoformat(),
-                            "source": "agent",
-                            "text": last_agent_text,
-                        },
-                    )
+                # Final save - always save if we have content
+                if last_agent_text or collected_thoughts:
+                    save_checkpoint(final=True)
 
         return StreamingResponse(
             stream_with_persistence(),

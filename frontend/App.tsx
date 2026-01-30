@@ -752,8 +752,8 @@ const App: React.FC = () => {
             )}
           </div>
 
-          {/* Continue button when stalled */}
-          {missionState.phase === 'stalled' && !isProcessing && (
+          {/* Continue button when stalled or failed */}
+          {(missionState.phase === 'stalled' || missionState.phase === 'failed') && !isProcessing && (
             <button
               type="button"
               onClick={() => sendCommand('Please continue where you left off')}
