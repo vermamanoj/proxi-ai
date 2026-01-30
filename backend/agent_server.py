@@ -12,6 +12,9 @@ Run: uvicorn backend.agent_server:app --host 0.0.0.0 --port 8081
 import uvicorn
 import platform
 import os
+import json
+import time
+import uuid
 from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -64,6 +67,61 @@ class ToolResult(BaseModel):
     result: Any = None
     error: Optional[str] = None
 
+
+def _sanitize_params(params: dict, max_value_len: int = 200) -> dict:
+    if not isinstance(params, dict):
+        return {"_": str(params)[:max_value_len]}
+    redacted_keys = {
+        "content_base64",
+        "screenshot",
+        "image",
+        "data",
+        "file",
+        "bytes",
+        "api_key",
+        "token",
+        "password",
+        "secret",
+        "key",
+    }
+    out: dict = {}
+    for k, v in params.items():
+        lk = str(k).lower()
+        if lk in redacted_keys or any(rk in lk for rk in ["password", "secret", "token", "api_key", "content_base64"]):
+            if isinstance(v, str):
+                out[k] = f"<redacted len={len(v)}>"
+            else:
+                out[k] = "<redacted>"
+            continue
+        if isinstance(v, str) and len(v) > max_value_len:
+            out[k] = v[:max_value_len] + "..."
+        else:
+            out[k] = v
+    return out
+
+
+def _preview(value: Any, max_len: int = 220) -> str:
+    try:
+        if value is None:
+            return "null"
+        if isinstance(value, (bool, int, float)):
+            return str(value)
+        if isinstance(value, str):
+            s = value.replace("\n", "\\n")
+            return s if len(s) <= max_len else s[:max_len] + "..."
+        if isinstance(value, dict):
+            s = json.dumps(_sanitize_params(value, max_value_len=80), ensure_ascii=True)
+            return s if len(s) <= max_len else s[:max_len] + "..."
+        if isinstance(value, list):
+            s = json.dumps(value[:3], ensure_ascii=True)
+            if len(value) > 3:
+                s = s[:-1] + ', "..." ]'
+            return s if len(s) <= max_len else s[:max_len] + "..."
+        s = str(value)
+        return s if len(s) <= max_len else s[:max_len] + "..."
+    except Exception:
+        return "<unprintable>"
+
 # --- Health ---
 
 @app.get("/")
@@ -111,6 +169,14 @@ async def execute_tool(call: ToolCall, _: bool = Depends(verify_agent_key)):
     ds = get_desktop_service(allow_local=True)  # Agent always uses local execution
     tool_name = call.tool_name
     params = call.parameters
+
+    req_id = uuid.uuid4().hex[:8]
+    start_time = time.time()
+    try:
+        params_preview = json.dumps(_sanitize_params(params), ensure_ascii=True)
+    except Exception:
+        params_preview = "{}"
+    print(f"[AGENT_EXEC] START id={req_id} tool={tool_name} params={params_preview}", flush=True)
     
     try:
         # Map tool names to service methods
@@ -217,11 +283,18 @@ async def execute_tool(call: ToolCall, _: bool = Depends(verify_agent_key)):
         elif tool_name == "ppt_get_theme_colors":
             result = ppt_get_theme_colors(int(params.get("slide_number", 1)))
         else:
-            return ToolResult(success=False, error=f"Unknown tool: {tool_name}")
-        
+            elapsed_ms = int((time.time() - start_time) * 1000)
+            err = f"Unknown tool: {tool_name}"
+            print(f"[AGENT_EXEC] END id={req_id} tool={tool_name} ok=0 ms={elapsed_ms} error={_preview(err)}", flush=True)
+            return ToolResult(success=False, error=err)
+
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        print(f"[AGENT_EXEC] END id={req_id} tool={tool_name} ok=1 ms={elapsed_ms} result={_preview(result)}", flush=True)
         return ToolResult(success=True, result=result)
-    
+
     except Exception as e:
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        print(f"[AGENT_EXEC] END id={req_id} tool={tool_name} ok=0 ms={elapsed_ms} error={_preview(str(e))}", flush=True)
         return ToolResult(success=False, error=str(e))
 
 class FileDownloadRequest(BaseModel):
