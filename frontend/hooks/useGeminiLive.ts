@@ -6,7 +6,7 @@ import { API_BASE, SYSTEM_INSTRUCTION_RELAY, SYSTEM_INSTRUCTION_CHAT, TOOLS } fr
 import { blobToBase64, createPcmBlob, decodeAudioData, encodePcm } from '../utils/audio';
 import { createSession, updateSession, closeSession as closeSessionApi } from '../services/sessionService';
 
-// Status messages that should NOT appear in chat (shown in compact indicator instead)
+// Status messages that should NOT appear in chat (shown in compact indicator or mission panel instead)
 const STATUS_MESSAGES = [
   'Initializing Gemini Live Uplink...',
   'Uplink Established. Listening in 2s...',
@@ -16,7 +16,14 @@ const STATUS_MESSAGES = [
   'New session started.',
   'Session restored.',
   'Connection Failed:',
-  '🔴 Interrupted'
+  '🔴 Interrupted',
+  // Mission/Goal messages - shown in MissionPlanCollapsible, not chat
+  '📋 Mission Plan',
+  '✅ G',  // Goal complete (✅ G1, ✅ G2, etc.)
+  '🔄 G',  // Goal active
+  '❌ G',  // Goal failed/cancelled
+  '⏳ G',  // Goal pending
+  'Goal ',  // Legacy format
 ];
 
 const isStatusMessage = (text: string): boolean => {

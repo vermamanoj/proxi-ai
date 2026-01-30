@@ -193,6 +193,7 @@ const App: React.FC = () => {
       if (step.step_type === 'user_input') return true;
       if (step.step_type === 'final_response') return true;
       if (step.step_type === 'verification') return true;
+      if (step.step_type === 'agent_switch') return true;  // Always show agent switches
       
       // Hide llm_thought in non-debug mode
       if (step.step_type === 'llm_thought') return false;

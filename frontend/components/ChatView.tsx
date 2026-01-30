@@ -176,6 +176,24 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
           );
         }
 
+        // Handle agent switch notifications
+        const isAgentSwitch = step.step_type === 'agent_switch' || 
+          (step.step_type === 'status_change' && step.metadata?.agent);
+        if (isAgentSwitch) {
+          const agentName = step.metadata?.agent || 'Agent';
+          const agentOS = step.metadata?.os || '';
+          return (
+            <div key={groupIdx} className="flex items-center justify-center py-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-900/30 border border-blue-800/50">
+                <Monitor className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-xs text-blue-300">
+                  {step.content || `Connected to ${agentName} (${agentOS})`}
+                </span>
+              </div>
+            </div>
+          );
+        }
+
         // Handle screenshot messages
         if (isScreenshot) {
           return (

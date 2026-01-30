@@ -258,6 +258,11 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                              }
                         }
                         break;
+                    case 'agent_switch':
+                        // Agent switch notification - show in chat
+                        updateTrace({ step_type: 'agent_switch', content: data.content, metadata: { agent: data.agent, os: data.os } });
+                        addLog(MessageSource.SYSTEM, data.content || `Connected to ${data.agent} (${data.os})`);
+                        break;
                     case 'tool_result':
                         updateTrace({ step_type: 'tool_result', content: data.name, metadata: { output: data.content } });
                         // Track verification results

@@ -15,7 +15,7 @@ export interface LogEntry {
 }
 
 export interface TraceStep {
-    step_type: 'user_input' | 'llm_thought' | 'tool_call' | 'tool_result' | 'final_response' | 'system_instruction' | 'verification' | 'status_change';
+    step_type: 'user_input' | 'llm_thought' | 'tool_call' | 'tool_result' | 'final_response' | 'system_instruction' | 'verification' | 'status_change' | 'agent_switch';
     content: string | any;
     metadata?: any;
 }
