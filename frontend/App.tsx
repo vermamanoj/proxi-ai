@@ -142,25 +142,30 @@ const App: React.FC = () => {
   const liveTrace: TraceStep[] = useMemo(() => {
     return liveChatLogs.map(log => {
       // Determine step type based on log content and source
+      // Normalize source to uppercase for comparison (backend stores lowercase)
+      const source = (log.source || '').toUpperCase();
       let step_type: TraceStep['step_type'] = 'llm_thought';
       let content = log.text;
       
-      if (log.source === MessageSource.USER) {
+      if (source === MessageSource.USER) {
         step_type = 'user_input';
+      } else if (log.metadata?.agent || log.text?.includes('Connected to') || log.text?.includes('Switched to')) {
+        // Agent switch notification
+        step_type = 'agent_switch';
       } else if (log.metadata?.screenshot) {
         step_type = 'status_change';
       } else if (log.metadata?.completed) {
         step_type = 'tool_result';
-      } else if (log.source === MessageSource.SYSTEM) {
+      } else if (source === MessageSource.SYSTEM) {
         step_type = 'status_change';
-      } else if (log.source === MessageSource.AGENT) {
+      } else if (source === MessageSource.AGENT) {
         // Distinguish thinking from final responses
-        if (log.text.startsWith('(Thinking)')) {
+        if (log.text?.startsWith('(Thinking)')) {
           step_type = 'llm_thought';
-          content = log.text.replace('(Thinking) ', ''); // Clean up prefix
-        } else if (log.text.startsWith('Core Result:')) {
+          content = log.text.replace('(Thinking) ', '');
+        } else if (log.text?.startsWith('Core Result:')) {
           step_type = 'final_response';
-          content = log.text.replace('Core Result: ', ''); // Clean up prefix
+          content = log.text.replace('Core Result: ', '');
         } else {
           // Default agent messages are final responses
           step_type = 'final_response';
