@@ -1,0 +1,37 @@
+{
+  "_comment": "Execution mode configurations - editable without code changes",
+  "_updated": "2026-01-30",
+  
+  "quick": {
+    "display_name": "Quick ⚡",
+    "model": "flash",
+    "verify": false,
+    "max_turns": 5,
+    "max_tool_calls": 8,
+    "timeout": 30,
+    "prompt_suffix": "Be concise and direct. You have a maximum of 8 tool calls - plan efficiently. Skip verification for simple tasks.",
+    "description": "Fast execution for simple queries and status checks"
+  },
+  
+  "balanced": {
+    "display_name": "Balanced ⚖️",
+    "model": "flash",
+    "verify": "auto",
+    "max_turns": 10,
+    "max_tool_calls": 20,
+    "timeout": 60,
+    "prompt_suffix": "You have up to 20 tool calls available. Plan your investigation methodically.",
+    "description": "Default mode - verification for action tasks"
+  },
+  
+  "thorough": {
+    "display_name": "Thorough 🔬",
+    "model": "pro",
+    "verify": true,
+    "max_turns": 15,
+    "max_tool_calls": 40,
+    "timeout": 90,
+    "prompt_suffix": "You have up to 40 tool calls for deep analysis. Double-check your work. Verify each step before proceeding.",
+    "description": "Deep analysis with full verification for critical operations"
+  }
+}

@@ -66,36 +66,25 @@ class GeminiService:
     VISION_MODEL = "gemini-3-flash-preview"     # Vision analysis
     IMAGE_GEN_MODEL = "gemini-3-pro-image-preview"    # Image generation
     
-    # Execution mode configurations
-    MODE_CONFIGS = {
-        "quick": {
-            "model": "flash",
-            "verify": False,
-            "max_turns": 5,
-            "max_tool_calls": 8,  # Hard limit on tool executions
-            "timeout": 30,  # Shorter timeout for quick mode
-            "prompt_suffix": "Be concise and direct. Skip verification for simple tasks. Limit investigation to essential checks only.",
-            "description": "Fast execution for simple queries and status checks"
-        },
-        "balanced": {
-            "model": "flash",
-            "verify": "auto",  # Verify only action tasks
-            "max_turns": 10,
-            "max_tool_calls": 20,
-            "timeout": 60,
-            "prompt_suffix": "",
-            "description": "Default mode - verification for action tasks"
-        },
-        "thorough": {
-            "model": "pro",
-            "verify": True,
-            "max_turns": 15,
-            "max_tool_calls": 40,
-            "timeout": 90,
-            "prompt_suffix": "Double-check your work. Verify each step before proceeding.",
-            "description": "Deep analysis with full verification for critical operations"
-        }
-    }
+    # Execution mode configurations - loaded from external config file
+    @staticmethod
+    def _load_mode_configs():
+        """Load mode configurations from external JSON file for easy editing."""
+        config_path = Path(__file__).parent.parent / "config" / "modes.json"
+        try:
+            with open(config_path, 'r') as f:
+                configs = json.load(f)
+                # Remove comment fields
+                return {k: v for k, v in configs.items() if not k.startswith('_')}
+        except FileNotFoundError:
+            log_system(f"Mode config not found at {config_path}, using defaults", "WARN")
+            return {
+                "quick": {"model": "flash", "verify": False, "max_turns": 5, "max_tool_calls": 8, "timeout": 30, "prompt_suffix": "", "description": "Quick mode"},
+                "balanced": {"model": "flash", "verify": "auto", "max_turns": 10, "max_tool_calls": 20, "timeout": 60, "prompt_suffix": "", "description": "Balanced mode"},
+                "thorough": {"model": "pro", "verify": True, "max_turns": 15, "max_tool_calls": 40, "timeout": 90, "prompt_suffix": "", "description": "Thorough mode"}
+            }
+    
+    MODE_CONFIGS = None  # Loaded dynamically in __init__
 
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
@@ -104,6 +93,10 @@ class GeminiService:
             log_system(f"GEMINI_API_KEY loaded. ({self.api_key[:8]}...{self.api_key[-4:]})", "INIT")
         else:
             log_system("CRITICAL: GEMINI_API_KEY not found.", "ERR")
+        
+        # Load mode configurations from external file
+        GeminiService.MODE_CONFIGS = self._load_mode_configs()
+        log_system(f"Loaded {len(GeminiService.MODE_CONFIGS)} execution modes from config", "INIT")
         
         try:
             init_db()
@@ -131,7 +124,7 @@ class GeminiService:
         # Log dev mode status at startup
         dev_mode = os.environ.get("PROXI_DEV_MODE", "").lower() in ("true", "1", "yes")
         if dev_mode:
-            log_system("⚠️  DEV MODE ENABLED - Command approvals DISABLED (sandbox/demo mode)", "WARN")
+            log_system("[!] DEV MODE ENABLED - Command approvals DISABLED (sandbox/demo mode)", "WARN")
 
         # EXECUTION MAP - Keys must match function names exactly
         self.tools_map = {
@@ -693,7 +686,13 @@ EXPERTISE: You are an IT systems administrator and desktop automation specialist
 - Automation: Desktop GUI control, file management, application scripting
 
 IMPORTANT: You are connected to a {agent_os} system. Use {shell_type} for commands.
-{f"MODE: {prompt_suffix}" if prompt_suffix else ""}
+
+=== EXECUTION CONSTRAINTS ({mode.upper()} MODE) ===
+- Maximum tool calls: {max_tool_calls}
+- Timeout per request: {mode_timeout}s
+- If your task requires more than {max_tool_calls} tool calls, inform the user early and suggest using a higher mode (Balanced or Thorough).
+- Plan your investigation to fit within these limits. Prioritize the most diagnostic commands first.
+{f"- {prompt_suffix}" if prompt_suffix else ""}
 
 YOU HAVE ACCESS TO THESE CAPABILITIES - USE THEM:
 - run_terminal_command: Execute PowerShell commands (dir, ls, Get-Process, etc.)

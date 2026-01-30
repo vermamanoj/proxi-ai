@@ -272,5 +272,43 @@ If the Gemini API stops responding mid-conversation:
 
 ---
 
+## 10. Future Plans
+
+### Supervisory Multi-Agent Architecture (Planned)
+A hierarchical agent system where a Supervisor LLM orchestrates multiple specialized agents:
+
+```
+┌─────────────────────────────────────────────┐
+│           SUPERVISOR (Pro Model)            │
+│  - Decomposes complex tasks into subtasks   │
+│  - Assigns to appropriate specialist agents │
+│  - Monitors progress and handles failures   │
+│  - Synthesizes final results                │
+└─────────────────┬───────────────────────────┘
+                  │
+    ┌─────────────┼─────────────┐
+    ▼             ▼             ▼
+┌────────┐  ┌────────┐  ┌────────┐
+│Research│  │Execute │  │Verify  │
+│ Agent  │  │ Agent  │  │ Agent  │
+│(Flash) │  │(Flash) │  │(Flash) │
+└────────┘  └────────┘  └────────┘
+```
+
+**Benefits:**
+- Better task planning for complex investigations
+- Parallel execution of independent subtasks
+- Specialized agents for different domains (security, automation, analysis)
+- Cost optimization (supervisor uses Pro only for planning)
+
+**Status:** Not implemented. Current system uses single-agent with mode-based constraints.
+
+### Admin Panel Mode Configuration (Planned)
+- Web UI to edit `backend/config/modes.json`
+- Real-time mode adjustment without restart
+- Custom mode creation for specific use cases
+
+---
+
 *For deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md)*  
 *For usage guide, see [USER_GUIDE.md](../USER_GUIDE.md)*
