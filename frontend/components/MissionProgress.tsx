@@ -51,8 +51,11 @@ export const MissionProgress: React.FC<MissionProgressProps> = ({
         // Look ahead for result
         const nextItem = trace[i + 1];
         const hasResult = nextItem?.step_type === 'tool_result';
-        const resultContent = hasResult && typeof nextItem.content === 'string' 
-          ? nextItem.content.substring(0, 100) 
+        const resultOutput = hasResult ? nextItem?.metadata?.output : '';
+        const resultContent = hasResult
+          ? (typeof resultOutput === 'string'
+              ? resultOutput.substring(0, 100)
+              : JSON.stringify(resultOutput).substring(0, 100))
           : '';
 
         // Only mark as 'running' if this is one of the last few items AND we're processing

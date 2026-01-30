@@ -115,9 +115,12 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
                         </div>
                       ) : (
                         <div className="text-green-400 font-mono bg-black/30 p-2 rounded max-h-32 overflow-y-auto">
-                          {typeof item.content === 'string' 
-                            ? item.content.substring(0, 500) 
-                            : JSON.stringify(item.content).substring(0, 500)}
+                          {(() => {
+                            const output = item.metadata?.output ?? item.content;
+                            return typeof output === 'string'
+                              ? output.substring(0, 500)
+                              : JSON.stringify(output).substring(0, 500);
+                          })()}
                         </div>
                       )}
                     </div>
