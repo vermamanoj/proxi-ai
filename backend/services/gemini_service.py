@@ -187,6 +187,8 @@ class GeminiService:
             # File transfer
             "send_file_to_user": self.send_file_to_user,
             # Macro-action tools (action chunking for smoother automation)
+            "open_app": self.open_app,
+            "draw_shape": self.draw_shape,
             "navigate_app": self.navigate_app,
             "interact_element": self.interact_element,
             "fill_form": self.fill_form,
@@ -782,6 +784,110 @@ class GeminiService:
         
         return f"NAVIGATE_APP completed: {' → '.join(steps_log)}"
 
+    def open_app(self, app_name: str, wait_seconds: float = 1.5):
+        """
+        Quickly open an application by name. Uses direct CLI commands - faster than navigate_app.
+        Prefer this for simply launching apps. Use navigate_app only when you need to go to a specific location.
+        
+        Args:
+            app_name: Name of app to open (e.g., "Paint", "Notepad", "Chrome", "Calculator", "Settings")
+            wait_seconds: How long to wait for app to load (default 1.5)
+        
+        Returns:
+            Result of app launch
+        """
+        import time
+        ds = get_desktop_service()
+        
+        # Map common app names to launch commands
+        app_commands = {
+            # Windows apps
+            "paint": "mspaint",
+            "notepad": "notepad",
+            "calculator": "calc",
+            "chrome": "chrome",
+            "firefox": "firefox",
+            "edge": "msedge",
+            "explorer": "explorer",
+            "file explorer": "explorer",
+            "cmd": "cmd",
+            "powershell": "powershell",
+            "terminal": "wt",
+            "settings": "ms-settings:",
+            "task manager": "taskmgr",
+            "control panel": "control",
+            "snipping tool": "snippingtool",
+            "word": "winword",
+            "excel": "excel",
+            "powerpoint": "powerpnt",
+            "outlook": "outlook",
+            "vscode": "code",
+            "visual studio code": "code",
+            # Linux apps
+            "gedit": "gedit",
+            "nautilus": "nautilus",
+            "files": "nautilus",
+            "gimp": "gimp",
+            "libreoffice": "libreoffice",
+        }
+        
+        # Normalize app name
+        app_lower = app_name.lower().strip()
+        command = app_commands.get(app_lower, app_name)
+        
+        # Determine OS and build launch command
+        import platform
+        if platform.system() == "Windows":
+            launch_cmd = f"Start-Process {command}"
+        else:
+            launch_cmd = f"{command} &"
+        
+        try:
+            result = ds.run_terminal_command(launch_cmd)
+            time.sleep(wait_seconds)
+            return f"Launched {app_name} successfully"
+        except Exception as e:
+            return f"Failed to launch {app_name}: {str(e)}"
+
+    def draw_shape(self, shape: str, x: float, y: float, width: float, height: float, app: str = "Paint"):
+        """
+        Draw a shape at specified position and size. Works with Paint and similar drawing apps.
+        More efficient than multiple drag_mouse calls.
+        
+        Args:
+            shape: Shape type - "rectangle", "oval", "line", "circle", "square"
+            x: Top-left X coordinate
+            y: Top-left Y coordinate  
+            width: Width of shape (for line, this is horizontal distance)
+            height: Height of shape (for line, this is vertical distance)
+            app: Drawing application (default "Paint")
+        
+        Returns:
+            Result of drawing operation
+        """
+        ds = get_desktop_service()
+        
+        # Calculate end coordinates
+        end_x = x + width
+        end_y = y + height
+        
+        # For circles/squares, make it even
+        if shape.lower() == "circle":
+            shape = "oval"
+            height = width  # Force equal
+            end_y = y + width
+        elif shape.lower() == "square":
+            shape = "rectangle"
+            height = width
+            end_y = y + width
+        
+        # Perform the drag operation to draw
+        try:
+            result = ds.drag_mouse(x, y, end_x, end_y)
+            return f"Drew {shape} from ({x},{y}) to ({end_x},{end_y})"
+        except Exception as e:
+            return f"Failed to draw {shape}: {str(e)}"
+
     def interact_element(self, element_description: str, action: str = "click", text_to_type: str = None):
         """
         Find a UI element by description and perform an action on it.
@@ -1256,8 +1362,10 @@ YOU HAVE ACCESS TO THESE CAPABILITIES - USE THEM:
 - ppt_* tools: Edit PowerPoint presentations
 - get_system_health: Check CPU, memory, disk usage
 
-MACRO-ACTIONS (preferred for complex UI workflows):
-- navigate_app(app_name, destination): Open app and navigate to location in ONE call
+MACRO-ACTIONS (preferred for efficiency):
+- open_app(app_name): FASTEST way to launch apps (Paint, Notepad, Chrome, Settings, etc.) - uses CLI directly
+- draw_shape(shape, x, y, width, height): Draw rectangle/oval/line at position - use with Paint instead of drag_mouse
+- navigate_app(app_name, destination): Open app AND navigate to specific location in ONE call
 - interact_element(description, action, text): Find element and click/type in ONE call  
 - fill_form(fields): Fill multiple form fields in sequence
 - perform_workflow(name, steps): Execute multi-step workflows smoothly

@@ -14,24 +14,32 @@ import platform
 import os
 
 # Load .env file if present (for GEMINI_API_KEY on Windows agents)
-# Try multiple locations: current dir, script dir, parent dir
+# Try multiple locations - load ALL found .env files (later ones override)
 try:
     from dotenv import load_dotenv
     from pathlib import Path
     
-    # Try current directory first
-    if not load_dotenv():
-        # Try script directory
-        script_dir = Path(__file__).parent
-        if not load_dotenv(script_dir / ".env"):
-            # Try parent directory (repo root)
-            load_dotenv(script_dir.parent / ".env")
+    script_dir = Path(__file__).parent
+    repo_root = script_dir.parent
     
-    # Log if GEMINI_API_KEY was loaded
+    # Load in order: repo root first, then script dir, then cwd (last wins)
+    env_locations = [
+        repo_root / ".env",      # E:\data\proxi-win-agent\.env
+        script_dir / ".env",     # E:\data\proxi-win-agent\backend\.env
+        Path.cwd() / ".env",     # Current working directory
+    ]
+    
+    loaded_from = None
+    for env_path in env_locations:
+        if env_path.exists():
+            load_dotenv(env_path, override=True)
+            loaded_from = env_path
+    
+    # Log result
     if os.environ.get("GEMINI_API_KEY"):
-        print(f"[AGENT] GEMINI_API_KEY loaded from .env")
+        print(f"[AGENT] GEMINI_API_KEY loaded from: {loaded_from or 'environment'}")
     else:
-        print(f"[AGENT] WARNING: GEMINI_API_KEY not found in environment - visual grounding will be unavailable")
+        print(f"[AGENT] WARNING: GEMINI_API_KEY not found - checked: {[str(p) for p in env_locations]}")
 except ImportError:
     print("[AGENT] python-dotenv not installed - .env file not loaded")
 import json
