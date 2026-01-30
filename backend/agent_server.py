@@ -12,6 +12,13 @@ Run: uvicorn backend.agent_server:app --host 0.0.0.0 --port 8081
 import uvicorn
 import platform
 import os
+
+# Load .env file if present (for GEMINI_API_KEY on Windows agents)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not required
 import json
 import time
 import uuid

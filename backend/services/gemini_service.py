@@ -1276,6 +1276,24 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                 # Check if we hit tool limit and need to break outer loop too
                 if total_tool_calls > max_tool_calls:
                     break
+                
+                # Save model's function calls to session history for "continue" to work
+                # This allows the LLM to see what it already did when resuming
+                model_parts = []
+                if text_content:
+                    model_parts.append(text_content)
+                for fc in function_calls:
+                    model_parts.append(f"[TOOL_CALL: {fc.name}({proto_to_dict(fc.args)})]")
+                if model_parts:
+                    self.sessions[session_id].append({"role": "model", "parts": model_parts})
+                
+                # Save tool results to session history
+                tool_results = []
+                for i, call_info in enumerate(safe_calls):
+                    if i < len(response_parts):
+                        tool_results.append(f"[TOOL_RESULT: {call_info['name']} -> {str(response_parts[i])[:200]}]")
+                if tool_results:
+                    self.sessions[session_id].append({"role": "user", "parts": tool_results})
                     
                 # Send results back
                 response = await self._send_with_retry(chat, response_parts, timeout_seconds=mode_timeout)
