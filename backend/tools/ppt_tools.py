@@ -730,8 +730,9 @@ def ppt_format_text(slide_number: int, shape_name: str, bold: bool = None, itali
             changes.append(f"size={font_size}")
         
         if font_color is not None:
-            # Convert hex to RGB integer
-            rgb = int(font_color, 16)
+            # Convert hex to RGB integer (strip # if present)
+            color_clean = font_color.lstrip('#')
+            rgb = int(color_clean, 16)
             font.Color.RGB = rgb
             changes.append(f"color=#{font_color}")
         
@@ -919,7 +920,8 @@ def ppt_set_shape_style(slide_number: int, shape_name: str, fill_color: str = No
             else:
                 target_shape.Fill.Visible = True
                 target_shape.Fill.Solid()
-                rgb = int(fill_color, 16)
+                color_clean = fill_color.lstrip('#')
+                rgb = int(color_clean, 16)
                 # Convert BGR to RGB for PowerPoint
                 r = (rgb >> 16) & 0xFF
                 g = (rgb >> 8) & 0xFF
@@ -934,7 +936,8 @@ def ppt_set_shape_style(slide_number: int, shape_name: str, fill_color: str = No
                 changes.append("line=none")
             else:
                 target_shape.Line.Visible = True
-                rgb = int(line_color, 16)
+                color_clean = line_color.lstrip('#')
+                rgb = int(color_clean, 16)
                 r = (rgb >> 16) & 0xFF
                 g = (rgb >> 8) & 0xFF
                 b = rgb & 0xFF
@@ -1011,7 +1014,8 @@ def ppt_add_textbox(slide_number: int, text: str, left: int, top: int,
             font.Size = font_size
         
         if font_color:
-            rgb = int(font_color, 16)
+            color_clean = font_color.lstrip('#')
+            rgb = int(color_clean, 16)
             r = (rgb >> 16) & 0xFF
             g = (rgb >> 8) & 0xFF
             b = rgb & 0xFF
@@ -1154,39 +1158,51 @@ def ppt_add_chart(slide_number: int, chart_type: str, data: List[List],
         
         slide = presentation.Slides(slide_number)
         
-        # Add chart shape
-        chart_shape = slide.Shapes.AddChart2(
-            -1,  # Use default style
-            CHART_TYPES[chart_type_lower],
-            left, top, width, height
-        )
+        # Add chart shape - use style 201 for cleaner look
+        try:
+            chart_shape = slide.Shapes.AddChart2(
+                201,  # Style index
+                CHART_TYPES[chart_type_lower],
+                left, top, width, height
+            )
+        except Exception as chart_err:
+            # Fallback to AddChart (older API)
+            log_system(f"AddChart2 failed, trying AddChart: {chart_err}", "PPT")
+            chart_shape = slide.Shapes.AddChart(
+                CHART_TYPES[chart_type_lower],
+                left, top, width, height
+            )
         
         chart = chart_shape.Chart
         
         # Set chart data
         if data and len(data) > 0:
-            # Access the chart's data sheet
-            chart_data = chart.ChartData
-            chart_data.Activate()
-            
-            workbook = chart_data.Workbook
-            worksheet = workbook.Worksheets(1)
-            
-            # Clear existing data
-            worksheet.UsedRange.Clear()
-            
-            # Write data to worksheet
-            for row_idx, row in enumerate(data):
-                for col_idx, value in enumerate(row):
-                    worksheet.Cells(row_idx + 1, col_idx + 1).Value = value
-            
-            # Set data range
-            rows = len(data)
-            cols = len(data[0]) if data else 1
-            data_range = worksheet.Range(worksheet.Cells(1, 1), worksheet.Cells(rows, cols))
-            chart.SetSourceData(data_range)
-            
-            workbook.Close(False)
+            try:
+                # Access the chart's data sheet
+                chart_data = chart.ChartData
+                chart_data.Activate()
+                
+                workbook = chart_data.Workbook
+                worksheet = workbook.Worksheets(1)
+                
+                # Clear existing data
+                worksheet.UsedRange.Clear()
+                
+                # Write data to worksheet
+                for row_idx, row in enumerate(data):
+                    for col_idx, value in enumerate(row):
+                        worksheet.Cells(row_idx + 1, col_idx + 1).Value = value
+                
+                # Set data range
+                rows = len(data)
+                cols = len(data[0]) if data else 1
+                data_range = worksheet.Range(worksheet.Cells(1, 1), worksheet.Cells(rows, cols))
+                chart.SetSourceData(data_range)
+                
+                workbook.Close(False)
+            except Exception as data_err:
+                log_system(f"Chart data population failed: {data_err}", "ERR")
+                # Chart still added, just with default data
         
         # Set title if provided
         if title:
