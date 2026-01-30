@@ -1015,7 +1015,7 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                             yield json.dumps({"type": "verification", "status": "success", "reason": judgment.get('reason')}) + "\n"
                         else:
                             finalize_mission(current_mission_id, "FAILED")
-                            res = f"VERIFICATION FAILED: {judgment.get('reason')}"
+                            res = f"VERIFICATION FAILED: {judgment.get('reason')}. Consider retrying the action or trying an alternative approach."
                             yield json.dumps({"type": "verification", "status": "failed", "reason": judgment.get('reason')}) + "\n"
 
                     # Handle screenshot sharing specially

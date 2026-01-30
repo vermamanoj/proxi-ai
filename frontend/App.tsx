@@ -751,6 +751,17 @@ const App: React.FC = () => {
             )}
           </div>
 
+          {/* Continue button when stalled */}
+          {missionState.phase === 'stalled' && !isProcessing && (
+            <button
+              type="button"
+              onClick={() => sendCommand('Please continue where you left off')}
+              className="px-4 py-2 bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 rounded-xl text-sm hover:bg-yellow-500/30 transition-all"
+            >
+              Continue
+            </button>
+          )}
+
           {/* Right side buttons - changes based on input state */}
           <div className="flex items-center gap-1">
             {/* Mic button - always visible */}
