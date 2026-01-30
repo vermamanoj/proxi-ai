@@ -875,9 +875,15 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
 
             # Format message based on context
             if len(history) > 0:
-                # This is a follow-up message (like "yes" for approval)
-                user_message = message
-                log_system(f"Follow-up message in session: {message}", "SESSION")
+                # This is a follow-up message
+                # Detect "continue" requests and add context to resume, not restart
+                msg_lower = message.strip().lower()
+                if msg_lower in ("continue", "go on", "proceed", "keep going", "please continue", "continue where you left off", "please continue where you left off"):
+                    user_message = "CONTINUE: Resume exactly where you left off. Do NOT restart analysis or create a new plan. Continue from your last action/thought and complete the remaining goals. Do NOT call get_system_health or other tools you already called."
+                    log_system(f"Continue request detected - instructing LLM to resume", "SESSION")
+                else:
+                    user_message = message
+                    log_system(f"Follow-up message in session: {message}", "SESSION")
             else:
                 # New conversation - prefix with GOAL
                 user_message = f"GOAL: {message}"

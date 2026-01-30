@@ -19,6 +19,9 @@ app = FastAPI(title="Proxi Forensic Agent")
 # Agent authentication
 AGENT_API_KEY = os.getenv("PROXI_AGENT_KEY", "")
 
+# Demo mode - bypasses security restrictions for hackathon demos
+DEV_MODE = os.getenv("PROXI_DEV_MODE", "false").lower() in ("true", "1", "yes")
+
 class ToolCall(BaseModel):
     tool_name: str
     parameters: dict
@@ -225,6 +228,10 @@ BLOCKED_PATTERNS = [
 
 def is_command_blocked(command: str) -> tuple[bool, str]:
     """Check if command accesses restricted paths or patterns."""
+    # Bypass all blocks in demo mode (for hackathon videos)
+    if DEV_MODE:
+        return False, ""
+    
     cmd_lower = command.lower().strip()
     
     # Check for blocked paths
@@ -373,4 +380,6 @@ if __name__ == "__main__":
     import uvicorn
     print("[FORENSIC AGENT] Starting Proxi Forensic Agent on port 8081...")
     print(f"[FORENSIC AGENT] Agent key configured: {bool(AGENT_API_KEY)}")
+    if DEV_MODE:
+        print("[FORENSIC AGENT] [!] DEV MODE ENABLED - Security blocks DISABLED")
     uvicorn.run(app, host="0.0.0.0", port=8081)

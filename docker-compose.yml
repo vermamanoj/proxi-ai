@@ -43,6 +43,7 @@ services:
       - "5081:8081"
     environment:
       - PROXI_AGENT_KEY=${PROXI_AGENT_KEY}
+      - PROXI_DEV_MODE=${PROXI_DEV_MODE:-false}
     restart: unless-stopped
 
   # Frontend UI
