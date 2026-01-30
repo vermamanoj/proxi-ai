@@ -8,6 +8,24 @@ interface MermaidDiagramProps {
 // Track rendered diagrams to avoid re-rendering same content
 const renderedCache = new Map<string, string>();
 
+/**
+ * Sanitize mermaid syntax to fix common LLM output issues.
+ * Only cleans parentheses INSIDE quoted strings (edge labels),
+ * preserves valid mermaid node syntax like A(rounded) or B((circle)).
+ */
+function sanitizeMermaidSyntax(chart: string): string {
+  // Replace parentheses only inside double-quoted strings (edge labels)
+  // Match: "..." and replace ( with - and remove )
+  return chart.replace(/"([^"]+)"/g, (match, content) => {
+    const cleaned = content
+      .replace(/\(/g, ' - ')  // Replace ( with -
+      .replace(/\)/g, '')     // Remove )
+      .replace(/\s+/g, ' ')   // Collapse multiple spaces
+      .trim();
+    return `"${cleaned}"`;
+  });
+}
+
 mermaid.initialize({
   startOnLoad: false,
   theme: 'dark',
@@ -59,8 +77,11 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
       const trimmed = chart?.trim();
       if (!trimmed || !containerRef.current) return;
 
+      // Sanitize LLM output to fix common syntax issues
+      const sanitized = sanitizeMermaidSyntax(trimmed);
+
       // Check cache first to prevent flickering
-      const cached = renderedCache.get(trimmed);
+      const cached = renderedCache.get(sanitized);
       if (cached) {
         setSvg(cached);
         setError(null);
@@ -68,8 +89,8 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
       }
 
       try {
-        const { svg } = await mermaid.render(chartId, trimmed);
-        renderedCache.set(trimmed, svg);
+        const { svg } = await mermaid.render(chartId, sanitized);
+        renderedCache.set(sanitized, svg);
         setSvg(svg);
         setError(null);
       } catch (err) {
