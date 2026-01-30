@@ -72,13 +72,17 @@ class GeminiService:
             "model": "flash",
             "verify": False,
             "max_turns": 5,
-            "prompt_suffix": "Be concise and direct. Skip verification for simple tasks.",
+            "max_tool_calls": 8,  # Hard limit on tool executions
+            "timeout": 30,  # Shorter timeout for quick mode
+            "prompt_suffix": "Be concise and direct. Skip verification for simple tasks. Limit investigation to essential checks only.",
             "description": "Fast execution for simple queries and status checks"
         },
         "balanced": {
             "model": "flash",
             "verify": "auto",  # Verify only action tasks
             "max_turns": 10,
+            "max_tool_calls": 20,
+            "timeout": 60,
             "prompt_suffix": "",
             "description": "Default mode - verification for action tasks"
         },
@@ -86,6 +90,8 @@ class GeminiService:
             "model": "pro",
             "verify": True,
             "max_turns": 15,
+            "max_tool_calls": 40,
+            "timeout": 90,
             "prompt_suffix": "Double-check your work. Verify each step before proceeding.",
             "description": "Deep analysis with full verification for critical operations"
         }
@@ -667,9 +673,11 @@ class GeminiService:
         # Model selection based on mode config
         model_name = self.SMART_TEXT_MODEL if mode_config["model"] == "pro" else self.FAST_TEXT_MODEL
         max_turns = mode_config["max_turns"]
+        max_tool_calls = mode_config.get("max_tool_calls", 20)
+        mode_timeout = mode_config.get("timeout", 60)
         verify_mode = mode_config["verify"]
         prompt_suffix = mode_config["prompt_suffix"]
-        log_system(f"Using model: {model_name} (mode: {mode}, max_turns: {max_turns}, verify: {verify_mode})", "ROUTER")
+        log_system(f"Using model: {model_name} (mode: {mode}, max_turns: {max_turns}, max_tools: {max_tool_calls}, timeout: {mode_timeout}s)", "ROUTER")
 
         # Get active agent's OS context
         agent_os, shell_type = self._get_active_agent_os()
@@ -901,14 +909,15 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
             
             # Send message and store in history
             log_system(f"Sending to model: {str(message_content)[:100]}...", "MODEL")
-            response = await self._send_with_retry(chat, message_content)
+            response = await self._send_with_retry(chat, message_content, timeout_seconds=mode_timeout)
             log_system(f"Response received from model", "MODEL")
             
             # Update session history with user message
             self.sessions[session_id].append({"role": "user", "parts": [user_message]})
 
-            # max_turns set from mode_config earlier
+            # Tracking variables
             last_activity_had_response = False  # Track if we got a proper response
+            total_tool_calls = 0  # Track total tool executions across all turns
             
             for turn in range(max_turns):
                 # Check for cancellation at start of each turn
@@ -1041,11 +1050,19 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                         yield json.dumps({"type": "cancelled", "content": "Mission stopped by user"}) + "\n"
                         return
                     
+                    # Enforce max_tool_calls limit
+                    total_tool_calls += 1
+                    if total_tool_calls > max_tool_calls:
+                        log_system(f"Tool call limit reached ({max_tool_calls}) for mode {mode}", "LIMIT")
+                        yield json.dumps({"type": "llm_thought", "content": f"I've reached the tool execution limit for {mode} mode ({max_tool_calls} calls). Summarizing findings..."}) + "\n"
+                        # Force model to summarize by breaking out
+                        break
+                    
                     name = call_info['name']
                     args = call_info['args']
                     
                     yield json.dumps({"type": "status_change", "phase": "executing", "tool": name}) + "\n"
-                    log_system(f"TOOL_CALL: {name}({args})", "EXEC")
+                    log_system(f"TOOL_CALL: {name}({args}) [{total_tool_calls}/{max_tool_calls}]", "EXEC")
 
                     # Execute (pass session_id for approval tracking)
                     _, _, res = await self._execute_with_index(i, name, args, session_id)
@@ -1136,8 +1153,12 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                     )))
                     yield json.dumps({"type": "tool_result", "name": name, "content": str(res)[:500]}) + "\n"
 
+                # Check if we hit tool limit and need to break outer loop too
+                if total_tool_calls > max_tool_calls:
+                    break
+                    
                 # Send results back
-                response = await self._send_with_retry(chat, response_parts)
+                response = await self._send_with_retry(chat, response_parts, timeout_seconds=mode_timeout)
 
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
 

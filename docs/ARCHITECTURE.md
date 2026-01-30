@@ -176,7 +176,7 @@ POST /execute
 
 ---
 
-## 6. Execution Modes (v3.1.0)
+## 6. Execution Modes (v3.1.0) (section updated on 30-01-2026)
 
 Proxi supports three execution modes selectable via the frontend Settings panel:
 
