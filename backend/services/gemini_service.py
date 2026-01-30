@@ -917,6 +917,7 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
             # Tracking variables
             last_activity_had_response = False  # Track if we got a proper response
             total_tool_calls = 0  # Track total tool executions across all turns
+            accumulated_content = []  # Track all model responses for session recovery
             
             for turn in range(max_turns):
                 # Check for cancellation at start of each turn
@@ -946,6 +947,7 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
 
                 # Stream thought/text to UI
                 if text_content:
+                    accumulated_content.append(text_content)  # Track for session recovery
                     msg_type = "llm_thought" if function_calls else "response"
                     log_system(f"LLM: {text_content[:100]}...", "THOUGHT" if function_calls else "RESPONSE")
                     yield json.dumps({"type": msg_type, "content": text_content}) + "\n"
@@ -1163,6 +1165,11 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
 
         except Exception as e:
             log_system(f"HIVE ERROR: {e}", "ERR")
+            # Save partial content to session history for recovery on continue
+            if accumulated_content:
+                partial_response = "\n".join(accumulated_content[-3:])  # Last 3 responses
+                self.sessions[session_id].append({"role": "model", "parts": [partial_response]})
+                log_system(f"Saved partial response ({len(accumulated_content)} items) to session for recovery", "SESSION")
             yield json.dumps({"type": "error", "content": str(e)}) + "\n"
 
     async def _verify_outcome(self, claim, evidence, criteria):
