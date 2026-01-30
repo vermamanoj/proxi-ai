@@ -1,11 +1,12 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import mermaid from 'mermaid';
+import { ZoomIn, X } from 'lucide-react';
 
 interface MermaidDiagramProps {
   chart: string;
 }
 
-// Track rendered diagrams to avoid re-rendering same content
+// Track rendered diagrams as data URLs to avoid re-rendering
 const renderedCache = new Map<string, string>();
 
 /**
@@ -57,13 +58,13 @@ mermaid.initialize({
 
 export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [svg, setSvg] = useState<string>('');
+  const [imageUrl, setImageUrl] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [isZoomed, setIsZoomed] = useState(false);
   
   // Stable ID based on chart content hash to prevent re-renders
   const chartId = useMemo(() => {
     const trimmed = chart?.trim() || '';
-    // Simple hash for stable ID
     let hash = 0;
     for (let i = 0; i < trimmed.length; i++) {
       hash = ((hash << 5) - hash) + trimmed.charCodeAt(i);
@@ -72,10 +73,18 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
     return `mermaid-${Math.abs(hash).toString(36)}`;
   }, [chart]);
 
+  // Convert SVG string to data URL for stable image rendering
+  const svgToDataUrl = useCallback((svgString: string): string => {
+    const encoded = encodeURIComponent(svgString)
+      .replace(/'/g, '%27')
+      .replace(/"/g, '%22');
+    return `data:image/svg+xml,${encoded}`;
+  }, []);
+
   useEffect(() => {
     const renderDiagram = async () => {
       const trimmed = chart?.trim();
-      if (!trimmed || !containerRef.current) return;
+      if (!trimmed) return;
 
       // Sanitize LLM output to fix common syntax issues
       const sanitized = sanitizeMermaidSyntax(trimmed);
@@ -83,24 +92,23 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
       // Check cache first to prevent flickering
       const cached = renderedCache.get(sanitized);
       if (cached) {
-        setSvg(cached);
+        setImageUrl(cached);
         setError(null);
         return;
       }
 
       try {
         const { svg } = await mermaid.render(chartId, sanitized);
-        renderedCache.set(sanitized, svg);
-        setSvg(svg);
+        const dataUrl = svgToDataUrl(svg);
+        renderedCache.set(sanitized, dataUrl);
+        setImageUrl(dataUrl);
         setError(null);
       } catch (err) {
         console.error('Mermaid render error:', err);
         setError('Failed to render diagram');
       } finally {
-        // Clean up orphaned mermaid elements that get created in document body
-        // These can break page layout if left behind
+        // Clean up orphaned mermaid elements
         document.querySelectorAll('div[id^="dmermaid-"], div[id^="mermaid-"]').forEach(el => {
-          // Only remove if it's directly in body (orphaned)
           if (el.parentElement === document.body) {
             el.remove();
           }
@@ -109,7 +117,7 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
     };
 
     renderDiagram();
-  }, [chart, chartId]);
+  }, [chart, chartId, svgToDataUrl]);
 
   if (error) {
     return (
@@ -120,11 +128,56 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
     );
   }
 
+  if (!imageUrl) {
+    return (
+      <div className="my-3 p-4 bg-black/30 rounded-lg flex items-center justify-center h-24">
+        <div className="w-5 h-5 border-2 border-proxi-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div
-      ref={containerRef}
-      className="my-3 p-4 bg-black/30 rounded-lg overflow-x-auto"
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
+    <>
+      {/* Diagram thumbnail with zoom button */}
+      <div 
+        ref={containerRef}
+        className="my-3 p-4 bg-black/30 rounded-lg overflow-x-auto relative group cursor-pointer"
+        onClick={() => setIsZoomed(true)}
+      >
+        <img 
+          src={imageUrl} 
+          alt="Mermaid Diagram" 
+          className="max-w-full h-auto"
+          style={{ minHeight: '80px' }}
+        />
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="p-1.5 bg-gray-800/80 rounded text-gray-300 text-xs flex items-center gap-1">
+            <ZoomIn className="w-3 h-3" />
+            Click to zoom
+          </div>
+        </div>
+      </div>
+
+      {/* Fullscreen zoom modal */}
+      {isZoomed && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setIsZoomed(false)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 bg-gray-800 hover:bg-gray-700 rounded-full text-white transition-colors"
+            onClick={() => setIsZoomed(false)}
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img 
+            src={imageUrl} 
+            alt="Mermaid Diagram (Zoomed)" 
+            className="max-w-[95vw] max-h-[95vh] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+    </>
   );
 };
