@@ -791,8 +791,9 @@ Include ALL relevant details so user can make an informed decision:
 EXAMPLE APPROVAL REQUEST:
 "I found the issue:
 
-**Process:** ffmpeg (PID 1337)
-**Usage:** 99.8% CPU, 45% Memory
+**Process:** ffmpeg
+**PID:** 1337
+**Usage:** 95% CPU, 45% Memory
 **Task:** Video transcoding - converting wedding_video.mp4 to 4K format
 **Running for:** 45 minutes
 **Owner:** media-service (batch job)

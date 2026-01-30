@@ -1,7 +1,7 @@
 # Proxi System Architecture
 
-**Version:** v3.0.0  
-**Last Updated:** January 28, 2026
+**Version:** v3.1.0  
+**Last Updated:** January 30, 2026
 
 ---
 
@@ -176,7 +176,35 @@ POST /execute
 
 ---
 
-## 6. Tech Stack
+## 6. Execution Modes (v3.1.0)
+
+Proxi supports three execution modes selectable via the frontend Settings panel:
+
+| Mode | Model | Max Turns | Verification | Use Case |
+|------|-------|-----------|--------------|----------|
+| **Quick** ⚡ | Flash | 5 | Skip | Simple queries, status checks |
+| **Balanced** ⚖️ | Flash | 10 | Auto (action tasks) | Default - most tasks |
+| **Thorough** 🔬 | Pro | 15 | Always | Critical ops, complex multi-step |
+
+### Mode Configuration (backend)
+```python
+MODE_CONFIGS = {
+    "quick":    {"model": "flash", "verify": False,  "max_turns": 5},
+    "balanced": {"model": "flash", "verify": "auto", "max_turns": 10},
+    "thorough": {"model": "pro",   "verify": True,   "max_turns": 15}
+}
+```
+
+### Stall Recovery (v3.1.0)
+If the Gemini API stops responding mid-conversation:
+1. Backend detects empty response and emits `stalled` event
+2. Frontend shows "Continue" button
+3. User can click to send "Please continue where you left off"
+4. Session history preserved for seamless resumption
+
+---
+
+## 7. Tech Stack
 
 ### AI Models
 | Role | Model | Purpose |
@@ -207,7 +235,7 @@ POST /execute
 
 ---
 
-## 7. Key Files
+## 8. Key Files
 
 | Component | File | Description |
 |-----------|------|-------------|
@@ -223,7 +251,7 @@ POST /execute
 
 ---
 
-## 8. API Endpoints
+## 9. API Endpoints
 
 ### Core (Port 4000)
 | Endpoint | Method | Description |
