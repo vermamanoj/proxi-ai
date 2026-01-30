@@ -66,6 +66,11 @@ from backend.tools.ppt_tools import (
     ppt_resize_shape,
     ppt_format_text,
     ppt_get_theme_colors,
+    # Advanced PPT tools
+    ppt_add_table,
+    ppt_add_textbox,
+    ppt_set_shape_style,
+    ppt_create_business_slide,
 )
 
 # Agent API Key for Core <-> Agent authentication
@@ -314,6 +319,46 @@ async def execute_tool(call: ToolCall, _: bool = Depends(verify_agent_key)):
             )
         elif tool_name == "ppt_get_theme_colors":
             result = ppt_get_theme_colors(int(params.get("slide_number", 1)))
+        # Advanced PPT tools
+        elif tool_name == "ppt_add_table":
+            result = ppt_add_table(
+                int(params.get("slide_number", 1)),
+                int(params.get("rows", 3)),
+                int(params.get("cols", 3)),
+                params.get("data", []),
+                int(params.get("left", 50)),
+                int(params.get("top", 150)),
+                int(params.get("width", 600))
+            )
+        elif tool_name == "ppt_add_textbox":
+            result = ppt_add_textbox(
+                int(params.get("slide_number", 1)),
+                params.get("text", ""),
+                int(params.get("left", 100)),
+                int(params.get("top", 100)),
+                int(params.get("width", 300)),
+                int(params.get("height", 50)),
+                params.get("font_size"),
+                params.get("font_color"),
+                params.get("bold", False),
+                params.get("align", "left")
+            )
+        elif tool_name == "ppt_set_shape_style":
+            result = ppt_set_shape_style(
+                int(params.get("slide_number", 1)),
+                params.get("shape_name", ""),
+                params.get("fill_color"),
+                params.get("line_color"),
+                params.get("line_weight"),
+                params.get("transparency")
+            )
+        elif tool_name == "ppt_create_business_slide":
+            result = ppt_create_business_slide(
+                int(params.get("slide_number", 1)),
+                params.get("title", ""),
+                params.get("points", []),
+                params.get("highlight_point")
+            )
         else:
             elapsed_ms = int((time.time() - start_time) * 1000)
             err = f"Unknown tool: {tool_name}"
