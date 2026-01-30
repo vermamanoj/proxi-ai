@@ -96,6 +96,15 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
       } catch (err) {
         console.error('Mermaid render error:', err);
         setError('Failed to render diagram');
+      } finally {
+        // Clean up orphaned mermaid elements that get created in document body
+        // These can break page layout if left behind
+        document.querySelectorAll('div[id^="dmermaid-"], div[id^="mermaid-"]').forEach(el => {
+          // Only remove if it's directly in body (orphaned)
+          if (el.parentElement === document.body) {
+            el.remove();
+          }
+        });
       }
     };
 

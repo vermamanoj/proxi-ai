@@ -878,6 +878,17 @@ const App: React.FC = () => {
       {showAdminPanel && (
         <AdminPanel onClose={() => setShowAdminPanel(false)} />
       )}
+
+      {/* Floating New Session button - always accessible safety net */}
+      {displayTrace.length > 3 && (
+        <button
+          onClick={() => { liveClearSession(); brainClearSession(); }}
+          className="fixed bottom-24 right-4 z-50 p-3 bg-gray-800 hover:bg-gray-700 text-gray-300 hover:text-green-400 rounded-full shadow-lg border border-gray-700 transition-all"
+          title="Start New Session"
+        >
+          <Plus className="w-5 h-5" />
+        </button>
+      )}
     </div>
   );
 };
