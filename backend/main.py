@@ -352,7 +352,12 @@ async def chat(request: ChatRequest, http_request: Request):
             # Execute command directly via desktop service
             try:
                 ds = get_desktop_service()
-                output = ds.run_terminal_command(command)
+                result = ds.run_terminal_command(command)
+                # Extract output string from result dict
+                if isinstance(result, dict):
+                    output = result.get('output', '') if result.get('success') else result.get('output', 'Command failed')
+                else:
+                    output = str(result)
             except Exception as e:
                 output = f"Error executing command: {str(e)}"
             

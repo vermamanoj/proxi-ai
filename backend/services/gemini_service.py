@@ -1286,6 +1286,9 @@ class GeminiService:
         mode_config = self.MODE_CONFIGS[mode]
         log_system(f"NEW REQUEST: {message} (Mode: {mode}, Session: {session_id})", "ROUTER")
         
+        # Clear any previous cancellation flag for this session (allows new requests after Stop)
+        self.cancelled_sessions.discard(session_id)
+        
         # Generate unique session ID if not provided - use microseconds for uniqueness
         import uuid
         if not session_id:
