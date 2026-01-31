@@ -4,6 +4,7 @@ import { TraceStep } from '../types';
 import { User, BrainCircuit, Wrench, Terminal, MessageSquare, ChevronDown, ChevronUp, CheckCircle2, XCircle, Loader2, Monitor } from 'lucide-react';
 import { ScreenshotBubble } from './ScreenshotBubble';
 import { MermaidDiagram } from './MermaidDiagram';
+import { EvidenceCard, parseEvidenceFromMessage } from './EvidenceCard';
 
 interface ChatViewProps {
   trace: TraceStep[];
@@ -238,7 +239,31 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
               {/* Content */}
               <div className={`text-sm leading-relaxed ${isThought ? 'italic' : ''}`}>
                 {typeof step.content === 'string' ? (
-                  isCommandOutput(step.content) || isUser ? (
+                  // Check for evidence in content
+                  (() => {
+                    const evidenceParsed = parseEvidenceFromMessage(step.content);
+                    if (evidenceParsed.hasEvidence && !isUser) {
+                      return (
+                        <div>
+                          {evidenceParsed.remainingContent && (
+                            <div className="mb-2">{evidenceParsed.remainingContent}</div>
+                          )}
+                          <EvidenceCard
+                            evidenceId={evidenceParsed.evidenceId!}
+                            claim={evidenceParsed.claim!}
+                            evidenceType={step.metadata?.evidence_type}
+                            data={step.metadata?.evidence_data}
+                            imageUrl={step.metadata?.screenshot}
+                            confidence={step.metadata?.confidence}
+                            timestamp={step.metadata?.timestamp}
+                            defaultExpanded={false}
+                          />
+                        </div>
+                      );
+                    }
+                    return null;
+                  })() ||
+                  (isCommandOutput(step.content) || isUser ? (
                     // Plain text for commands and user input
                     <span className={isUser && step.content.startsWith('!') ? 'font-mono' : ''}>
                       {isThought ? filterPlanText(step.content) : step.content}
@@ -277,7 +302,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
                     >
                       {isThought ? filterPlanText(step.content) : step.content}
                     </ReactMarkdown>
-                  )
+                  ))
                 ) : (
                   JSON.stringify(step.content)
                 )}
