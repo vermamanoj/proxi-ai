@@ -4,8 +4,9 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import AppV2 from './components/AppV2';
+import AppV3 from './components/AppV3';
 
-// Simple hash router for A/B comparison
+// Simple hash router for A/B/C comparison
 const Router: React.FC = () => {
   const [route, setRoute] = useState(window.location.hash);
 
@@ -15,7 +16,10 @@ const Router: React.FC = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Route: /#/v2 = new design, anything else = original
+  // Routes: /#/v2, /#/v3, default = original
+  if (route === '#/v3') {
+    return <AppV3 />;
+  }
   if (route === '#/v2') {
     return <AppV2 />;
   }
