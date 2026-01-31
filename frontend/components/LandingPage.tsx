@@ -1,247 +1,370 @@
-import React from 'react';
-import { Zap, Monitor, Smartphone, Shield, ArrowRight, Play, Brain, Eye, Mic, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Zap, Play, Shield, CheckCircle2, Monitor, Terminal, Lock, Unlock, X, Loader2, Smartphone, ArrowRight } from 'lucide-react';
 
 interface LandingPageProps {
   onLogin: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
+  const [showWaitlist, setShowWaitlist] = useState(false);
+  const [email, setEmail] = useState('');
+  const [waitlistStatus, setWaitlistStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [waitlistMessage, setWaitlistMessage] = useState('');
+
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    
+    setWaitlistStatus('loading');
+    try {
+      const response = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      
+      if (response.ok) {
+        setWaitlistStatus('success');
+        setWaitlistMessage('You\'re on the list! We\'ll be in touch.');
+        setEmail('');
+      } else {
+        const data = await response.json();
+        setWaitlistStatus('error');
+        setWaitlistMessage(data.detail || 'Something went wrong. Please try again.');
+      }
+    } catch {
+      setWaitlistStatus('error');
+      setWaitlistMessage('Connection error. Please try again.');
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-lg border-b border-gray-800">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-black text-white overflow-x-hidden">
+      {/* Navigation - Sticky */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-lg border-b border-gray-800/50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Zap className="w-8 h-8 text-proxi-accent" />
-            <span className="text-xl font-bold">PROXI</span>
+            <Zap className="w-6 h-6 text-proxi-accent" />
+            <span className="text-lg font-bold tracking-tight">PROXI</span>
           </div>
-          <div className="flex items-center gap-4">
-            <button
-              onClick={onLogin}
-              className="px-4 py-2 bg-proxi-accent text-black font-medium rounded-lg hover:bg-proxi-accent/90 transition-colors"
-            >
-              Login
-            </button>
-          </div>
+          <button
+            onClick={() => setShowWaitlist(true)}
+            className="px-3 py-1.5 text-sm bg-proxi-accent text-black font-medium rounded-lg hover:bg-proxi-accent/90 transition-colors"
+          >
+            Join Waitlist
+          </button>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6">
-        <div className="max-w-6xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-proxi-accent/10 border border-proxi-accent/30 rounded-full text-proxi-accent text-sm mb-6">
-            <Zap className="w-4 h-4" />
+      {/* HERO SECTION */}
+      <section className="pt-24 pb-16 sm:pt-32 sm:pb-24 px-4 sm:px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-proxi-accent/10 border border-proxi-accent/30 rounded-full text-proxi-accent text-xs sm:text-sm mb-6">
+            <Zap className="w-3 h-3 sm:w-4 sm:h-4" />
             <span>Google Gemini Hackathon 2026</span>
           </div>
           
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-            Your AI Desktop Agent
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 leading-tight tracking-tight">
+            From Advice to Action.
             <br />
-            <span className="text-proxi-accent">Anywhere You Go</span>
+            <span className="text-proxi-accent">Finally.</span>
           </h1>
           
-          <p className="text-xl text-gray-400 max-w-2xl mx-auto mb-10">
-            Control your Windows or Linux desktop from your phone using voice commands. 
-            Proxi sees your screen, understands context, and executes tasks with full transparency.
+          <p className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto mb-8">
+            Your AI that executes real work on real computers — with proof and control.
           </p>
 
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <button
-              onClick={onLogin}
-              className="px-8 py-4 bg-proxi-accent text-black font-semibold rounded-xl hover:bg-proxi-accent/90 transition-all flex items-center gap-2 text-lg"
+              onClick={() => setShowWaitlist(true)}
+              className="w-full sm:w-auto px-6 py-3 bg-proxi-accent text-black font-semibold rounded-xl hover:bg-proxi-accent/90 transition-all flex items-center justify-center gap-2"
             >
-              Get Started
-              <ArrowRight className="w-5 h-5" />
+              Join Waitlist
+              <ArrowRight className="w-4 h-4" />
             </button>
             <a
               href="#demo"
-              className="px-8 py-4 bg-gray-800 text-white font-semibold rounded-xl hover:bg-gray-700 transition-all flex items-center gap-2 text-lg"
+              className="w-full sm:w-auto px-6 py-3 bg-gray-800 text-white font-semibold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2"
             >
-              <Play className="w-5 h-5" />
-              Watch Demo
+              <Play className="w-4 h-4" />
+              Watch 3-Minute Demo
             </a>
           </div>
         </div>
       </section>
 
-      {/* Demo Video Section */}
-      <section id="demo" className="py-20 px-6 bg-gray-900/50">
+      {/* PROBLEM SECTION */}
+      <section className="py-12 sm:py-16 px-4 sm:px-6 border-t border-gray-800/50">
+        <div className="max-w-3xl mx-auto text-center">
+          <p className="text-xl sm:text-2xl text-gray-300 font-light">
+            AI can think. <span className="text-gray-500">Work still needs keyboards.</span>
+          </p>
+        </div>
+      </section>
+
+      {/* SOLUTION SECTION */}
+      <section className="py-12 sm:py-16 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto">
-          <div className="aspect-video bg-gray-800 rounded-2xl border border-gray-700 flex items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-proxi-accent/20 to-transparent" />
-            <div className="text-center z-10">
-              <Play className="w-16 h-16 text-proxi-accent mx-auto mb-4" />
-              <p className="text-gray-400">Demo Video Coming Soon</p>
+          <div className="bg-gradient-to-br from-gray-900 to-black rounded-2xl border border-gray-800 p-6 sm:p-10">
+            <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10">
+              <div className="flex-shrink-0">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 bg-proxi-accent/10 rounded-2xl flex items-center justify-center">
+                  <Smartphone className="w-10 h-10 sm:w-12 sm:h-12 text-proxi-accent" />
+                </div>
+              </div>
+              <div className="text-center md:text-left">
+                <h2 className="text-2xl sm:text-3xl font-bold mb-3">
+                  Proxi executes on real computers from your phone.
+                </h2>
+                <p className="text-gray-400">
+                  Controls desktop apps, browsers, terminals. Works with legacy systems without APIs.
+                  Executes multi-step workflows end-to-end.
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Gemini 3 Features Section */}
-      <section className="py-20 px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/30 rounded-full text-blue-400 text-sm mb-4">
-              <Brain className="w-4 h-4" />
-              <span>Powered by Gemini 3</span>
+      {/* TRUST BY DESIGN SECTION */}
+      <section className="py-16 sm:py-20 px-4 sm:px-6 bg-gray-900/30">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3">
+            Trust by Design
+          </h2>
+          <p className="text-gray-400 text-center mb-10 sm:mb-12">
+            Most agents claim success. Proxi proves it.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-6 sm:gap-8">
+            {/* Verified Execution */}
+            <div className="bg-black/50 rounded-2xl border border-gray-800 p-6 sm:p-8">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5 text-green-400" />
+                </div>
+                <h3 className="text-lg sm:text-xl font-semibold">Verified Execution</h3>
+              </div>
+              <ul className="space-y-3 text-gray-400">
+                <li className="flex items-start gap-2">
+                  <span className="text-green-400 mt-1">•</span>
+                  Screenshots as evidence
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-400 mt-1">•</span>
+                  Visual confirmation sent to your phone
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-green-400 mt-1">•</span>
+                  No "agent said it worked"
+                </li>
+              </ul>
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Next-Gen AI Capabilities
-            </h2>
-            <p className="text-gray-400 max-w-2xl mx-auto">
-              Leveraging the latest Gemini 3 models for unprecedented desktop automation
+
+            {/* Safety & Control */}
+            <div className="bg-black/50 rounded-2xl border border-gray-800 p-6 sm:p-8">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-blue-400" />
+                </div>
+                <h3 className="text-lg sm:text-xl font-semibold">Safety & Control</h3>
+              </div>
+              <div className="space-y-3 text-gray-400">
+                <div className="flex items-center gap-3">
+                  <span className="w-3 h-3 bg-green-500 rounded-full"></span>
+                  <span>Safe — auto-allowed</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-3 h-3 bg-yellow-500 rounded-full"></span>
+                  <span>Sensitive — human approval required</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-3 h-3 bg-red-500 rounded-full"></span>
+                  <span>Blocked — never executed</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-center text-lg sm:text-xl text-gray-300 mt-10 sm:mt-12 font-light italic">
+            "Proxi never decides success. Reality does."
+          </p>
+        </div>
+      </section>
+
+      {/* HOW PROXI THINKS - GEMINI 3 */}
+      <section id="demo" className="py-16 sm:py-20 px-4 sm:px-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-full text-blue-400 text-xs mb-4">
+            <span>Powered by Gemini 3</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-bold mb-8">
+            How Proxi Thinks
+          </h2>
+
+          <div className="bg-gradient-to-br from-blue-900/20 to-gray-900/50 rounded-2xl border border-blue-800/30 p-6 sm:p-8">
+            <div className="mb-6">
+              <p className="text-sm text-gray-500 mb-2">You ask:</p>
+              <p className="text-lg sm:text-xl text-white font-medium">
+                "What's the approved minimum margin for this customer?"
+              </p>
+            </div>
+            
+            <div className="space-y-3 text-gray-400">
+              <div className="flex items-start gap-3">
+                <span className="text-proxi-accent font-mono text-sm">1.</span>
+                <span>Proxi opens the CRM</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-proxi-accent font-mono text-sm">2.</span>
+                <span>Navigates to pricing tabs</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-proxi-accent font-mono text-sm">3.</span>
+                <span>Checks policy documents</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-proxi-accent font-mono text-sm">4.</span>
+                <span className="text-green-400">Confirms the answer with a screenshot ✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* OS-AWARE EXECUTION */}
+      <section className="py-16 sm:py-20 px-4 sm:px-6 bg-gray-900/30">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3">
+            OS-Aware Intelligence
+          </h2>
+          <p className="text-gray-400 text-center mb-10 sm:mb-12">
+            Proxi understands the state of your machine.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Unlocked */}
+            <div className="bg-black/50 rounded-2xl border border-green-800/30 p-6 sm:p-8">
+              <div className="flex items-center gap-3 mb-4">
+                <Unlock className="w-6 h-6 text-green-400" />
+                <h3 className="font-semibold">Desktop Unlocked</h3>
+              </div>
+              <div className="flex items-center gap-3 mb-4">
+                <Monitor className="w-12 h-12 text-green-400/50" />
+                <div>
+                  <p className="text-gray-300">Full UI control</p>
+                  <p className="text-gray-500 text-sm">Mouse, keyboard, apps</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Locked */}
+            <div className="bg-black/50 rounded-2xl border border-yellow-800/30 p-6 sm:p-8">
+              <div className="flex items-center gap-3 mb-4">
+                <Lock className="w-6 h-6 text-yellow-400" />
+                <h3 className="font-semibold">Desktop Locked</h3>
+              </div>
+              <div className="flex items-center gap-3 mb-4">
+                <Terminal className="w-12 h-12 text-yellow-400/50" />
+                <div>
+                  <p className="text-gray-300">Terminal fallback</p>
+                  <p className="text-gray-500 text-sm">Commands still work</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* INSPIRATION STORY */}
+      <section className="py-16 sm:py-20 px-4 sm:px-6">
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-6">
+            Built for Real Moments
+          </h2>
+          <p className="text-lg text-gray-400 leading-relaxed">
+            The idea came from real moments — like negotiating pricing in a meeting without a laptop,
+            knowing the data was sitting on a computer back at the office.
+          </p>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="py-8 sm:py-10 px-4 sm:px-6 border-t border-gray-800">
+        <div className="max-w-5xl mx-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-proxi-accent" />
+              <span className="font-bold">PROXI</span>
+            </div>
+            <p className="text-gray-500 text-sm text-center">
+              Supports Windows and Linux systems deployed on your infrastructure.
             </p>
-          </div>
-
-          <div className="grid md:grid-cols-4 gap-6 mb-16">
-            <div className="p-6 bg-gradient-to-br from-blue-900/30 to-transparent rounded-xl border border-blue-800/30">
-              <Eye className="w-8 h-8 text-blue-400 mb-4" />
-              <h3 className="font-semibold mb-2">Vision Understanding</h3>
-              <p className="text-gray-400 text-sm">Gemini 3 Flash analyzes screenshots to understand UI context and element positions</p>
-            </div>
-            <div className="p-6 bg-gradient-to-br from-purple-900/30 to-transparent rounded-xl border border-purple-800/30">
-              <Mic className="w-8 h-8 text-purple-400 mb-4" />
-              <h3 className="font-semibold mb-2">Native Audio</h3>
-              <p className="text-gray-400 text-sm">Real-time voice interaction via Gemini Live WebRTC for hands-free control</p>
-            </div>
-            <div className="p-6 bg-gradient-to-br from-green-900/30 to-transparent rounded-xl border border-green-800/30">
-              <Brain className="w-8 h-8 text-green-400 mb-4" />
-              <h3 className="font-semibold mb-2">Deep Reasoning</h3>
-              <p className="text-gray-400 text-sm">Gemini 3 Pro handles complex multi-step tasks with planning and verification</p>
-            </div>
-            <div className="p-6 bg-gradient-to-br from-yellow-900/30 to-transparent rounded-xl border border-yellow-800/30">
-              <CheckCircle2 className="w-8 h-8 text-yellow-400 mb-4" />
-              <h3 className="font-semibold mb-2">Verifiable Agent</h3>
-              <p className="text-gray-400 text-sm">Triple Handshake ensures tasks are actually completed before reporting success</p>
-            </div>
-          </div>
-
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
-            How Proxi Works
-          </h2>
-          <p className="text-gray-400 text-center max-w-2xl mx-auto mb-16">
-            A transparent AI agent that bridges your mobile device with your desktop workstation
-          </p>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="p-8 bg-gray-900 rounded-2xl border border-gray-800 hover:border-proxi-accent/50 transition-colors">
-              <div className="w-14 h-14 bg-proxi-accent/10 rounded-xl flex items-center justify-center mb-6">
-                <Smartphone className="w-7 h-7 text-proxi-accent" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Voice Commands</h3>
-              <p className="text-gray-400">
-                Speak naturally to your phone. Proxi understands context and intent, 
-                translating your requests into precise desktop actions.
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="p-8 bg-gray-900 rounded-2xl border border-gray-800 hover:border-proxi-accent/50 transition-colors">
-              <div className="w-14 h-14 bg-proxi-accent/10 rounded-xl flex items-center justify-center mb-6">
-                <Monitor className="w-7 h-7 text-proxi-accent" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Desktop Automation</h3>
-              <p className="text-gray-400">
-                Full OS-level control including mouse, keyboard, file operations, 
-                and application automation. Works with legacy apps too.
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="p-8 bg-gray-900 rounded-2xl border border-gray-800 hover:border-proxi-accent/50 transition-colors">
-              <div className="w-14 h-14 bg-proxi-accent/10 rounded-xl flex items-center justify-center mb-6">
-                <Shield className="w-7 h-7 text-proxi-accent" />
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Human-in-the-Loop</h3>
-              <p className="text-gray-400">
-                Every action requires your approval. Command guardrails prevent 
-                dangerous operations. Full transparency with real-time traces.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Architecture Section */}
-      <section className="py-20 px-6 bg-gray-900/50">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
-            Enterprise-Ready Architecture
-          </h2>
-          <p className="text-gray-400 text-center max-w-2xl mx-auto mb-16">
-            Multi-workstation support with secure connectivity
-          </p>
-
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* Workstation Card - Linux */}
-            <div className="p-6 bg-black rounded-2xl border border-gray-800">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
-                <h3 className="font-semibold">Linux Container</h3>
-                <span className="text-xs text-gray-500 ml-auto">Always Online</span>
-              </div>
-              <p className="text-gray-400 text-sm mb-4">
-                Ubuntu Docker container for terminal automation, git, python, and DevOps tasks.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {['Terminal', 'Git', 'Python', 'Docker'].map(cap => (
-                  <span key={cap} className="px-2 py-1 bg-gray-800 text-gray-400 text-xs rounded">
-                    {cap}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Workstation Card - Windows */}
-            <div className="p-6 bg-black rounded-2xl border border-gray-800">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-3 h-3 bg-blue-500 rounded-full" />
-                <h3 className="font-semibold">Windows Server</h3>
-                <span className="text-xs text-gray-500 ml-auto">On-Demand</span>
-              </div>
-              <p className="text-gray-400 text-sm mb-4">
-                Windows Server 2022 with GUI automation, Office apps, and legacy enterprise tools.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {['Desktop', 'PowerPoint', 'CRM', 'Browser'].map(cap => (
-                  <span key={cap} className="px-2 py-1 bg-gray-800 text-gray-400 text-xs rounded">
-                    {cap}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Ready to Work Smarter?
-          </h2>
-          <p className="text-gray-400 text-lg mb-10">
-            Experience the future of remote desktop automation with AI-powered assistance.
-          </p>
-          <button
-            onClick={onLogin}
-            className="px-10 py-4 bg-proxi-accent text-black font-semibold rounded-xl hover:bg-proxi-accent/90 transition-all text-lg"
-          >
-            Login to Proxi
-          </button>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-8 px-6 border-t border-gray-800">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-proxi-accent" />
-            <span className="text-sm text-gray-400">PROXI © 2026</span>
+            <p className="text-gray-600 text-xs">
+              Built for real-world constraints.
+            </p>
           </div>
         </div>
       </footer>
+
+      {/* WAITLIST MODAL */}
+      {showWaitlist && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6 sm:p-8 w-full max-w-md relative">
+            <button
+              onClick={() => { setShowWaitlist(false); setWaitlistStatus('idle'); }}
+              className="absolute top-4 right-4 text-gray-500 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center mb-6">
+              <Zap className="w-10 h-10 text-proxi-accent mx-auto mb-3" />
+              <h3 className="text-xl font-bold">Join the Waitlist</h3>
+              <p className="text-gray-400 text-sm mt-1">Be first to try Proxi when it launches.</p>
+            </div>
+
+            {waitlistStatus === 'success' ? (
+              <div className="text-center py-4">
+                <CheckCircle2 className="w-12 h-12 text-green-400 mx-auto mb-3" />
+                <p className="text-green-400">{waitlistMessage}</p>
+              </div>
+            ) : (
+              <form onSubmit={handleWaitlistSubmit} className="space-y-4">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="your@email.com"
+                  required
+                  className="w-full px-4 py-3 bg-black border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-proxi-accent"
+                />
+                {waitlistStatus === 'error' && (
+                  <p className="text-red-400 text-sm">{waitlistMessage}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={waitlistStatus === 'loading'}
+                  className="w-full py-3 bg-proxi-accent text-black font-semibold rounded-xl hover:bg-proxi-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {waitlistStatus === 'loading' ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Joining...
+                    </>
+                  ) : (
+                    'Join Waitlist'
+                  )}
+                </button>
+              </form>
+            )}
+
+            <p className="text-gray-500 text-xs text-center mt-4">
+              Already have access? <button onClick={onLogin} className="text-proxi-accent hover:underline">Login</button>
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

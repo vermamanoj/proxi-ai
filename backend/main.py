@@ -283,6 +283,58 @@ async def revoke_magic_link(token: str, request: Request):
         return JSONResponse({"status": "revoked"})
     return JSONResponse({"error": "Link not found"}, status_code=404)
 
+# --- Waitlist Endpoint (public, no auth) ---
+WAITLIST_FILE = Path("data/waitlist.json")
+WAITLIST_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+@app.post("/api/waitlist")
+async def join_waitlist(request: Request):
+    """Add email to waitlist. Public endpoint."""
+    try:
+        data = await request.json()
+        email = data.get("email", "").strip().lower()
+        
+        if not email or "@" not in email:
+            return JSONResponse({"detail": "Invalid email address"}, status_code=400)
+        
+        # Load existing waitlist
+        waitlist = []
+        if WAITLIST_FILE.exists():
+            try:
+                waitlist = json.loads(WAITLIST_FILE.read_text())
+            except:
+                waitlist = []
+        
+        # Check for duplicate
+        if any(e.get("email") == email for e in waitlist):
+            return JSONResponse({"detail": "Already on the waitlist!"}, status_code=200)
+        
+        # Add new entry
+        waitlist.append({
+            "email": email,
+            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "source": "landing_page"
+        })
+        
+        WAITLIST_FILE.write_text(json.dumps(waitlist, indent=2))
+        logging.info(f"[Waitlist] New signup: {email}")
+        
+        return JSONResponse({"status": "success", "message": "You're on the list!"})
+    except Exception as e:
+        logging.error(f"[Waitlist] Error: {e}")
+        return JSONResponse({"detail": "Something went wrong"}, status_code=500)
+
+@app.get("/api/waitlist")
+async def get_waitlist(request: Request):
+    """Get waitlist entries. Admin only."""
+    user = await require_auth(request)
+    if user.get("role") != "admin":
+        return JSONResponse({"error": "Admin access required"}, status_code=403)
+    
+    if WAITLIST_FILE.exists():
+        return JSONResponse(json.loads(WAITLIST_FILE.read_text()))
+    return JSONResponse([])
+
 @app.post("/api/chat")
 async def chat(request: ChatRequest, http_request: Request):
     """Streaming Endpoint for Agent Thoughts. Requires auth."""
