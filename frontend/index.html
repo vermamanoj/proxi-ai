@@ -39,7 +39,21 @@
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Initial loading state shown while JS bundles load -->
+      <div id="initial-loader" style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2" style="animation: pulse 1.5s ease-in-out infinite;">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+        <p style="color: #888; font-size: 14px;">Loading Proxi...</p>
+      </div>
+      <style>
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      </style>
+    </div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>
