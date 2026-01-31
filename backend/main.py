@@ -381,15 +381,13 @@ async def chat(request: ChatRequest, http_request: Request):
                 },
             )
             
-            # Return output to user
-            response_data = json.dumps({
-                "type": "user_command",
-                "status": "executed",
-                "command": command,
-                "content": output
-            }) + "\n"
+            # Return output to user using same format as production (llm_thought + final_response)
+            async def stream_user_command():
+                yield json.dumps({"type": "llm_thought", "content": f"Executing: `{command}`"}) + "\n"
+                yield json.dumps({"type": "final_response", "content": f"```\n{output}\n```"}) + "\n"
+            
             return StreamingResponse(
-                iter([response_data]),
+                stream_user_command(),
                 media_type="application/x-ndjson"
             )
 
