@@ -351,10 +351,6 @@ export const AppV3: React.FC = () => {
             <Info className="w-4 h-4" />
             <span>About Proxi</span>
           </button>
-          <button className="w-full flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg text-sm">
-            <Settings className="w-4 h-4" />
-            <span>Settings</span>
-          </button>
           <button 
             onClick={logout}
             className="w-full flex items-center gap-2 px-3 py-2 text-red-400 hover:text-red-300 hover:bg-gray-800 rounded-lg text-sm"
@@ -386,19 +382,18 @@ export const AppV3: React.FC = () => {
             </div>
           </div>
 
-          {/* Center: Agent Selector (styled consistently) */}
+          {/* Center: Agent Selector */}
           <div className="relative">
             <button
               onClick={() => setShowAgentDropdown(!showAgentDropdown)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"
+              className="flex items-center gap-1.5 p-2 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"
               disabled={workstationsLoading}
             >
-              <span className="text-sm">{activeWorkstation ? getOsIcon(activeWorkstation.name, activeWorkstation.description) : '💻'}</span>
+              <span className="text-base">{activeWorkstation ? getOsIcon(activeWorkstation.name, activeWorkstation.description) : '💻'}</span>
               <div className={`w-2 h-2 rounded-full ${
                 activeWorkstation?.status === 'online' ? 'bg-green-400' : 
                 activeWorkstation?.status === 'offline' ? 'bg-red-400' : 'bg-gray-500'
               }`} />
-              <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${showAgentDropdown ? 'rotate-180' : ''}`} />
             </button>
             
             {/* Agent Dropdown */}
@@ -517,16 +512,15 @@ export const AppV3: React.FC = () => {
             {/* Controls Row: | mode ^ | mic | <space> | send | */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
-                {/* Mode Selector (styled like other buttons) */}
+                {/* Mode Selector */}
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setShowModeDropdown(!showModeDropdown)}
-                    className={`p-2.5 rounded-xl transition-colors flex items-center gap-1 ${currentModeConfig.color.split(' ')[0]} bg-gray-800 hover:bg-gray-700`}
+                    className="p-2.5 rounded-xl transition-colors bg-gray-800 hover:bg-gray-700 text-gray-300"
                     title={`${currentModeConfig.label}: ${currentModeConfig.description}`}
                   >
                     {currentModeConfig.icon}
-                    <ChevronDown className={`w-3 h-3 transition-transform ${showModeDropdown ? 'rotate-180' : ''}`} />
                   </button>
                   
                   {/* Mode Dropdown (opens upward) */}
