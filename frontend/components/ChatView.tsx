@@ -1,10 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, Suspense, lazy } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { TraceStep } from '../types';
 import { User, BrainCircuit, Wrench, Terminal, MessageSquare, ChevronDown, ChevronUp, CheckCircle2, XCircle, Loader2, Monitor } from 'lucide-react';
 import { ScreenshotBubble } from './ScreenshotBubble';
-import { MermaidDiagram } from './MermaidDiagram';
 import { EvidenceCard, parseEvidenceFromMessage } from './EvidenceCard';
+
+// Lazy load MermaidDiagram (heavy dependency ~220KB)
+const MermaidDiagram = lazy(() => import('./MermaidDiagram').then(m => ({ default: m.MermaidDiagram })));
 
 interface ChatViewProps {
   trace: TraceStep[];
@@ -284,7 +286,11 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
                           const isBlock = className?.includes('language-');
                           
                           if (isMermaid && typeof children === 'string') {
-                            return <MermaidDiagram chart={children} />;
+                            return (
+                              <Suspense fallback={<div className="p-2 text-gray-500 text-xs">Loading diagram...</div>}>
+                                <MermaidDiagram chart={children} />
+                              </Suspense>
+                            );
                           }
                           
                           return isBlock ? (
