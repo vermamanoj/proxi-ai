@@ -314,4 +314,60 @@ docker system prune -f
 
 ---
 
-*Last updated: 2026-01-29*
+---
+
+## Zero-Downtime Deployment (v3.4.0)
+
+For production deployments where you need to minimize service interruption:
+
+### Linux Production Server
+
+```bash
+# Deploy all services with minimal downtime
+./scripts/deploy-zero-downtime.sh all
+
+# Deploy specific service
+./scripts/deploy-zero-downtime.sh core
+./scripts/deploy-zero-downtime.sh frontend
+```
+
+### Windows Development Server
+
+```powershell
+# Deploy all services
+.\scripts\deploy-zero-downtime.ps1 -Service all
+
+# Deploy specific service
+.\scripts\deploy-zero-downtime.ps1 -Service core
+```
+
+### How It Works
+
+1. **Build new images** while existing containers keep running
+2. **Stop old containers** (brief ~2-5 second gap)
+3. **Start new containers** with health checks
+4. **Wait for healthy** status before completing
+
+### Health Checks (docker-compose.yml)
+
+```yaml
+core:
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+    interval: 10s
+    timeout: 5s
+    retries: 3
+    start_period: 15s
+
+frontend:
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:5173"]
+    interval: 10s
+    timeout: 5s
+    retries: 3
+    start_period: 30s
+```
+
+---
+
+*Last updated: 2026-01-31*

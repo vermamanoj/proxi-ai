@@ -1,7 +1,7 @@
 # Proxi Feature Tracker
 
 **Last Updated:** January 31, 2026  
-**Last Commit:** `b91418a` - Add action chunking, voice modes, attack paths, evidence on demand  
+**Last Commit:** `c36b12d` - PWA support, zero-downtime deploy, advanced PPT tools  
 **Status:** ⚠️ Testing Pending  
 **Target:** Google Gemini Hackathon (Judging: Feb 10-27, 2026)
 
@@ -25,7 +25,7 @@
 | Gemini Vision | ✅ | Screenshot analysis |
 | Gemini Live (Voice) | ✅ | WebRTC in frontend |
 | **Local agent Gemini** | 🔄 | **NEW v3.2.0** - Visual grounding on agent (requires GEMINI_API_KEY on agent) |
-| 55+ registered tools | ✅ | System, desktop, integrations (added 7 new in v3.3.0) |
+| 70+ registered tools | ✅ | System, desktop, PPT (25 tools), integrations |
 | Streaming responses (NDJSON) | ✅ | Real-time updates |
 | Multi-turn conversation | ✅ | Session-based history |
 
@@ -61,7 +61,7 @@
 | Terminal commands | ✅ | Windows + Linux |
 | System health metrics | ✅ | Windows + Linux |
 | File operations | ✅ | Windows + Linux |
-| PowerPoint automation (15 tools) | ✅ | Windows |
+| PowerPoint automation (25 tools) | ✅ | Windows - includes charts, tables, icons, SmartArt |
 
 ---
 
@@ -167,7 +167,21 @@
 
 ---
 
-## 11. Future Roadmap (Post-Hackathon)
+## 11. v3.4.0 New Features (Jan 31, 2026)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **PWA Support** | ✅ | Progressive Web App - installable on mobile via browser, works offline |
+| **Zero-Downtime Deploy** | ✅ | `deploy-zero-downtime.sh` (Linux) / `.ps1` (Windows) with health checks |
+| **Advanced PPT Tools** | ✅ | `ppt_add_chart`, `ppt_add_image_from_url`, `ppt_add_icon`, `ppt_insert_smartart`, `ppt_add_table`, `ppt_set_shape_style`, `ppt_add_textbox`, `ppt_create_business_slide` |
+| **Image Compression** | ✅ | Auto-compress mobile camera images to prevent memory errors |
+| **Agent Switch UI** | ✅ | Visual notification in chat when switching agents |
+| **open_app Tool** | ✅ | Launch applications by name (Windows) |
+| **draw_shape Tool** | ✅ | Draw shapes in PowerPoint programmatically |
+
+---
+
+## 12. Future Roadmap (Post-Hackathon)
 
 | Feature | Priority | Notes |
 |---------|----------|-------|

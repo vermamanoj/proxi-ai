@@ -1,8 +1,8 @@
 # Proxi System Architecture
 
-**Version:** v3.2.0  
-**Last Updated:** January 30, 2026  
-**Last Commit:** `0376b4d` - Add SoM overlay, combined observation, and local Gemini grounding  
+**Version:** v3.4.0  
+**Last Updated:** January 31, 2026  
+**Last Commit:** `c36b12d` - PWA support, zero-downtime deploy, advanced PPT tools  
 **Status:** ⚠️ Testing Pending
 
 ---
@@ -176,6 +176,12 @@ POST /execute
 | `scan_ui_tree` | ✗ | ✓ | Windows UI automation |
 | `focus_window` | ✗ | ✓ | Window management |
 | `list_windows` | ✗ | ✓ | List open windows |
+| `open_app` | ✗ | ✓ | **NEW** Launch application by name |
+| `draw_shape` | ✗ | ✓ | **NEW** Draw shapes in PowerPoint |
+| `ppt_add_chart` | ✗ | ✓ | **NEW** Insert charts with data |
+| `ppt_add_table` | ✗ | ✓ | **NEW** Insert formatted tables |
+| `ppt_add_icon` | ✗ | ✓ | **NEW** Insert icons from library |
+| `ppt_insert_smartart` | ✗ | ✓ | **NEW** Insert SmartArt diagrams |
 
 ---
 
@@ -244,7 +250,7 @@ If the Gemini API stops responding mid-conversation:
 |-----------|------|-------------|
 | Core Server | `backend/main.py` | FastAPI with all endpoints |
 | Agent Server | `backend/agent_server.py` | Lightweight, tools only |
-| Gemini Service | `backend/services/gemini_service.py` | AI orchestration (45 tools) |
+| Gemini Service | `backend/services/gemini_service.py` | AI orchestration (70+ tools) |
 | Agent Proxy | `backend/services/agent_proxy.py` | Routes calls to agents |
 | Desktop Factory | `backend/services/desktop/factory.py` | OS-based service selection |
 | Workstation Registry | `backend/registry/workstation_registry.py` | Multi-agent management |

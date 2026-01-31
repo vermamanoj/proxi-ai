@@ -1,26 +1,68 @@
 # Proxi Mobile Strategy
 
-**Last Updated:** January 29, 2026  
-**Status:** Approved for Immediate Execution  
+**Last Updated:** January 31, 2026  
+**Status:** PWA Implemented, Capacitor Optional  
 **Priority:** P0 (ASAP)  
-**Tech Stack:** React (Vite) + Capacitor  
+**Tech Stack:** PWA (Primary) + Capacitor (Optional)  
 **Target:** iOS & Android
 
 ---
 
 ## 1. Executive Summary
 
-Proxi will use a **"Web-First Native Wrapper"** approach using Capacitor to wrap the existing React + Vite codebase in a native container.
+Proxi now supports **two mobile deployment strategies**:
+
+### Option A: PWA (Progressive Web App) 
+- **Status:** Complete and working
+- **Install:** Users visit HTTPS URL → "Add to Home Screen"
+- **Benefits:** No app store, instant updates, works offline
+- **Limitation:** Voice mode requires HTTPS + user permission
+
+### Option B: Capacitor Native Wrapper (Original Plan)
+- **Status:** Documented but faced CORS/connectivity issues
+- **Use Case:** If native APIs are absolutely required
+
+### Recommendation for Hackathon
+**Use PWA** - simpler, already working, no app store delays.
+
+---
+
+## 1.1 PWA Implementation (v3.4.0)
+
+PWA files created:
+- `frontend/public/manifest.json` - App metadata, icons, theme
+- `frontend/public/sw.js` - Service worker for offline caching
+- `frontend/public/offline.html` - Offline fallback page
+- `frontend/public/icons/` - 192x192 and 512x512 SVG icons
+
+### How to Install (User Flow)
+1. Visit `https://proxi.audista.com` on mobile browser
+2. Browser shows "Add to Home Screen" prompt (or use menu)
+3. App icon appears on home screen
+4. Opens in standalone mode (no browser chrome)
+
+### PWA Requirements
+- HTTPS (required for service worker)
+- manifest.json with icons
+- Service worker registered
+- Responsive design
+- Offline page
+
+---
+
+## 2. Capacitor Approach (Alternative)
+
+The original plan using Capacitor to wrap the React app in a native container.
 
 ### Benefits
 - **Zero Logic Rewrite** - 100% code reuse of existing UI and business logic
 - **Speed to Build** - Functional APK/IPA in 24-48 hours
 - **Single Codebase** - Web + iOS + Android from one repo
 
-### ⚠️ Critical Risk: Voice/WebRTC
-WebRTC in mobile WebViews has known limitations:
-- **Android WebView** - Generally works, but inconsistent on older devices
-- **iOS WKWebView** - `getUserMedia` works but Gemini Live SDK may have issues
+### Known Issues (Why PWA is Preferred)
+- **CORS/Connectivity:** Had unresolved issues with API calls from native container
+- **API Key Exposure:** `VITE_GEMINI_API_KEY` bundled in APK is extractable
+- **Voice/WebRTC:** Inconsistent behavior in mobile WebViews
 
 **Mitigation:** Test on physical device in Phase 1. If fails, implement backend audio relay.
 
