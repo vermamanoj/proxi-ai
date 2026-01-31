@@ -128,36 +128,42 @@ export const AppV2: React.FC = () => {
           </div>
 
           {/* Center: Mode Pill (NEW - Always Visible) */}
-          <div className="relative">
+          <div className="relative z-50">
             <button
-              onClick={() => setShowModeDropdown(!showModeDropdown)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowModeDropdown(!showModeDropdown);
+              }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${currentModeConfig.color}`}
             >
               <span>{currentModeConfig.icon}</span>
               <span>{currentModeConfig.label}</span>
-              <ChevronDown className="w-3 h-3" />
+              <ChevronDown className={`w-3 h-3 transition-transform ${showModeDropdown ? 'rotate-180' : ''}`} />
             </button>
             
             {/* Mode Dropdown */}
             {showModeDropdown && (
-              <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden min-w-[140px]">
-                {MODES.map((mode) => (
-                  <button
-                    key={mode.value}
-                    onClick={() => {
-                      setCurrentMode(mode.value);
-                      setShowModeDropdown(false);
-                    }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-800 transition-colors ${
-                      currentMode === mode.value ? 'bg-gray-800' : ''
-                    }`}
-                  >
-                    <span>{mode.icon}</span>
-                    <span>{mode.label}</span>
-                    {currentMode === mode.value && <span className="ml-auto text-proxi-accent">✓</span>}
-                  </button>
-                ))}
-              </div>
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowModeDropdown(false)} />
+                <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden min-w-[140px]">
+                  {MODES.map((mode) => (
+                    <button
+                      key={mode.value}
+                      onClick={() => {
+                        setCurrentMode(mode.value);
+                        setShowModeDropdown(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-800 transition-colors ${
+                        currentMode === mode.value ? 'bg-gray-800' : ''
+                      }`}
+                    >
+                      <span>{mode.icon}</span>
+                      <span>{mode.label}</span>
+                      {currentMode === mode.value && <span className="ml-auto text-proxi-accent">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
 
@@ -370,11 +376,11 @@ export const AppV2: React.FC = () => {
 
       </div>
       
-      {/* Click outside to close dropdowns */}
-      {(showModeDropdown || showMoreMenu) && (
+      {/* Click outside to close more menu */}
+      {showMoreMenu && (
         <div 
           className="fixed inset-0 z-40" 
-          onClick={() => { setShowModeDropdown(false); setShowMoreMenu(false); }}
+          onClick={() => setShowMoreMenu(false)}
         />
       )}
       

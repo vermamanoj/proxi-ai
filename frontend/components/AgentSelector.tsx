@@ -65,8 +65,8 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
       >
         {/* OS Icon */}
         <span className="text-sm">{activeWorkstation ? getOsIcon(activeWorkstation) : '💻'}</span>
-        {/* Short name - hidden on very small screens */}
-        <span className="text-xs text-gray-300 hidden sm:inline max-w-[80px] truncate">
+        {/* Short name - always visible (mobile-first) */}
+        <span className="text-xs text-gray-300 max-w-[60px] sm:max-w-[80px] truncate">
           {activeWorkstation ? getShortName(activeWorkstation.name) : 'Agent'}
         </span>
         {/* Status indicator */}
