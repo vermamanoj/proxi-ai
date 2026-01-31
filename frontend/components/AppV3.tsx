@@ -111,17 +111,20 @@ export const AppV3: React.FC = () => {
     });
   }, [liveChatLogs]);
 
-  // Combine voice trace with backend trace
+  // Combine voice trace with backend trace (vision commands, text commands)
   const displayTrace = useMemo(() => {
-    // If we have voice logs, prioritize them (they include delegate_task results)
-    // Backend lastTrace is for direct text commands
-    if (liveTrace.length > 0) {
-      // Merge: voice logs + any backend trace not already shown
-      return [...liveTrace, ...lastTrace.filter(t => 
-        !liveTrace.some(lt => lt.content === t.content)
-      )];
-    }
-    return lastTrace;
+    // Always combine both traces - voice logs AND backend results (vision, text commands)
+    // Backend lastTrace contains vision-action results which must always show
+    const combined = [...liveTrace, ...lastTrace];
+    
+    // Deduplicate by content (keep first occurrence)
+    const seen = new Set<string>();
+    return combined.filter(t => {
+      const key = typeof t.content === 'string' ? t.content : JSON.stringify(t.content);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }, [liveTrace, lastTrace]);
 
   // Input state

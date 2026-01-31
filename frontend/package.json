@@ -13,7 +13,6 @@
     "@capacitor/core": "^5.7.8",
     "@google/genai": "*",
     "lucide-react": "^0.344.0",
-    "mermaid": "^11.12.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",
