@@ -32,7 +32,7 @@ export interface ActiveToolState {
   startTime: number;
 }
 
-export type Complexity = 'quick' | 'balanced' | 'thorough' | 'fast' | 'deep';  // fast/deep are legacy mappings
+export type Complexity = 'plan' | 'quick' | 'balanced' | 'thorough' | 'fast' | 'deep';  // fast/deep are legacy mappings
 
 export type AgentStatus = 'idle' | 'processing' | 'speaking' | 'analyzing_visuals' | 'awaiting_confirmation';
 

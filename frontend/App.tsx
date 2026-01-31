@@ -531,11 +531,13 @@ const App: React.FC = () => {
                   onChange={(e) => setExecutionMode(e.target.value as any)}
                   className="mt-2 w-full p-3 rounded-lg border border-gray-700 bg-gray-800 text-gray-300 text-sm focus:outline-none focus:border-proxi-accent"
                 >
+                  <option value="plan">📋 Plan - Show steps before executing</option>
                   <option value="quick">⚡ Quick - Simple queries (Flash, no verify)</option>
                   <option value="balanced">⚖️ Balanced - Default mode (Flash, auto verify)</option>
                   <option value="thorough">🔬 Thorough - Critical ops (Pro, full verify)</option>
                 </select>
                 <p className="mt-1 text-xs text-gray-500">
+                  {complexity === 'plan' && 'Plans steps without executing - say "execute" to run'}
                   {complexity === 'quick' && 'Fast execution, skips verification'}
                   {complexity === 'balanced' && 'Verifies action tasks automatically'}
                   {complexity === 'thorough' && 'Deep analysis with full verification'}

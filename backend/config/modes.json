@@ -5,6 +5,17 @@
   "session_history_size": 50,
   "_session_history_comment": "Max messages to keep in session history (prevents stale command re-execution)",
   
+  "plan": {
+    "display_name": "Plan 📋",
+    "model": "flash",
+    "verify": false,
+    "max_turns": 3,
+    "max_tool_calls": 0,
+    "timeout": 30,
+    "prompt_suffix": "PLANNING MODE: Create a detailed step-by-step plan for this task. List each action you would take, but DO NOT execute any commands or tools. Format as numbered steps. After planning, wait for user to say 'execute' or 'go ahead' before taking action.",
+    "description": "Planning only - no execution until approved"
+  },
+  
   "quick": {
     "display_name": "Quick ⚡",
     "model": "flash",
