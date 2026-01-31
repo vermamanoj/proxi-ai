@@ -1,7 +1,7 @@
 // AppV3.tsx - Sidebar Layout (ChatGPT/Gemini style)
 // Access via /#/v3 route
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Send, Camera, X, Loader2, Volume2, VolumeX, LogOut, Plus, 
   Square, Mic, MicOff, ChevronDown, Menu, Settings, MessageSquare,
@@ -15,7 +15,7 @@ import { ChatView } from './ChatView';
 import { ApprovalModal, ApprovalModalRequest } from './ApprovalModal';
 import { MissionPanelCollapsible, Goal } from './MissionPanelCollapsible';
 import { getSessions, SessionSummary } from '../services/sessionService';
-import { Complexity } from '../types';
+import { Complexity, TraceStep, MessageSource } from '../types';
 
 // Mode configurations - icons only in header
 const MODES: { value: Complexity; label: string; icon: React.ReactNode; color: string; description: string }[] = [
@@ -76,6 +76,7 @@ export const AppV3: React.FC = () => {
     connected: liveConnected,
     connectionStatus,
     logs: liveLogs,
+    chatLogs: liveChatLogs,
     micMuted,
     connect: liveConnect,
     disconnect: liveDisconnect,
@@ -83,6 +84,32 @@ export const AppV3: React.FC = () => {
     sendCommand: liveSendCommand,
     clearSession: liveClearSession,
   } = useGeminiLive(true, audioEnabled, currentMode);
+
+  // Convert liveChatLogs to trace format for display
+  const liveTrace: TraceStep[] = useMemo(() => {
+    return liveChatLogs.map(log => {
+      const source = (log.source || '').toUpperCase();
+      let step_type: TraceStep['step_type'] = 'final_response';
+      if (source === MessageSource.USER) step_type = 'user_input';
+      else if (source === MessageSource.SYSTEM) step_type = 'system_instruction';
+      else if (source === MessageSource.AGENT) step_type = 'final_response';
+      else if (log.text?.startsWith('[TOOL]')) step_type = 'tool_call';
+      return { step_type, content: log.text || '', metadata: log.metadata };
+    });
+  }, [liveChatLogs]);
+
+  // Combine voice trace with backend trace
+  const displayTrace = useMemo(() => {
+    // If we have voice logs, prioritize them (they include delegate_task results)
+    // Backend lastTrace is for direct text commands
+    if (liveTrace.length > 0) {
+      // Merge: voice logs + any backend trace not already shown
+      return [...liveTrace, ...lastTrace.filter(t => 
+        !liveTrace.some(lt => lt.content === t.content)
+      )];
+    }
+    return lastTrace;
+  }, [liveTrace, lastTrace]);
 
   // Input state
   const [input, setInput] = useState('');
@@ -357,46 +384,8 @@ export const AppV3: React.FC = () => {
             )}
           </div>
 
-          {/* Right: Mode Selector (compact like agent) + Audio */}
+          {/* Right: Audio Toggle only (mode moved to input row) */}
           <div className="flex items-center gap-1">
-            {/* Mode Selector - single icon with dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowModeDropdown(!showModeDropdown)}
-                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-colors ${currentModeConfig.color}`}
-              >
-                {currentModeConfig.icon}
-                <ChevronDown className={`w-3 h-3 transition-transform ${showModeDropdown ? 'rotate-180' : ''}`} />
-              </button>
-              
-              {/* Mode Dropdown */}
-              {showModeDropdown && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setShowModeDropdown(false)} />
-                  <div className="absolute top-full mt-1 right-0 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 min-w-[180px] py-1">
-                    <div className="px-3 py-1.5 text-xs text-gray-500 uppercase">Execution Mode</div>
-                    {MODES.map((mode) => (
-                      <button
-                        key={mode.value}
-                        onClick={() => { setCurrentMode(mode.value); setShowModeDropdown(false); }}
-                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-gray-800 ${
-                          currentMode === mode.value ? 'bg-gray-800' : ''
-                        }`}
-                      >
-                        <span className={mode.color.split(' ')[0]}>{mode.icon}</span>
-                        <div className="flex-1 text-left">
-                          <div className="text-gray-200">{mode.label}</div>
-                          <div className="text-xs text-gray-500">{mode.description}</div>
-                        </div>
-                        {currentMode === mode.value && <span className="text-proxi-accent">✓</span>}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-            
-            {/* Audio Toggle */}
             <button
               onClick={() => setAudioEnabled(!audioEnabled)}
               className={`p-1.5 rounded-lg transition-colors ${audioEnabled ? 'text-proxi-accent' : 'text-gray-500'}`}
@@ -425,7 +414,7 @@ export const AppV3: React.FC = () => {
         {/* CHAT AREA */}
         <div className="flex-1 overflow-hidden">
           <ChatView
-            trace={lastTrace}
+            trace={displayTrace}
             isProcessing={isProcessing}
           />
         </div>
@@ -478,9 +467,49 @@ export const AppV3: React.FC = () => {
               </button>
             </div>
 
-            {/* Controls Row */}
+            {/* Controls Row: | mode ^ | mic | <space> | send | */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
+                {/* Mode Selector (compact with upward dropdown) */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowModeDropdown(!showModeDropdown)}
+                    className={`flex items-center gap-1.5 px-2 py-2 rounded-xl border transition-colors ${currentModeConfig.color}`}
+                    title={`${currentModeConfig.label}: ${currentModeConfig.description}`}
+                  >
+                    {currentModeConfig.icon}
+                    <ChevronDown className={`w-3 h-3 transition-transform ${showModeDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  {/* Mode Dropdown (opens upward) */}
+                  {showModeDropdown && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowModeDropdown(false)} />
+                      <div className="absolute bottom-full mb-2 left-0 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 min-w-[180px] py-1">
+                        <div className="px-3 py-1.5 text-xs text-gray-500 uppercase">Execution Mode</div>
+                        {MODES.map((mode) => (
+                          <button
+                            key={mode.value}
+                            type="button"
+                            onClick={() => { setCurrentMode(mode.value); setShowModeDropdown(false); }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-gray-800 ${
+                              currentMode === mode.value ? 'bg-gray-800' : ''
+                            }`}
+                          >
+                            <span className={mode.color.split(' ')[0]}>{mode.icon}</span>
+                            <div className="flex-1 text-left">
+                              <div className="text-gray-200">{mode.label}</div>
+                              <div className="text-xs text-gray-500">{mode.description}</div>
+                            </div>
+                            {currentMode === mode.value && <span className="text-proxi-accent">✓</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+
                 {/* Mic Button */}
                 <button
                   type="button"
