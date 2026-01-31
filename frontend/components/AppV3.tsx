@@ -5,7 +5,8 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Send, Camera, X, Loader2, Volume2, VolumeX, LogOut, Plus, 
   Square, Mic, MicOff, ChevronDown, Menu, Settings, MessageSquare,
-  Clock, ChevronRight, Zap, Scale, FlaskConical, ClipboardList
+  Clock, ChevronRight, Zap, Scale, FlaskConical, ClipboardList, Info,
+  Shield, CheckCircle2, Monitor, Terminal, Lock, Unlock, Smartphone
 } from 'lucide-react';
 import { useProxiBrain } from '../hooks/useProxiBrain';
 import { useGeminiLive } from '../hooks/useGeminiLive';
@@ -48,6 +49,7 @@ export const AppV3: React.FC = () => {
   
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   
@@ -342,6 +344,13 @@ export const AppV3: React.FC = () => {
 
         {/* Sidebar Footer */}
         <div className="p-3 border-t border-gray-800 space-y-1">
+          <button 
+            onClick={() => setShowAbout(true)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg text-sm"
+          >
+            <Info className="w-4 h-4" />
+            <span>About Proxi</span>
+          </button>
           <button className="w-full flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg text-sm">
             <Settings className="w-4 h-4" />
             <span>Settings</span>
@@ -610,6 +619,103 @@ export const AppV3: React.FC = () => {
           onDeny={handleDeny}
           isOpen={showApprovalModal}
         />
+      )}
+
+      {/* ABOUT MODAL */}
+      {showAbout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-gray-900 rounded-2xl border border-gray-800 w-full max-w-2xl max-h-[90vh] overflow-y-auto relative">
+            <button
+              onClick={() => setShowAbout(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-white z-10"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="p-6 sm:p-8 space-y-6">
+              {/* Header */}
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 mb-3">
+                  <Zap className="w-8 h-8 text-proxi-accent" />
+                  <span className="text-2xl font-bold">PROXI</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold mb-2">From Advice to Action. Finally.</h2>
+                <p className="text-gray-400">Your AI that executes real work on real computers — with proof and control.</p>
+              </div>
+
+              {/* Problem/Solution */}
+              <div className="bg-gray-800/50 rounded-xl p-4 text-center">
+                <p className="text-gray-300">AI can think. <span className="text-gray-500">Work still needs keyboards.</span></p>
+                <p className="text-proxi-accent mt-2 font-medium">Proxi executes on real computers from your phone.</p>
+              </div>
+
+              {/* Trust by Design */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-blue-400" />
+                  Trust by Design
+                </h3>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="bg-black/30 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle2 className="w-4 h-4 text-green-400" />
+                      <span className="font-medium text-sm">Verified Execution</span>
+                    </div>
+                    <ul className="text-xs text-gray-400 space-y-1">
+                      <li>• Screenshots as evidence</li>
+                      <li>• Visual confirmation on mobile</li>
+                      <li>• No "agent said it worked"</li>
+                    </ul>
+                  </div>
+                  <div className="bg-black/30 rounded-lg p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Shield className="w-4 h-4 text-blue-400" />
+                      <span className="font-medium text-sm">Safety & Control</span>
+                    </div>
+                    <div className="text-xs space-y-1">
+                      <div className="flex items-center gap-2"><span className="w-2 h-2 bg-green-500 rounded-full"></span><span className="text-gray-400">Safe — auto-allowed</span></div>
+                      <div className="flex items-center gap-2"><span className="w-2 h-2 bg-yellow-500 rounded-full"></span><span className="text-gray-400">Sensitive — approval required</span></div>
+                      <div className="flex items-center gap-2"><span className="w-2 h-2 bg-red-500 rounded-full"></span><span className="text-gray-400">Blocked — never executed</span></div>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-center text-sm text-gray-400 italic mt-3">"Proxi never decides success. Reality does."</p>
+              </div>
+
+              {/* OS-Aware */}
+              <div>
+                <h3 className="text-lg font-semibold mb-3">OS-Aware Intelligence</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-black/30 rounded-lg p-3 flex items-center gap-3">
+                    <Unlock className="w-5 h-5 text-green-400" />
+                    <div>
+                      <p className="text-sm font-medium">Unlocked</p>
+                      <p className="text-xs text-gray-500">Full UI control</p>
+                    </div>
+                  </div>
+                  <div className="bg-black/30 rounded-lg p-3 flex items-center gap-3">
+                    <Lock className="w-5 h-5 text-yellow-400" />
+                    <div>
+                      <p className="text-sm font-medium">Locked</p>
+                      <p className="text-xs text-gray-500">Terminal fallback</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Inspiration */}
+              <div className="text-center text-sm text-gray-400 border-t border-gray-800 pt-4">
+                <p>Built for real moments — like negotiating pricing in a meeting without a laptop, knowing the data was on a computer back at the office.</p>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-between text-xs text-gray-600 border-t border-gray-800 pt-4">
+                <span>Powered by Gemini 3</span>
+                <span>Windows & Linux supported</span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

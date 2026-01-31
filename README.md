@@ -1,19 +1,137 @@
-# Proxi: The Headless OS Operator
+# Proxi: From Advice to Action. Finally.
 
-> **Work while you're on the move.** Control your desktop from your phone.
+> **Your AI that executes real work on real computers — with proof and control.**
 
-[![Google Gemini](https://img.shields.io/badge/Powered%20by-Google%20Gemini-4285F4?logo=google)](https://ai.google.dev/)
+[![Google Gemini](https://img.shields.io/badge/Powered%20by-Gemini%203-4285F4?logo=google)](https://ai.google.dev/)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?logo=fastapi)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev)
 
 ---
 
-## What is Proxi?
+## The Problem
 
-Proxi is an **OS-level AI agent** that bridges high-level reasoning (Google Gemini) with low-level execution (Mouse/Keyboard/Vision). Unlike browser-only agents, Proxi can control **any application** on your desktop.
+**AI can think. Work still needs keyboards.**
 
-### Key Differentiators
+AI assistants stop at suggestions. They tell you *what* to do, but you still have to do it yourself — navigate apps, click buttons, copy data between tools.
+
+## The Solution
+
+**Proxi executes on real computers from your phone.**
+
+- Controls desktop apps, browsers, terminals
+- Works with legacy systems and tools without APIs
+- Executes multi-step workflows end-to-end
+- Verifies outcomes with screenshots before reporting success
+
+---
+
+## 🏗️ Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              📱 YOUR PHONE                                    │
+│                     Voice Commands / Text / Image Upload                      │
+└────────────────────────────────────┬─────────────────────────────────────────┘
+                                     │ HTTPS
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                        ⚡ PROXI CORE (Port 4000)                              │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐              │
+│  │  🧠 Gemini 3    │  │  🔐 Auth &      │  │  📋 Mission     │              │
+│  │  Orchestration  │  │  Sessions       │  │  Tracking       │              │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘              │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐              │
+│  │  🛡️ Command     │  │  🔀 Agent       │  │  ✅ Verifiable  │              │
+│  │  Guard          │  │  Router         │  │  Agent          │              │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘              │
+│                              SAFE ZONE (API Keys, User Data)                 │
+└────────────────────────────────────┬─────────────────────────────────────────┘
+                                     │ HTTP /execute
+                    ┌────────────────┴────────────────┐
+                    ▼                                 ▼
+┌───────────────────────────────┐   ┌───────────────────────────────┐
+│   🐧 LINUX AGENT (Port 4001)  │   │   🪟 WINDOWS AGENT (Port 8081)│
+│   ┌─────────────────────────┐ │   │   ┌─────────────────────────┐ │
+│   │  Terminal / Git / Python│ │   │   │  Desktop / Office / CRM │ │
+│   │  Docker / DevOps        │ │   │   │  Legacy Enterprise Apps │ │
+│   └─────────────────────────┘ │   └───│  GUI Automation         │ │
+│   ISOLATED (No Keys, No DB)   │       └─────────────────────────┘ │
+└───────────────────────────────┘       ISOLATED (No Keys, No DB)   │
+                                  └───────────────────────────────────┘
+```
+
+**Security Split:** If an agent is compromised, only that agent is affected. Core (with API keys, user data) stays safe.
+
+---
+
+## 🛡️ Trust by Design
+
+Most agents claim success. **Proxi proves it.**
+
+### Verified Execution
+- 📸 **Screenshots as evidence** — Visual proof of completed actions
+- 📱 **Confirmation on mobile** — See results before marking complete
+- ❌ **No "agent said it worked"** — Independent verification
+
+### Safety & Control (Command Guard)
+
+| Level | Behavior | Examples |
+|-------|----------|----------|
+| 🟢 **Safe** | Auto-allowed | `list_files`, `get_screenshot`, `read_file` |
+| 🟡 **Sensitive** | Human approval required | `delete_file`, `stop_service`, `run_command` |
+| 🔴 **Blocked** | Never executed | `format`, `rm -rf /`, `shutdown` |
+
+> *"Proxi never decides success. Reality does."*
+
+---
+
+## 🧠 How Proxi Thinks (Gemini 3)
+
+**Example:** "What's the approved minimum margin for this customer?"
+
+```
+1. Proxi opens the CRM
+2. Navigates to pricing tabs
+3. Checks policy documents
+4. Confirms the answer with a screenshot ✓
+```
+
+This shows **exploration + reasoning + verification** — not blind automation.
+
+---
+
+## 💡 OS-Aware Intelligence
+
+Proxi understands the state of your machine.
+
+| State | Capability |
+|-------|------------|
+| 🔓 **Desktop Unlocked** | Full UI control — mouse, keyboard, apps |
+| 🔒 **Desktop Locked** | Terminal fallback — commands still work |
+
+---
+
+## ✨ Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Mobile-First Control** | Control your office machine from your phone |
+| **Voice Commands** | Real-time via Gemini Live WebRTC |
+| **48+ Tools** | System, desktop, PowerPoint, integrations |
+| **Multi-Workstation** | Switch between Windows/Linux agents |
+| **Session Persistence** | Pick up where you left off |
+| **Transparency Protocol** | Agent explains reasoning before every action |
+
+---
+
+## 🎯 Real-World Inspiration
+
+The idea came from real moments — like negotiating pricing in a meeting without a laptop, knowing the data was sitting on a computer back at the office.
+
+---
+
+## Key Differentiators
 
 | Feature | Browser Agents | Proxi |
 |---------|---------------|-------|
