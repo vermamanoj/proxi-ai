@@ -324,6 +324,18 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                         setStatus('awaiting_confirmation');
                         setAwaitingApproval(true);
                         break;
+                    case 'user_command':
+                        // Handle ! prefix direct command execution
+                        if (data.status === 'blocked') {
+                            addLog(MessageSource.SYSTEM, data.content);
+                        } else if (data.status === 'executed') {
+                            const output = typeof data.content === 'string' 
+                                ? data.content 
+                                : (data.content?.output || JSON.stringify(data.content));
+                            addLog(MessageSource.AGENT, `Command: \`${data.command}\`\n\`\`\`\n${output}\n\`\`\``);
+                        }
+                        setStatus('idle');
+                        break;
                     case 'error':
                         addLog(MessageSource.SYSTEM, `Error: ${data.content}`);
                         // Treat timeout/stall errors as recoverable (stalled) not terminal (failed)
