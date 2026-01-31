@@ -32,26 +32,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onBack }) => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex items-center justify-center px-6">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-black text-white flex items-center justify-center px-4 sm:px-6">
+      <div className="w-full max-w-sm sm:max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           {onBack ? (
             <button 
               onClick={onBack}
-              className="inline-flex items-center gap-2 mb-6 hover:opacity-80 transition-opacity"
+              className="inline-flex items-center gap-2 mb-4 sm:mb-6 hover:opacity-80 transition-opacity"
             >
-              <Zap className="w-10 h-10 text-proxi-accent" />
-              <span className="text-2xl font-bold">PROXI</span>
+              <Zap className="w-8 h-8 sm:w-10 sm:h-10 text-proxi-accent" />
+              <span className="text-xl sm:text-2xl font-bold">PROXI</span>
             </button>
           ) : (
-            <div className="inline-flex items-center gap-2 mb-6">
-              <Zap className="w-10 h-10 text-proxi-accent" />
-              <span className="text-2xl font-bold">PROXI</span>
+            <div className="inline-flex items-center gap-2 mb-4 sm:mb-6">
+              <Zap className="w-8 h-8 sm:w-10 sm:h-10 text-proxi-accent" />
+              <span className="text-xl sm:text-2xl font-bold">PROXI</span>
             </div>
           )}
-          <h1 className="text-2xl font-semibold">Welcome back</h1>
-          <p className="text-gray-400 mt-2">Sign in to access your workstations</p>
+          <h1 className="text-xl sm:text-2xl font-semibold">Welcome back</h1>
+          <p className="text-gray-400 mt-1 sm:mt-2 text-sm sm:text-base">Sign in to access your workstations</p>
         </div>
 
         {/* Login Form */}

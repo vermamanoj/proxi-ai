@@ -10,6 +10,8 @@ import {
 import { useProxiBrain } from '../hooks/useProxiBrain';
 import { useGeminiLive } from '../hooks/useGeminiLive';
 import { useAuth } from '../hooks/useAuth';
+import { LandingPage } from './LandingPage';
+import { LoginPage } from './LoginPage';
 import { useWorkstations } from '../hooks/useWorkstations';
 import { ChatView } from './ChatView';
 import { ApprovalModal, ApprovalModalRequest } from './ApprovalModal';
@@ -35,7 +37,8 @@ const getOsIcon = (name: string, description?: string) => {
 };
 
 export const AppV3: React.FC = () => {
-  const { logout, user } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user, login: authLogin, logout } = useAuth();
+  const [authView, setAuthView] = useState<'landing' | 'login'>('landing');
   const [audioEnabled, setAudioEnabled] = useState(true);
   const { activeWorkstation, workstations, setActiveWorkstation, isLoading: workstationsLoading } = useWorkstations();
   
@@ -83,7 +86,17 @@ export const AppV3: React.FC = () => {
     toggleMicMute,
     sendCommand: liveSendCommand,
     clearSession: liveClearSession,
+    loadSession: liveLoadSession,
+    markActiveGoalFailed,
   } = useGeminiLive(true, audioEnabled, currentMode);
+
+  // Auto-connect voice on page load (desktop only)
+  useEffect(() => {
+    const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
+    if (!isCapacitor && isAuthenticated) {
+      liveConnect();
+    }
+  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Convert liveChatLogs to trace format for display
   const liveTrace: TraceStep[] = useMemo(() => {
@@ -212,10 +225,32 @@ export const AppV3: React.FC = () => {
   };
 
   const handleDeny = () => {
+    markActiveGoalFailed?.('User denied approval');
     cancelAction?.();
     setShowApprovalModal(false);
     setApprovalRequest(null);
   };
+
+  // Auth loading state
+  if (authLoading) {
+    return (
+      <div className="h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-proxi-accent mx-auto mb-4 animate-spin" />
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not authenticated - show landing or login
+  if (!isAuthenticated) {
+    const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
+    if (authView === 'login' || isCapacitor) {
+      return <LoginPage onLogin={authLogin} onBack={isCapacitor ? undefined : () => setAuthView('landing')} />;
+    }
+    return <LandingPage onLogin={() => setAuthView('login')} />;
+  }
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -339,19 +374,19 @@ export const AppV3: React.FC = () => {
             </div>
           </div>
 
-          {/* Center: Agent Selector (compact) */}
+          {/* Center: Agent Selector (styled consistently) */}
           <div className="relative">
             <button
               onClick={() => setShowAgentDropdown(!showAgentDropdown)}
-              className="flex items-center gap-1.5 px-2 py-1.5 bg-gray-800/50 hover:bg-gray-700/50 rounded-lg border border-gray-700"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"
               disabled={workstationsLoading}
             >
-              <span className="text-base">{activeWorkstation ? getOsIcon(activeWorkstation.name, activeWorkstation.description) : '💻'}</span>
+              <span className="text-sm">{activeWorkstation ? getOsIcon(activeWorkstation.name, activeWorkstation.description) : '💻'}</span>
               <div className={`w-2 h-2 rounded-full ${
                 activeWorkstation?.status === 'online' ? 'bg-green-400' : 
                 activeWorkstation?.status === 'offline' ? 'bg-red-400' : 'bg-gray-500'
               }`} />
-              <ChevronDown className={`w-3 h-3 text-gray-500 transition-transform ${showAgentDropdown ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${showAgentDropdown ? 'rotate-180' : ''}`} />
             </button>
             
             {/* Agent Dropdown */}
@@ -470,12 +505,12 @@ export const AppV3: React.FC = () => {
             {/* Controls Row: | mode ^ | mic | <space> | send | */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
-                {/* Mode Selector (compact with upward dropdown) */}
+                {/* Mode Selector (styled like other buttons) */}
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setShowModeDropdown(!showModeDropdown)}
-                    className={`flex items-center gap-1.5 px-2 py-2 rounded-xl border transition-colors ${currentModeConfig.color}`}
+                    className={`p-2.5 rounded-xl transition-colors flex items-center gap-1 ${currentModeConfig.color.split(' ')[0]} bg-gray-800 hover:bg-gray-700`}
                     title={`${currentModeConfig.label}: ${currentModeConfig.description}`}
                   >
                     {currentModeConfig.icon}
@@ -556,6 +591,7 @@ export const AppV3: React.FC = () => {
             ref={fileInputRef}
             type="file"
             accept="image/*"
+            capture="environment"
             onChange={handleFileSelect}
             className="hidden"
             multiple
