@@ -20,6 +20,11 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: 5173,
       allowedHosts: true,  // Allow all hosts in Docker environment
+      hmr: {
+        // Fix HMR WebSocket when running through Docker port mapping (4002->5173)
+        // Use 'auto' to let Vite detect the client port from the browser URL
+        port: 5173,
+      },
       proxy: {
         // Proxy API requests to the Python Backend (Core)
         // Native (default): use localhost:4000

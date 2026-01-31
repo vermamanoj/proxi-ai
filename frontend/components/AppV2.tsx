@@ -1,16 +1,19 @@
 // AppV2.tsx - Redesigned UI with simplified UX
 // Access via /#/v2 route
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Send, Camera, X, Loader2, Zap, Volume2, VolumeX, LogOut, Plus, 
-  Monitor, Menu, Square, Mic, MicOff, ChevronDown
+  Monitor, Menu, Square, Mic, MicOff, ChevronDown, History, Settings, Info
 } from 'lucide-react';
 import { useProxiBrain } from '../hooks/useProxiBrain';
 import { useGeminiLive } from '../hooks/useGeminiLive';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkstations } from '../hooks/useWorkstations';
 import { ChatView } from './ChatView';
+import { AgentSelector } from './AgentSelector';
+import { SessionHistory } from './SessionHistory';
+import { ApprovalModal } from './ApprovalModal';
 import { Complexity, MessageSource } from '../types';
 
 // Mode configurations for display
@@ -22,13 +25,18 @@ const MODES: { value: Complexity; label: string; icon: string; color: string }[]
 ];
 
 export const AppV2: React.FC = () => {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [audioEnabled, setAudioEnabled] = useState(true);
   const { activeWorkstation, workstations, setActiveWorkstation, isLoading: workstationsLoading } = useWorkstations();
   
   // Mode state - lifted up for visibility
   const [currentMode, setCurrentMode] = useState<Complexity>('balanced');
   const [showModeDropdown, setShowModeDropdown] = useState(false);
+  
+  // UI state for panels
+  const [showSessionHistory, setShowSessionHistory] = useState(false);
+  const [showDebugLogs, setShowDebugLogs] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   // Hooks
   const { 
@@ -153,12 +161,17 @@ export const AppV2: React.FC = () => {
             )}
           </div>
 
-          {/* Right: Minimal Actions */}
+          {/* Right: Agent + Actions */}
           <div className="flex items-center gap-1">
-            {/* Agent indicator (compact) */}
-            <div className="hidden sm:flex items-center gap-1 text-xs text-gray-500 mr-2">
-              <Monitor className="w-3 h-3" />
-              <span className="truncate max-w-[80px]">{activeWorkstation?.name || 'No agent'}</span>
+            {/* Agent Selector - visible on all screens */}
+            <div className="flex items-center gap-1 mr-1">
+              <Monitor className="w-3 h-3 text-gray-500" />
+              <AgentSelector 
+                workstations={workstations}
+                activeWorkstation={activeWorkstation}
+                setActiveWorkstation={setActiveWorkstation}
+                isLoading={workstationsLoading}
+              />
             </div>
             
             {/* New Session */}
@@ -170,19 +183,69 @@ export const AppV2: React.FC = () => {
               <Plus className="w-4 h-4" />
             </button>
             
-            {/* Audio */}
-            <button
-              onClick={() => setAudioEnabled(!audioEnabled)}
-              className={`p-2 rounded-lg transition-all ${audioEnabled ? 'text-blue-400' : 'text-gray-500'}`}
-              title={audioEnabled ? 'Mute' : 'Unmute'}
-            >
-              {audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-            </button>
+            {/* More Menu (mobile) / Individual buttons (desktop) */}
+            <div className="hidden sm:flex items-center gap-1">
+              <button
+                onClick={() => setAudioEnabled(!audioEnabled)}
+                className={`p-2 rounded-lg transition-all ${audioEnabled ? 'text-blue-400' : 'text-gray-500'}`}
+                title={audioEnabled ? 'Mute' : 'Unmute'}
+              >
+                {audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              </button>
+              <button 
+                onClick={() => setShowSessionHistory(true)} 
+                className="p-2 text-gray-500 hover:text-purple-400 rounded-lg" 
+                title="History"
+              >
+                <History className="w-4 h-4" />
+              </button>
+              <button onClick={logout} className="p-2 text-gray-500 hover:text-red-400 rounded-lg" title="Logout">
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
             
-            {/* Logout */}
-            <button onClick={logout} className="p-2 text-gray-500 hover:text-red-400 rounded-lg" title="Logout">
-              <LogOut className="w-4 h-4" />
-            </button>
+            {/* Mobile: More menu */}
+            <div className="sm:hidden relative">
+              <button
+                onClick={() => setShowMoreMenu(!showMoreMenu)}
+                className="p-2 text-gray-400 hover:text-white rounded-lg"
+              >
+                <Menu className="w-4 h-4" />
+              </button>
+              {showMoreMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 min-w-[160px] py-1">
+                  <button
+                    onClick={() => { setAudioEnabled(!audioEnabled); setShowMoreMenu(false); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-800"
+                  >
+                    {audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                    <span>{audioEnabled ? 'Mute Audio' : 'Enable Audio'}</span>
+                  </button>
+                  <button
+                    onClick={() => { setShowSessionHistory(true); setShowMoreMenu(false); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-800"
+                  >
+                    <History className="w-4 h-4" />
+                    <span>Session History</span>
+                  </button>
+                  <button
+                    onClick={() => { setShowDebugLogs(!showDebugLogs); setShowMoreMenu(false); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-800"
+                  >
+                    <Info className="w-4 h-4" />
+                    <span>{showDebugLogs ? 'Hide Debug' : 'Show Debug'}</span>
+                  </button>
+                  <hr className="border-gray-700 my-1" />
+                  <button
+                    onClick={() => { logout(); setShowMoreMenu(false); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-gray-800"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -307,13 +370,23 @@ export const AppV2: React.FC = () => {
 
       </div>
       
-      {/* Click outside to close mode dropdown */}
-      {showModeDropdown && (
+      {/* Click outside to close dropdowns */}
+      {(showModeDropdown || showMoreMenu) && (
         <div 
           className="fixed inset-0 z-40" 
-          onClick={() => setShowModeDropdown(false)}
+          onClick={() => { setShowModeDropdown(false); setShowMoreMenu(false); }}
         />
       )}
+      
+      {/* Session History Panel */}
+      <SessionHistory
+        isOpen={showSessionHistory}
+        onClose={() => setShowSessionHistory(false)}
+        onSelectSession={(sessionId: string) => {
+          // Load session functionality
+          setShowSessionHistory(false);
+        }}
+      />
     </div>
   );
 };
