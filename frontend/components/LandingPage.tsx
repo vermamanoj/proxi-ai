@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Monitor, Smartphone, Shield, ArrowRight, Github, Play } from 'lucide-react';
+import { Zap, Monitor, Smartphone, Shield, ArrowRight, Play, Brain, Eye, Mic, CheckCircle2 } from 'lucide-react';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -77,9 +77,45 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Gemini 3 Features Section */}
       <section className="py-20 px-6">
         <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/30 rounded-full text-blue-400 text-sm mb-4">
+              <Brain className="w-4 h-4" />
+              <span>Powered by Gemini 3</span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Next-Gen AI Capabilities
+            </h2>
+            <p className="text-gray-400 max-w-2xl mx-auto">
+              Leveraging the latest Gemini 3 models for unprecedented desktop automation
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-4 gap-6 mb-16">
+            <div className="p-6 bg-gradient-to-br from-blue-900/30 to-transparent rounded-xl border border-blue-800/30">
+              <Eye className="w-8 h-8 text-blue-400 mb-4" />
+              <h3 className="font-semibold mb-2">Vision Understanding</h3>
+              <p className="text-gray-400 text-sm">Gemini 3 Flash analyzes screenshots to understand UI context and element positions</p>
+            </div>
+            <div className="p-6 bg-gradient-to-br from-purple-900/30 to-transparent rounded-xl border border-purple-800/30">
+              <Mic className="w-8 h-8 text-purple-400 mb-4" />
+              <h3 className="font-semibold mb-2">Native Audio</h3>
+              <p className="text-gray-400 text-sm">Real-time voice interaction via Gemini Live WebRTC for hands-free control</p>
+            </div>
+            <div className="p-6 bg-gradient-to-br from-green-900/30 to-transparent rounded-xl border border-green-800/30">
+              <Brain className="w-8 h-8 text-green-400 mb-4" />
+              <h3 className="font-semibold mb-2">Deep Reasoning</h3>
+              <p className="text-gray-400 text-sm">Gemini 3 Pro handles complex multi-step tasks with planning and verification</p>
+            </div>
+            <div className="p-6 bg-gradient-to-br from-yellow-900/30 to-transparent rounded-xl border border-yellow-800/30">
+              <CheckCircle2 className="w-8 h-8 text-yellow-400 mb-4" />
+              <h3 className="font-semibold mb-2">Verifiable Agent</h3>
+              <p className="text-gray-400 text-sm">Triple Handshake ensures tasks are actually completed before reporting success</p>
+            </div>
+          </div>
+
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
             How Proxi Works
           </h2>
