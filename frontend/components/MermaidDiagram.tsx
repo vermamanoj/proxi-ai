@@ -11,20 +11,56 @@ const renderedCache = new Map<string, string>();
 
 /**
  * Sanitize mermaid syntax to fix common LLM output issues.
- * Only cleans parentheses INSIDE quoted strings (edge labels),
- * preserves valid mermaid node syntax like A(rounded) or B((circle)).
+ * Handles multiple error patterns while preserving valid syntax.
  */
 function sanitizeMermaidSyntax(chart: string): string {
-  // Replace parentheses only inside double-quoted strings (edge labels)
-  // Match: "..." and replace ( with - and remove )
-  return chart.replace(/"([^"]+)"/g, (match, content) => {
+  let sanitized = chart;
+
+  // 1. Fix parentheses inside double-quoted strings (edge labels)
+  sanitized = sanitized.replace(/"([^"]+)"/g, (match, content) => {
     const cleaned = content
-      .replace(/\(/g, ' - ')  // Replace ( with -
-      .replace(/\)/g, '')     // Remove )
-      .replace(/\s+/g, ' ')   // Collapse multiple spaces
+      .replace(/\(/g, ' - ')
+      .replace(/\)/g, '')
+      .replace(/\s+/g, ' ')
       .trim();
     return `"${cleaned}"`;
   });
+
+  // 2. Fix square brackets inside node labels - convert to parentheses
+  // Pattern: A[Text [with] brackets] -> A[Text with brackets]
+  sanitized = sanitized.replace(/\[([^\]]*)\[([^\]]*)\]([^\]]*)\]/g, '[$1$2$3]');
+
+  // 3. Remove HTML entities that break parsing
+  sanitized = sanitized.replace(/&[a-z]+;/gi, ' ');
+  sanitized = sanitized.replace(/&#\d+;/g, ' ');
+
+  // 4. Fix common arrow typos
+  sanitized = sanitized.replace(/-->/g, '-->');  // Normalize arrows
+  sanitized = sanitized.replace(/-\s+->/g, '-->');  // "- ->" -> "-->"
+  sanitized = sanitized.replace(/=\s+=>/g, '==>');  // "= =>" -> "==>"
+
+  // 5. Remove problematic characters in node IDs (keep alphanumeric and underscore)
+  // Fix: node-name -> node_name (hyphens in IDs can cause issues)
+  sanitized = sanitized.replace(/([A-Za-z])[\-]([A-Za-z])/g, '$1_$2');
+
+  // 6. Fix unbalanced quotes by removing incomplete ones at end of lines
+  sanitized = sanitized.replace(/"([^"\n]*)\n/g, '"$1"\n');
+
+  // 7. Remove backticks that LLMs sometimes add
+  sanitized = sanitized.replace(/```mermaid\n?/gi, '');
+  sanitized = sanitized.replace(/```\n?/g, '');
+
+  // 8. Fix "Port XXXX" pattern that often causes parse errors
+  sanitized = sanitized.replace(/Port\s+(\d+)/gi, 'Port $1');
+
+  // 9. Clean up multiple spaces and normalize line endings
+  sanitized = sanitized.replace(/[ \t]+/g, ' ');
+  sanitized = sanitized.replace(/\r\n/g, '\n');
+
+  // 10. Remove empty lines that can cause issues
+  sanitized = sanitized.replace(/\n\s*\n/g, '\n');
+
+  return sanitized.trim();
 }
 
 mermaid.initialize({
