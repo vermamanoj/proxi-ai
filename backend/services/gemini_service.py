@@ -308,15 +308,27 @@ class GeminiService:
                     # Previously approved - execute it
                     return get_desktop_service().run_terminal_command(command)
             
-            # Generate unique approval ID and store as pending
-            approval_id = secrets.token_urlsafe(16)
-            self.pending_approvals[approval_id] = {
-                "command": command,
-                "session_id": session_id,
-                "timestamp": time.time(),
-                "cmd_hash": cmd_hash,
-                "reason": check_result.reason
-            }
+            # Check if there's already a pending approval for this exact command (prevent duplicate prompts)
+            existing_approval_id = None
+            for aid, approval in self.pending_approvals.items():
+                if approval.get("cmd_hash") == cmd_hash and approval.get("session_id") == session_id:
+                    existing_approval_id = aid
+                    break
+            
+            if existing_approval_id:
+                # Return existing approval ID instead of creating a new one
+                approval_id = existing_approval_id
+                log_system(f"Reusing existing approval {approval_id} for command: {command[:30]}...", "APPROVAL")
+            else:
+                # Generate unique approval ID and store as pending
+                approval_id = secrets.token_urlsafe(16)
+                self.pending_approvals[approval_id] = {
+                    "command": command,
+                    "session_id": session_id,
+                    "timestamp": time.time(),
+                    "cmd_hash": cmd_hash,
+                    "reason": check_result.reason
+                }
             
             # Return approval request with approval_id
             return f"APPROVAL_REQUIRED:{approval_id}:{check_result.reason}. Command: {command}. Should I proceed? Reply 'yes' to approve or 'no' to cancel."

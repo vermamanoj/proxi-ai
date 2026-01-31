@@ -218,7 +218,19 @@ SAFE_PATTERNS: List[Tuple[str, str]] = [
     (r'^npm\s+(list|ls|view|info|search)', "NPM read-only"),
     (r'^pip\s+(list|show|freeze)', "Pip read-only"),
     (r'^python\s+--version', "Python version"),
+    (r'^python3\s+--version', "Python3 version"),
+    (r'^pip3?\s+--version', "Pip version"),
     (r'^node\s+--version', "Node version"),
+    (r'^npm\s+--version', "NPM version"),
+    (r'^java\s+--version', "Java version"),
+    (r'^go\s+version', "Go version"),
+    (r'^ruby\s+--version', "Ruby version"),
+    (r'^cargo\s+--version', "Cargo version"),
+    (r'^rustc\s+--version', "Rust version"),
+    (r'^dotnet\s+--version', "Dotnet version"),
+    (r'--version$', "Version check (any tool)"),
+    (r'-v$', "Version check short"),
+    (r'-V$', "Version check short"),
 ]
 
 

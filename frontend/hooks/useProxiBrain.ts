@@ -326,14 +326,17 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                         break;
                     case 'user_command':
                         // Handle ! prefix direct command execution
+                        console.log('[USER_COMMAND] Received:', data);
                         if (data.status === 'blocked') {
-                            addLog(MessageSource.SYSTEM, data.content);
+                            addLog(MessageSource.SYSTEM, `🔒 ${data.content}`);
                         } else if (data.status === 'executed') {
                             const output = typeof data.content === 'string' 
                                 ? data.content 
                                 : (data.content?.output || JSON.stringify(data.content));
-                            addLog(MessageSource.AGENT, `Command: \`${data.command}\`\n\`\`\`\n${output}\n\`\`\``);
+                            console.log('[USER_COMMAND] Adding log with output:', output.substring(0, 100));
+                            addLog(MessageSource.AGENT, `✅ \`${data.command}\`\n\`\`\`\n${output}\n\`\`\``);
                         }
+                        setMissionState(prev => ({ ...prev, phase: 'idle', active: false }));
                         setStatus('idle');
                         break;
                     case 'error':
