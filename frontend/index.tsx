@@ -1,8 +1,26 @@
 // index.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import AppV2 from './components/AppV2';
+
+// Simple hash router for A/B comparison
+const Router: React.FC = () => {
+  const [route, setRoute] = useState(window.location.hash);
+
+  useEffect(() => {
+    const handleHashChange = () => setRoute(window.location.hash);
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Route: /#/v2 = new design, anything else = original
+  if (route === '#/v2') {
+    return <AppV2 />;
+  }
+  return <App />;
+};
 
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {
@@ -21,6 +39,6 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <Router />
   </React.StrictMode>
 );
