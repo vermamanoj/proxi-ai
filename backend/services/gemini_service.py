@@ -72,7 +72,7 @@ class GeminiService:
         """Load mode configurations from external JSON file for easy editing."""
         config_path = Path(__file__).parent.parent / "config" / "modes.json"
         try:
-            with open(config_path, 'r') as f:
+            with open(config_path, 'r', encoding='utf-8') as f:
                 configs = json.load(f)
                 # Remove comment fields
                 return {k: v for k, v in configs.items() if not k.startswith('_')}

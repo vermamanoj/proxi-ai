@@ -31,6 +31,7 @@ from backend.database import (
 # Initialize database on startup
 init_db()
 from backend.services.desktop.factory import get_desktop_service, set_active_agent, clear_active_agent
+from backend.tools.command_guard import check_command_safety, CommandRisk
 from backend.registry.workstation_registry import (
     get_registry, list_workstations, get_workstation, get_workstation_status
 )
@@ -329,6 +330,63 @@ async def chat(request: ChatRequest, http_request: Request):
                 "text": request.message,
             },
         )
+
+        # Handle ! prefix for direct user command execution (bypasses approval, not blocked)
+        if request.message.strip().startswith("!"):
+            command = request.message.strip()[1:].strip()  # Remove ! prefix
+            
+            # Check if command is blocked (still enforce safety)
+            check_result = check_command_safety(command)
+            if check_result.risk_level == CommandRisk.BLOCKED:
+                error_response = json.dumps({
+                    "type": "user_command",
+                    "status": "blocked",
+                    "command": command,
+                    "content": f"🔒 BLOCKED: {check_result.reason}. This command cannot be overridden for safety."
+                }) + "\n"
+                return StreamingResponse(
+                    iter([error_response]),
+                    media_type="application/x-ndjson"
+                )
+            
+            # Execute command directly via desktop service
+            try:
+                ds = get_desktop_service()
+                output = ds.run_terminal_command(command)
+            except Exception as e:
+                output = f"Error executing command: {str(e)}"
+            
+            # Add command and output to LLM session history so agent knows what user did
+            user_cmd_entry = {"role": "user", "parts": [f"[USER_OVERRIDE] I executed: {command}"]}
+            model_output_entry = {"role": "model", "parts": [f"[USER_OVERRIDE] Command output:\n```\n{output}\n```"]}
+            
+            if session_id not in gemini_service.sessions:
+                gemini_service.sessions[session_id] = []
+            gemini_service.sessions[session_id].append(user_cmd_entry)
+            gemini_service.sessions[session_id].append(model_output_entry)
+            
+            # Also persist to database
+            append_session_message(
+                session_id,
+                {
+                    "id": f"msg_{uuid.uuid4().hex[:10]}",
+                    "timestamp": datetime.datetime.utcnow().isoformat(),
+                    "source": "agent",
+                    "text": f"[USER_OVERRIDE] Command: `{command}`\nOutput:\n```\n{output}\n```",
+                },
+            )
+            
+            # Return output to user
+            response_data = json.dumps({
+                "type": "user_command",
+                "status": "executed",
+                "command": command,
+                "content": output
+            }) + "\n"
+            return StreamingResponse(
+                iter([response_data]),
+                media_type="application/x-ndjson"
+            )
 
         async def stream_with_persistence():
             last_agent_text = None
