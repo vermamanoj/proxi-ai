@@ -1,0 +1,15 @@
+{
+  "name": "techsolutions-crm",
+  "version": "2.8.4",
+  "description": "TechSolutions CRM System - Demo App for Proxi",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "author": "TechSolutions Inc.",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0"
+  }
+}

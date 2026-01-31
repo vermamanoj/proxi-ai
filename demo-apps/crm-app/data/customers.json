@@ -1,0 +1,184 @@
+{
+  "contacts": [
+    {
+      "id": "C001",
+      "name": "John Smith",
+      "title": "VP of Engineering",
+      "company": "ACME Corporation",
+      "email": "jsmith@acme.com",
+      "phone": "+1-555-0101",
+      "status": "Active",
+      "lastContact": "2026-01-28",
+      "owner": "Sarah Johnson"
+    },
+    {
+      "id": "C002",
+      "name": "Lisa Chen",
+      "title": "CTO",
+      "company": "Globex Industries",
+      "email": "lchen@globex.com",
+      "phone": "+1-555-0102",
+      "status": "Active",
+      "lastContact": "2026-01-25",
+      "owner": "Michael Chen"
+    },
+    {
+      "id": "C003",
+      "name": "Robert Wilson",
+      "title": "IT Director",
+      "company": "Initech Solutions",
+      "email": "rwilson@initech.com",
+      "phone": "+1-555-0103",
+      "status": "Active",
+      "lastContact": "2026-01-20",
+      "owner": "Sarah Johnson"
+    },
+    {
+      "id": "C004",
+      "name": "Amanda Torres",
+      "title": "Procurement Manager",
+      "company": "Wayne Enterprises",
+      "email": "atorres@wayne.com",
+      "phone": "+1-555-0104",
+      "status": "Active",
+      "lastContact": "2026-01-15",
+      "owner": "David Park"
+    },
+    {
+      "id": "C005",
+      "name": "Marcus Johnson",
+      "title": "CFO",
+      "company": "Stark Industries",
+      "email": "mjohnson@stark.com",
+      "phone": "+1-555-0105",
+      "status": "VIP",
+      "lastContact": "2026-01-30",
+      "owner": "Emily Rodriguez"
+    },
+    {
+      "id": "C006",
+      "name": "Jennifer Lee",
+      "title": "City Administrator",
+      "company": "City of Springfield",
+      "email": "jlee@springfield.gov",
+      "phone": "+1-555-0106",
+      "status": "Active",
+      "lastContact": "2026-01-22",
+      "owner": "Lisa Wong"
+    }
+  ],
+  "deals": [
+    {
+      "id": "D001",
+      "name": "ACME Enterprise Renewal",
+      "company": "ACME Corporation",
+      "value": 1561875,
+      "stage": "Negotiation",
+      "probability": 75,
+      "closeDate": "2026-03-15",
+      "owner": "Sarah Johnson",
+      "notes": "Renewal with 750 seats, requesting additional discount"
+    },
+    {
+      "id": "D002",
+      "name": "Umbrella Corp New Business",
+      "company": "Umbrella Corp",
+      "value": 661500,
+      "stage": "Proposal",
+      "probability": 50,
+      "closeDate": "2026-04-01",
+      "owner": "Michael Chen",
+      "notes": "New prospect, 300 seats Enterprise tier"
+    },
+    {
+      "id": "D003",
+      "name": "Wayne Expansion",
+      "company": "Wayne Enterprises",
+      "value": 857500,
+      "stage": "Discovery",
+      "probability": 30,
+      "closeDate": "2026-06-30",
+      "owner": "David Park",
+      "notes": "Additional 500 seats for new division"
+    },
+    {
+      "id": "D004",
+      "name": "Stark Global Rollout",
+      "company": "Stark Industries",
+      "value": 3185000,
+      "stage": "Closed Won",
+      "probability": 100,
+      "closeDate": "2026-01-15",
+      "owner": "Emily Rodriguez",
+      "notes": "5000 seats, 5-year contract signed"
+    },
+    {
+      "id": "D005",
+      "name": "Springfield Expansion",
+      "company": "City of Springfield",
+      "value": 283500,
+      "stage": "Qualification",
+      "probability": 20,
+      "closeDate": "2026-07-01",
+      "owner": "Lisa Wong",
+      "notes": "Adding 150 seats for new departments"
+    }
+  ],
+  "activities": [
+    {
+      "id": "A001",
+      "type": "Call",
+      "subject": "Renewal Discussion",
+      "contact": "John Smith",
+      "company": "ACME Corporation",
+      "date": "2026-01-28",
+      "duration": "45 min",
+      "owner": "Sarah Johnson",
+      "notes": "Discussed renewal terms, client requesting 20% discount due to budget constraints"
+    },
+    {
+      "id": "A002",
+      "type": "Email",
+      "subject": "Proposal Follow-up",
+      "contact": "Lisa Chen",
+      "company": "Globex Industries",
+      "date": "2026-01-25",
+      "duration": "-",
+      "owner": "Michael Chen",
+      "notes": "Sent updated proposal with volume pricing"
+    },
+    {
+      "id": "A003",
+      "type": "Meeting",
+      "subject": "Quarterly Business Review",
+      "contact": "Marcus Johnson",
+      "company": "Stark Industries",
+      "date": "2026-01-30",
+      "duration": "2 hours",
+      "owner": "Emily Rodriguez",
+      "notes": "Excellent feedback, discussing expansion to APAC"
+    },
+    {
+      "id": "A004",
+      "type": "Demo",
+      "subject": "Product Demo - New Features",
+      "contact": "Amanda Torres",
+      "company": "Wayne Enterprises",
+      "date": "2026-01-15",
+      "duration": "1 hour",
+      "owner": "David Park",
+      "notes": "Showcased v3.0 features, strong interest in automation module"
+    }
+  ],
+  "pipeline": {
+    "stages": ["Discovery", "Qualification", "Proposal", "Negotiation", "Closed Won", "Closed Lost"],
+    "summary": {
+      "Discovery": {"count": 1, "value": 857500},
+      "Qualification": {"count": 1, "value": 283500},
+      "Proposal": {"count": 1, "value": 661500},
+      "Negotiation": {"count": 1, "value": 1561875},
+      "Closed Won": {"count": 1, "value": 3185000},
+      "Closed Lost": {"count": 0, "value": 0}
+    }
+  }
+}

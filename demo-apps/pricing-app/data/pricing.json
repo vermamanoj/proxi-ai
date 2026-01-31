@@ -1,0 +1,175 @@
+{
+  "tiers": [
+    {
+      "id": "STARTER",
+      "name": "Starter",
+      "code": "STR-2024",
+      "basePrice": 450,
+      "unit": "USD/seat/year",
+      "volumeDiscounts": [
+        {"minSeats": 10, "discount": 5},
+        {"minSeats": 25, "discount": 10}
+      ],
+      "minMargin": 20,
+      "targetMargin": 35,
+      "maxDiscountWithoutApproval": 15,
+      "floorPrice": 380,
+      "effectiveDate": "2024-01-01",
+      "lastUpdated": "2024-01-15"
+    },
+    {
+      "id": "PROFESSIONAL",
+      "name": "Professional",
+      "code": "PRO-2024",
+      "basePrice": 1250,
+      "unit": "USD/seat/year",
+      "volumeDiscounts": [
+        {"minSeats": 25, "discount": 8},
+        {"minSeats": 50, "discount": 12},
+        {"minSeats": 100, "discount": 18}
+      ],
+      "minMargin": 18,
+      "targetMargin": 30,
+      "maxDiscountWithoutApproval": 18,
+      "floorPrice": 950,
+      "effectiveDate": "2024-01-01",
+      "lastUpdated": "2024-01-15"
+    },
+    {
+      "id": "ENTERPRISE",
+      "name": "Enterprise",
+      "code": "ENT-2024",
+      "basePrice": 2450,
+      "unit": "USD/seat/year",
+      "volumeDiscounts": [
+        {"minSeats": 100, "discount": 15},
+        {"minSeats": 500, "discount": 22},
+        {"minSeats": 1000, "discount": 28}
+      ],
+      "minMargin": 18,
+      "targetMargin": 28,
+      "maxDiscountWithoutApproval": 20,
+      "floorPrice": 1850,
+      "effectiveDate": "2024-01-01",
+      "lastUpdated": "2024-01-15"
+    },
+    {
+      "id": "GOVERNMENT",
+      "name": "Government",
+      "code": "GOV-2024",
+      "basePrice": 1800,
+      "unit": "USD/seat/year",
+      "volumeDiscounts": [
+        {"minSeats": 100, "discount": 20},
+        {"minSeats": 500, "discount": 30},
+        {"minSeats": 1000, "discount": 35}
+      ],
+      "minMargin": 12,
+      "targetMargin": 22,
+      "maxDiscountWithoutApproval": 25,
+      "floorPrice": 1200,
+      "effectiveDate": "2024-01-01",
+      "lastUpdated": "2024-01-15"
+    }
+  ],
+  "clients": [
+    {
+      "id": "ACME001",
+      "name": "ACME Corporation",
+      "tier": "ENTERPRISE",
+      "seats": 750,
+      "contractStart": "2023-06-01",
+      "contractEnd": "2026-05-31",
+      "currentPrice": 2082.50,
+      "discount": 15,
+      "region": "North America",
+      "accountManager": "Sarah Johnson"
+    },
+    {
+      "id": "GLOBEX002",
+      "name": "Globex Industries",
+      "tier": "PROFESSIONAL",
+      "seats": 120,
+      "contractStart": "2024-01-15",
+      "contractEnd": "2027-01-14",
+      "currentPrice": 1100.00,
+      "discount": 12,
+      "region": "EMEA",
+      "accountManager": "Michael Chen"
+    },
+    {
+      "id": "INITECH003",
+      "name": "Initech Solutions",
+      "tier": "ENTERPRISE",
+      "seats": 1200,
+      "contractStart": "2022-09-01",
+      "contractEnd": "2025-08-31",
+      "currentPrice": 1764.00,
+      "discount": 28,
+      "region": "North America",
+      "accountManager": "Sarah Johnson"
+    },
+    {
+      "id": "WAYNE004",
+      "name": "Wayne Enterprises",
+      "tier": "ENTERPRISE",
+      "seats": 2500,
+      "contractStart": "2024-03-01",
+      "contractEnd": "2027-02-28",
+      "currentPrice": 1715.00,
+      "discount": 30,
+      "region": "North America",
+      "accountManager": "David Park"
+    },
+    {
+      "id": "STARK005",
+      "name": "Stark Industries",
+      "tier": "ENTERPRISE",
+      "seats": 5000,
+      "contractStart": "2023-01-01",
+      "contractEnd": "2028-12-31",
+      "currentPrice": 1592.50,
+      "discount": 35,
+      "region": "Global",
+      "accountManager": "Emily Rodriguez"
+    },
+    {
+      "id": "CITY006",
+      "name": "City of Springfield",
+      "tier": "GOVERNMENT",
+      "seats": 450,
+      "contractStart": "2024-07-01",
+      "contractEnd": "2027-06-30",
+      "currentPrice": 1260.00,
+      "discount": 30,
+      "region": "North America",
+      "accountManager": "Lisa Wong"
+    }
+  ],
+  "pendingQuotes": [
+    {
+      "id": "Q-2026-0142",
+      "client": "ACME Corporation",
+      "seats": 750,
+      "proposedPrice": 1960.00,
+      "proposedDiscount": 20,
+      "margin": 17.5,
+      "status": "Pending VP Approval",
+      "createdBy": "Sarah Johnson",
+      "createdDate": "2026-01-28",
+      "notes": "Renewal with additional discount request"
+    },
+    {
+      "id": "Q-2026-0156",
+      "client": "Umbrella Corp",
+      "seats": 300,
+      "proposedPrice": 2205.00,
+      "proposedDiscount": 10,
+      "margin": 24,
+      "status": "Draft",
+      "createdBy": "Michael Chen",
+      "createdDate": "2026-01-30",
+      "notes": "New customer prospect"
+    }
+  ]
+}

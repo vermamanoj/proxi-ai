@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Pricing System v3.2.1 - [Production]</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            font-size: 12px;
+            background: #f0f0f0;
+            color: #333;
+        }
+        /* Title bar */
+        .title-bar {
+            background: linear-gradient(to right, #0058e6, #3a8bc2);
+            color: white;
+            padding: 6px 12px;
+            font-weight: bold;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            -webkit-app-region: drag;
+        }
+        /* Tab navigation */
+        .tab-bar {
+            background: #e8e8e8;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            padding: 0 8px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-bottom: none;
+            margin-bottom: -1px;
+            background: transparent;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .tab:hover { background: #f5f5f5; }
+        .tab.active {
+            background: white;
+            border-color: #ccc;
+            border-bottom-color: white;
+            font-weight: bold;
+        }
+        /* Main container */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        /* Sidebar */
+        .sidebar {
+            width: 220px;
+            background: #fff;
+            border-right: 1px solid #ccc;
+            overflow-y: auto;
+        }
+        .sidebar-header {
+            background: #0058e6;
+            color: white;
+            padding: 8px 12px;
+            font-weight: bold;
+        }
+        .tree-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        .tree-item:hover { background: #f0f7ff; }
+        .tree-item.selected { background: #cce5ff; font-weight: bold; }
+        .tree-item.indent { padding-left: 28px; font-size: 11px; }
+        /* Content area */
+        .content {
+            flex: 1;
+            padding: 20px;
+            background: #fff;
+            overflow-y: auto;
+        }
+        .content h2 {
+            color: #0058e6;
+            border-bottom: 2px solid #0058e6;
+            padding-bottom: 8px;
+            margin-bottom: 20px;
+        }
+        /* Tab content */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        /* Data table */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+        .data-table th {
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+            font-weight: bold;
+        }
+        .data-table td {
+            border: 1px solid #ccc;
+            padding: 10px;
+        }
+        .data-table tr:hover { background: #f5f9ff; }
+        .data-table tr.highlight { background: #fff3cd; }
+        /* Form elements */
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 16px;
+            align-items: center;
+        }
+        .form-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .form-group label { font-weight: bold; min-width: 100px; }
+        .form-group input, .form-group select {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .form-group input:focus, .form-group select:focus {
+            border-color: #0058e6;
+            outline: none;
+        }
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            background: linear-gradient(to bottom, #fff, #e8e8e8);
+        }
+        .btn:hover { background: linear-gradient(to bottom, #f0f7ff, #d0e0f0); }
+        .btn-primary {
+            background: linear-gradient(to bottom, #0066cc, #004499);
+            color: white;
+            border-color: #003366;
+        }
+        .btn-primary:hover { background: linear-gradient(to bottom, #0077dd, #0055aa); }
+        /* Status bar */
+        .status-bar {
+            background: #e8e8e8;
+            border-top: 1px solid #ccc;
+            padding: 6px 12px;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .status-item {
+            padding: 2px 12px;
+            border-right: 1px solid #ccc;
+        }
+        .status-item:last-child { border-right: none; }
+        /* Alert boxes */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin: 16px 0;
+        }
+        .alert-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+        }
+        .alert-info {
+            background: #cce5ff;
+            border: 1px solid #0066cc;
+            color: #004085;
+        }
+        /* Search box */
+        .search-box {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        /* Cards */
+        .card {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .card-header {
+            font-weight: bold;
+            color: #0058e6;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #0058e6, #3a8bc2);
+            color: white;
+            padding: 16px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .stat-card .value { font-size: 28px; font-weight: bold; }
+        .stat-card .label { font-size: 11px; opacity: 0.9; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <div class="title-bar">
+        <span>📊 Enterprise Pricing System v3.2.1 - [Production]</span>
+        <span id="current-time"></span>
+    </div>
+    
+    <div class="tab-bar">
+        <div class="tab active" data-tab="dashboard">📈 Dashboard</div>
+        <div class="tab" data-tab="clients">👥 Clients</div>
+        <div class="tab" data-tab="pricing">💰 Pricing Tiers</div>
+        <div class="tab" data-tab="quotes">📋 Quotes</div>
+    </div>
+    
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="sidebar-header">Quick Access</div>
+            <div class="tree-item" onclick="switchTab('dashboard')">📈 Dashboard</div>
+            <div class="tree-item" onclick="switchTab('clients')">👥 All Clients</div>
+            <div class="tree-item indent" onclick="filterClients('ENTERPRISE')">Enterprise Clients</div>
+            <div class="tree-item indent" onclick="filterClients('PROFESSIONAL')">Professional Clients</div>
+            <div class="tree-item indent" onclick="filterClients('GOVERNMENT')">Government Clients</div>
+            <div class="tree-item" onclick="switchTab('pricing')">💰 Pricing Tiers</div>
+            <div class="tree-item indent" onclick="selectTier('STARTER')">Starter</div>
+            <div class="tree-item indent" onclick="selectTier('PROFESSIONAL')">Professional</div>
+            <div class="tree-item indent selected" onclick="selectTier('ENTERPRISE')">Enterprise</div>
+            <div class="tree-item indent" onclick="selectTier('GOVERNMENT')">Government</div>
+            <div class="tree-item" onclick="switchTab('quotes')">📋 Pending Quotes</div>
+        </div>
+        
+        <div class="content">
+            <!-- Dashboard Tab -->
+            <div id="dashboard-content" class="tab-content active">
+                <h2>Dashboard - January 2026</h2>
+                <div class="stat-grid">
+                    <div class="stat-card">
+                        <div class="value" id="stat-clients">0</div>
+                        <div class="label">Active Clients</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="stat-seats">0</div>
+                        <div class="label">Total Seats</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="stat-arr">$0</div>
+                        <div class="label">Annual Revenue</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="stat-quotes">0</div>
+                        <div class="label">Pending Quotes</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">Recent Activity</div>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Date</th><th>Action</th><th>Client</th><th>User</th></tr>
+                        </thead>
+                        <tbody id="activity-log"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Clients Tab -->
+            <div id="clients-content" class="tab-content">
+                <h2>Client Management</h2>
+                <div class="search-box">
+                    <input type="text" id="client-search" placeholder="Search clients by name..." onkeyup="searchClients()">
+                    <button class="btn" onclick="searchClients()">🔍 Search</button>
+                    <button class="btn btn-primary" onclick="exportClients()">📥 Export</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Client ID</th>
+                            <th>Company Name</th>
+                            <th>Tier</th>
+                            <th>Seats</th>
+                            <th>Current Price</th>
+                            <th>Discount</th>
+                            <th>Contract End</th>
+                            <th>Account Manager</th>
+                        </tr>
+                    </thead>
+                    <tbody id="clients-table"></tbody>
+                </table>
+            </div>
+            
+            <!-- Pricing Tiers Tab -->
+            <div id="pricing-content" class="tab-content">
+                <h2>Pricing Configuration - <span id="selected-tier-name">Enterprise</span></h2>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tier Code:</label>
+                        <input type="text" id="tier-code" readonly style="background: #f0f0f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Effective Date:</label>
+                        <input type="text" id="tier-effective" readonly style="background: #f0f0f0;">
+                    </div>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr><th>Metric</th><th>Value</th><th>Unit</th><th>Last Updated</th></tr>
+                    </thead>
+                    <tbody id="pricing-table"></tbody>
+                </table>
+                <div class="alert alert-warning">
+                    <strong>⚠️ MARGIN POLICY:</strong> Deals below minimum margin require VP Sales approval. 
+                    Deals below 15% margin require CFO approval. No deals permitted below 12% margin.
+                </div>
+            </div>
+            
+            <!-- Quotes Tab -->
+            <div id="quotes-content" class="tab-content">
+                <h2>Pending Quotes</h2>
+                <div class="search-box">
+                    <button class="btn btn-primary" onclick="newQuote()">➕ New Quote</button>
+                    <button class="btn" onclick="refreshQuotes()">🔄 Refresh</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Quote ID</th>
+                            <th>Client</th>
+                            <th>Seats</th>
+                            <th>Proposed Price</th>
+                            <th>Discount</th>
+                            <th>Margin</th>
+                            <th>Status</th>
+                            <th>Created By</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quotes-table"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status-bar">
+        <div>
+            <span class="status-item">User: SJOHNSON</span>
+            <span class="status-item">Region: North America</span>
+            <span class="status-item">Role: Sales Manager</span>
+        </div>
+        <div>
+            <span class="status-item">Database: PROD-DB-01</span>
+            <span class="status-item" id="last-sync">Last Sync: Loading...</span>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        let pricingData = null;
+        let selectedTier = 'ENTERPRISE';
+        let clientFilter = null;
+
+        // Initialize app
+        async function init() {
+            pricingData = await ipcRenderer.invoke('load-data', 'pricing.json');
+            if (pricingData) {
+                updateDashboard();
+                renderClients();
+                renderTier(selectedTier);
+                renderQuotes();
+            }
+            updateTime();
+            setInterval(updateTime, 1000);
+        }
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleString();
+            document.getElementById('last-sync').textContent = 'Last Sync: ' + now.toLocaleTimeString();
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            document.getElementById(`${tabName}-content`).classList.add('active');
+        }
+
+        // Dashboard
+        function updateDashboard() {
+            const clients = pricingData.clients;
+            const totalSeats = clients.reduce((sum, c) => sum + c.seats, 0);
+            const arr = clients.reduce((sum, c) => sum + (c.currentPrice * c.seats), 0);
+            
+            document.getElementById('stat-clients').textContent = clients.length;
+            document.getElementById('stat-seats').textContent = totalSeats.toLocaleString();
+            document.getElementById('stat-arr').textContent = '$' + (arr / 1000000).toFixed(1) + 'M';
+            document.getElementById('stat-quotes').textContent = pricingData.pendingQuotes.length;
+
+            // Activity log
+            const activities = [
+                { date: '2026-01-30', action: 'Quote Created', client: 'Umbrella Corp', user: 'M. Chen' },
+                { date: '2026-01-28', action: 'Quote Submitted', client: 'ACME Corporation', user: 'S. Johnson' },
+                { date: '2026-01-25', action: 'Contract Renewed', client: 'Globex Industries', user: 'M. Chen' },
+                { date: '2026-01-20', action: 'Pricing Updated', client: 'System', user: 'Admin' }
+            ];
+            document.getElementById('activity-log').innerHTML = activities.map(a => 
+                `<tr><td>${a.date}</td><td>${a.action}</td><td>${a.client}</td><td>${a.user}</td></tr>`
+            ).join('');
+        }
+
+        // Clients
+        function renderClients() {
+            let clients = pricingData.clients;
+            if (clientFilter) {
+                clients = clients.filter(c => c.tier === clientFilter);
+            }
+            const search = document.getElementById('client-search')?.value?.toLowerCase() || '';
+            if (search) {
+                clients = clients.filter(c => c.name.toLowerCase().includes(search));
+            }
+            
+            document.getElementById('clients-table').innerHTML = clients.map(c => `
+                <tr>
+                    <td>${c.id}</td>
+                    <td><strong>${c.name}</strong></td>
+                    <td>${c.tier}</td>
+                    <td>${c.seats.toLocaleString()}</td>
+                    <td>$${c.currentPrice.toFixed(2)}</td>
+                    <td>${c.discount}%</td>
+                    <td>${c.contractEnd}</td>
+                    <td>${c.accountManager}</td>
+                </tr>
+            `).join('');
+        }
+
+        function filterClients(tier) {
+            clientFilter = tier;
+            switchTab('clients');
+            renderClients();
+        }
+
+        function searchClients() {
+            renderClients();
+        }
+
+        function exportClients() {
+            alert('Export functionality would generate CSV/Excel file');
+        }
+
+        // Pricing Tiers
+        function selectTier(tierId) {
+            selectedTier = tierId;
+            document.querySelectorAll('.sidebar .tree-item').forEach(i => i.classList.remove('selected'));
+            event.target.classList.add('selected');
+            switchTab('pricing');
+            renderTier(tierId);
+        }
+
+        function renderTier(tierId) {
+            const tier = pricingData.tiers.find(t => t.id === tierId);
+            if (!tier) return;
+
+            document.getElementById('selected-tier-name').textContent = tier.name;
+            document.getElementById('tier-code').value = tier.code;
+            document.getElementById('tier-effective').value = tier.effectiveDate;
+
+            const rows = [
+                { metric: 'Base Price (per seat)', value: `$${tier.basePrice.toFixed(2)}`, unit: tier.unit, date: tier.lastUpdated },
+                ...tier.volumeDiscounts.map(vd => ({
+                    metric: `Volume Discount (${vd.minSeats}+ seats)`,
+                    value: `${vd.discount}%`,
+                    unit: 'Percentage',
+                    date: tier.lastUpdated
+                })),
+                { metric: 'Minimum Margin', value: `${tier.minMargin}%`, unit: 'Percentage', date: tier.lastUpdated, highlight: true },
+                { metric: 'Target Margin', value: `${tier.targetMargin}%`, unit: 'Percentage', date: tier.lastUpdated },
+                { metric: 'Max Discount (w/o approval)', value: `${tier.maxDiscountWithoutApproval}%`, unit: 'Percentage', date: tier.lastUpdated },
+                { metric: 'Floor Price (absolute min)', value: `$${tier.floorPrice.toFixed(2)}`, unit: tier.unit, date: tier.lastUpdated }
+            ];
+
+            document.getElementById('pricing-table').innerHTML = rows.map(r => `
+                <tr class="${r.highlight ? 'highlight' : ''}">
+                    <td>${r.highlight ? '<strong>' + r.metric + '</strong>' : r.metric}</td>
+                    <td>${r.highlight ? '<strong>' + r.value + '</strong>' : r.value}</td>
+                    <td>${r.unit}</td>
+                    <td>${r.date}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Quotes
+        function renderQuotes() {
+            document.getElementById('quotes-table').innerHTML = pricingData.pendingQuotes.map(q => `
+                <tr class="${q.margin < 18 ? 'highlight' : ''}">
+                    <td>${q.id}</td>
+                    <td>${q.client}</td>
+                    <td>${q.seats}</td>
+                    <td>$${q.proposedPrice.toFixed(2)}</td>
+                    <td>${q.proposedDiscount}%</td>
+                    <td>${q.margin}%</td>
+                    <td>${q.status}</td>
+                    <td>${q.createdBy}</td>
+                </tr>
+            `).join('');
+        }
+
+        function newQuote() {
+            alert('New Quote dialog would open here');
+        }
+
+        function refreshQuotes() {
+            renderQuotes();
+        }
+
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>

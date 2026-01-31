@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechSolutions CRM v2.8.4 - [Production]</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            font-size: 12px;
+            background: #f5f5f5;
+            color: #333;
+        }
+        .title-bar {
+            background: linear-gradient(to right, #2c5282, #4299e1);
+            color: white;
+            padding: 8px 16px;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            -webkit-app-region: drag;
+        }
+        .tab-bar {
+            background: #fff;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            padding: 0 16px;
+        }
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            font-weight: 500;
+            color: #718096;
+        }
+        .tab:hover { color: #2c5282; }
+        .tab.active {
+            color: #2c5282;
+            border-bottom-color: #2c5282;
+            font-weight: bold;
+        }
+        .main-container {
+            display: flex;
+            height: calc(100vh - 90px);
+        }
+        .sidebar {
+            width: 240px;
+            background: #2c5282;
+            color: white;
+            overflow-y: auto;
+        }
+        .sidebar-header {
+            padding: 16px;
+            font-weight: bold;
+            font-size: 13px;
+            border-bottom: 1px solid #4299e1;
+        }
+        .nav-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .nav-item:hover { background: #3b6ea5; }
+        .nav-item.active { background: #4299e1; border-left-color: white; }
+        .nav-item.indent { padding-left: 36px; font-size: 11px; }
+        .content {
+            flex: 1;
+            padding: 24px;
+            background: #f7fafc;
+            overflow-y: auto;
+        }
+        .content h2 {
+            color: #2c5282;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .data-table th {
+            background: #edf2f7;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #4a5568;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .data-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .data-table tr:hover { background: #f7fafc; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .btn-primary {
+            background: #2c5282;
+            color: white;
+        }
+        .btn-primary:hover { background: #2b4c7e; }
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+        .btn-secondary:hover { background: #cbd5e0; }
+        .search-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 10px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .search-bar input:focus {
+            outline: none;
+            border-color: #4299e1;
+        }
+        .status-bar {
+            background: #2c5282;
+            color: white;
+            padding: 8px 16px;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .badge-success { background: #c6f6d5; color: #22543d; }
+        .badge-warning { background: #fefcbf; color: #744210; }
+        .badge-info { background: #bee3f8; color: #2c5282; }
+        .badge-vip { background: #fbd38d; color: #744210; }
+        .stat-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .stat-card .label { color: #718096; font-size: 12px; margin-bottom: 8px; }
+        .stat-card .value { font-size: 28px; font-weight: bold; color: #2c5282; }
+        .stat-card .change { font-size: 11px; margin-top: 8px; }
+        .stat-card .change.positive { color: #38a169; }
+        .stat-card .change.negative { color: #e53e3e; }
+        .pipeline-bar {
+            display: flex;
+            height: 40px;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .pipeline-stage {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            font-weight: bold;
+            color: #2c5282;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body>
+    <div class="title-bar">
+        <span>🏢 TechSolutions CRM v2.8.4 - [Production]</span>
+        <span id="current-time"></span>
+    </div>
+    
+    <div class="tab-bar">
+        <div class="tab active" data-tab="dashboard">📊 Dashboard</div>
+        <div class="tab" data-tab="contacts">👤 Contacts</div>
+        <div class="tab" data-tab="deals">💼 Deals</div>
+        <div class="tab" data-tab="activities">📅 Activities</div>
+    </div>
+    
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="sidebar-header">Navigation</div>
+            <div class="nav-item active" onclick="switchTab('dashboard')">📊 Dashboard</div>
+            <div class="nav-item" onclick="switchTab('contacts')">👤 All Contacts</div>
+            <div class="nav-item indent" onclick="filterContacts('VIP')">⭐ VIP Contacts</div>
+            <div class="nav-item indent" onclick="filterContacts('Active')">✅ Active Contacts</div>
+            <div class="nav-item" onclick="switchTab('deals')">💼 Deal Pipeline</div>
+            <div class="nav-item indent" onclick="filterDeals('Negotiation')">🤝 Negotiation</div>
+            <div class="nav-item indent" onclick="filterDeals('Proposal')">📄 Proposal</div>
+            <div class="nav-item indent" onclick="filterDeals('Closed Won')">🏆 Closed Won</div>
+            <div class="nav-item" onclick="switchTab('activities')">📅 Activities</div>
+            <div class="nav-item indent" onclick="filterActivities('Call')">📞 Calls</div>
+            <div class="nav-item indent" onclick="filterActivities('Meeting')">🤝 Meetings</div>
+        </div>
+        
+        <div class="content">
+            <!-- Dashboard -->
+            <div id="dashboard-content" class="tab-content active">
+                <h2>📊 Sales Dashboard - Q1 2026</h2>
+                <div class="stat-cards">
+                    <div class="stat-card">
+                        <div class="label">Total Pipeline</div>
+                        <div class="value" id="stat-pipeline">$0</div>
+                        <div class="change positive">↑ 12% vs last quarter</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Closed Won (YTD)</div>
+                        <div class="value" id="stat-won">$0</div>
+                        <div class="change positive">↑ 8% vs target</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Active Deals</div>
+                        <div class="value" id="stat-deals">0</div>
+                        <div class="change">4 closing this month</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Contacts</div>
+                        <div class="value" id="stat-contacts">0</div>
+                        <div class="change positive">+2 this week</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">Pipeline by Stage</div>
+                    <div class="pipeline-bar" id="pipeline-bar"></div>
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Stage</th><th>Deals</th><th>Value</th><th>Avg. Probability</th></tr>
+                        </thead>
+                        <tbody id="pipeline-table"></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Contacts -->
+            <div id="contacts-content" class="tab-content">
+                <h2>👤 Contact Management</h2>
+                <div class="search-bar">
+                    <input type="text" id="contact-search" placeholder="Search contacts..." onkeyup="searchContacts()">
+                    <button class="btn btn-secondary" onclick="searchContacts()">🔍 Search</button>
+                    <button class="btn btn-primary" onclick="newContact()">➕ Add Contact</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Title</th>
+                            <th>Company</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Last Contact</th>
+                            <th>Owner</th>
+                        </tr>
+                    </thead>
+                    <tbody id="contacts-table"></tbody>
+                </table>
+            </div>
+            
+            <!-- Deals -->
+            <div id="deals-content" class="tab-content">
+                <h2>💼 Deal Pipeline</h2>
+                <div class="search-bar">
+                    <input type="text" id="deal-search" placeholder="Search deals..." onkeyup="searchDeals()">
+                    <button class="btn btn-secondary" onclick="searchDeals()">🔍 Search</button>
+                    <button class="btn btn-primary" onclick="newDeal()">➕ New Deal</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Deal Name</th>
+                            <th>Company</th>
+                            <th>Value</th>
+                            <th>Stage</th>
+                            <th>Probability</th>
+                            <th>Close Date</th>
+                            <th>Owner</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deals-table"></tbody>
+                </table>
+            </div>
+            
+            <!-- Activities -->
+            <div id="activities-content" class="tab-content">
+                <h2>📅 Recent Activities</h2>
+                <div class="search-bar">
+                    <input type="text" id="activity-search" placeholder="Search activities..." onkeyup="searchActivities()">
+                    <button class="btn btn-secondary" onclick="searchActivities()">🔍 Search</button>
+                    <button class="btn btn-primary" onclick="logActivity()">➕ Log Activity</button>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Subject</th>
+                            <th>Contact</th>
+                            <th>Company</th>
+                            <th>Date</th>
+                            <th>Duration</th>
+                            <th>Owner</th>
+                        </tr>
+                    </thead>
+                    <tbody id="activities-table"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="status-bar">
+        <div>
+            <span>User: Sarah Johnson | Role: Sales Manager | Region: North America</span>
+        </div>
+        <div>
+            <span>Connected: CRM-PROD-01 | Last Sync: <span id="last-sync">Loading...</span></span>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        let crmData = null;
+        let contactFilter = null;
+        let dealFilter = null;
+        let activityFilter = null;
+
+        async function init() {
+            crmData = await ipcRenderer.invoke('load-data', 'customers.json');
+            if (crmData) {
+                updateDashboard();
+                renderContacts();
+                renderDeals();
+                renderActivities();
+            }
+            updateTime();
+            setInterval(updateTime, 1000);
+        }
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleString();
+            document.getElementById('last-sync').textContent = now.toLocaleTimeString();
+        }
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelector(`[data-tab="${tabName}"]`)?.classList.add('active');
+            document.getElementById(`${tabName}-content`).classList.add('active');
+        }
+
+        function updateDashboard() {
+            const deals = crmData.deals;
+            const pipeline = deals.filter(d => d.stage !== 'Closed Lost').reduce((sum, d) => sum + d.value, 0);
+            const won = deals.filter(d => d.stage === 'Closed Won').reduce((sum, d) => sum + d.value, 0);
+            
+            document.getElementById('stat-pipeline').textContent = '$' + (pipeline / 1000000).toFixed(2) + 'M';
+            document.getElementById('stat-won').textContent = '$' + (won / 1000000).toFixed(2) + 'M';
+            document.getElementById('stat-deals').textContent = deals.filter(d => !d.stage.includes('Closed')).length;
+            document.getElementById('stat-contacts').textContent = crmData.contacts.length;
+
+            // Pipeline bar
+            const colors = {
+                'Discovery': '#63b3ed', 'Qualification': '#4299e1', 'Proposal': '#3182ce',
+                'Negotiation': '#2b6cb0', 'Closed Won': '#38a169', 'Closed Lost': '#e53e3e'
+            };
+            const total = pipeline || 1;
+            let barHtml = '';
+            for (const [stage, data] of Object.entries(crmData.pipeline.summary)) {
+                if (data.value > 0) {
+                    const pct = (data.value / total * 100).toFixed(1);
+                    barHtml += `<div class="pipeline-stage" style="width:${pct}%;background:${colors[stage]}">${stage}</div>`;
+                }
+            }
+            document.getElementById('pipeline-bar').innerHTML = barHtml;
+
+            // Pipeline table
+            document.getElementById('pipeline-table').innerHTML = Object.entries(crmData.pipeline.summary).map(([stage, data]) => `
+                <tr>
+                    <td>${stage}</td>
+                    <td>${data.count}</td>
+                    <td>$${(data.value / 1000).toFixed(0)}K</td>
+                    <td>${stage === 'Closed Won' ? '100%' : stage === 'Closed Lost' ? '0%' : '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderContacts() {
+            let contacts = crmData.contacts;
+            if (contactFilter) contacts = contacts.filter(c => c.status === contactFilter);
+            const search = document.getElementById('contact-search')?.value?.toLowerCase() || '';
+            if (search) contacts = contacts.filter(c => c.name.toLowerCase().includes(search) || c.company.toLowerCase().includes(search));
+            
+            document.getElementById('contacts-table').innerHTML = contacts.map(c => `
+                <tr>
+                    <td><strong>${c.name}</strong></td>
+                    <td>${c.title}</td>
+                    <td>${c.company}</td>
+                    <td>${c.email}</td>
+                    <td><span class="badge ${c.status === 'VIP' ? 'badge-vip' : 'badge-success'}">${c.status}</span></td>
+                    <td>${c.lastContact}</td>
+                    <td>${c.owner}</td>
+                </tr>
+            `).join('');
+        }
+
+        function filterContacts(status) {
+            contactFilter = status;
+            switchTab('contacts');
+            renderContacts();
+        }
+
+        function searchContacts() { renderContacts(); }
+        function newContact() { alert('New Contact dialog would open'); }
+
+        function renderDeals() {
+            let deals = crmData.deals;
+            if (dealFilter) deals = deals.filter(d => d.stage === dealFilter);
+            const search = document.getElementById('deal-search')?.value?.toLowerCase() || '';
+            if (search) deals = deals.filter(d => d.name.toLowerCase().includes(search) || d.company.toLowerCase().includes(search));
+            
+            document.getElementById('deals-table').innerHTML = deals.map(d => `
+                <tr>
+                    <td><strong>${d.name}</strong></td>
+                    <td>${d.company}</td>
+                    <td>$${(d.value / 1000).toFixed(0)}K</td>
+                    <td><span class="badge ${d.stage === 'Closed Won' ? 'badge-success' : d.stage === 'Negotiation' ? 'badge-warning' : 'badge-info'}">${d.stage}</span></td>
+                    <td>${d.probability}%</td>
+                    <td>${d.closeDate}</td>
+                    <td>${d.owner}</td>
+                </tr>
+            `).join('');
+        }
+
+        function filterDeals(stage) {
+            dealFilter = stage;
+            switchTab('deals');
+            renderDeals();
+        }
+
+        function searchDeals() { renderDeals(); }
+        function newDeal() { alert('New Deal dialog would open'); }
+
+        function renderActivities() {
+            let activities = crmData.activities;
+            if (activityFilter) activities = activities.filter(a => a.type === activityFilter);
+            const search = document.getElementById('activity-search')?.value?.toLowerCase() || '';
+            if (search) activities = activities.filter(a => a.subject.toLowerCase().includes(search) || a.contact.toLowerCase().includes(search));
+            
+            document.getElementById('activities-table').innerHTML = activities.map(a => `
+                <tr>
+                    <td><span class="badge badge-info">${a.type}</span></td>
+                    <td>${a.subject}</td>
+                    <td>${a.contact}</td>
+                    <td>${a.company}</td>
+                    <td>${a.date}</td>
+                    <td>${a.duration}</td>
+                    <td>${a.owner}</td>
+                </tr>
+            `).join('');
+        }
+
+        function filterActivities(type) {
+            activityFilter = type;
+            switchTab('activities');
+            renderActivities();
+        }
+
+        function searchActivities() { renderActivities(); }
+        function logActivity() { alert('Log Activity dialog would open'); }
+
+        init();
+    </script>
+</body>
+</html>
