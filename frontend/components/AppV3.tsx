@@ -357,24 +357,43 @@ export const AppV3: React.FC = () => {
             )}
           </div>
 
-          {/* Right: Mode Icons + Audio */}
+          {/* Right: Mode Selector (compact like agent) + Audio */}
           <div className="flex items-center gap-1">
-            {/* Mode Icon Strip */}
-            <div className="relative flex items-center">
-              {MODES.map((mode) => (
-                <button
-                  key={mode.value}
-                  onClick={() => { setCurrentMode(mode.value); setShowModeDropdown(false); }}
-                  title={`${mode.label}: ${mode.description}`}
-                  className={`p-1.5 rounded transition-colors ${
-                    currentMode === mode.value 
-                      ? mode.color + ' border' 
-                      : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
-                  }`}
-                >
-                  {mode.icon}
-                </button>
-              ))}
+            {/* Mode Selector - single icon with dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowModeDropdown(!showModeDropdown)}
+                className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border transition-colors ${currentModeConfig.color}`}
+              >
+                {currentModeConfig.icon}
+                <ChevronDown className={`w-3 h-3 transition-transform ${showModeDropdown ? 'rotate-180' : ''}`} />
+              </button>
+              
+              {/* Mode Dropdown */}
+              {showModeDropdown && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowModeDropdown(false)} />
+                  <div className="absolute top-full mt-1 right-0 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 min-w-[180px] py-1">
+                    <div className="px-3 py-1.5 text-xs text-gray-500 uppercase">Execution Mode</div>
+                    {MODES.map((mode) => (
+                      <button
+                        key={mode.value}
+                        onClick={() => { setCurrentMode(mode.value); setShowModeDropdown(false); }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-gray-800 ${
+                          currentMode === mode.value ? 'bg-gray-800' : ''
+                        }`}
+                      >
+                        <span className={mode.color.split(' ')[0]}>{mode.icon}</span>
+                        <div className="flex-1 text-left">
+                          <div className="text-gray-200">{mode.label}</div>
+                          <div className="text-xs text-gray-500">{mode.description}</div>
+                        </div>
+                        {currentMode === mode.value && <span className="text-proxi-accent">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
             
             {/* Audio Toggle */}
