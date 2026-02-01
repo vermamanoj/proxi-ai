@@ -162,11 +162,12 @@ export const AppV3: React.FC = () => {
   // Listen for approval requests from backend
   useEffect(() => {
     if (pendingAction) {
+      console.log('[AppV3] pendingAction received:', pendingAction);
       setApprovalRequest({
-        id: 'approval-' + Date.now(),
+        id: pendingAction.data?.approval_id || 'approval-' + Date.now(),
         title: 'Action Approval Required',
-        command: pendingAction.description || pendingAction.type || 'Unknown action',
-        riskLevel: pendingAction.data?.riskLevel || 'moderate',
+        command: pendingAction.data?.command || pendingAction.description || 'Unknown action',
+        riskLevel: pendingAction.data?.risk_level || pendingAction.data?.riskLevel || 'moderate',
         reason: pendingAction.data?.reason || 'This action requires your approval',
         timeoutSeconds: 30,
       });

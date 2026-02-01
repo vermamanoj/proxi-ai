@@ -39,7 +39,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden">
+    <div className="min-h-screen bg-black text-white overflow-x-hidden overflow-y-auto">
       {/* Navigation - Sticky */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-lg border-b border-gray-800/50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
@@ -47,12 +47,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             <Zap className="w-6 h-6 text-proxi-accent" />
             <span className="text-lg font-bold tracking-tight">PROXI</span>
           </div>
-          <button
-            onClick={() => setShowWaitlist(true)}
-            className="px-3 py-1.5 text-sm bg-proxi-accent text-black font-medium rounded-lg hover:bg-proxi-accent/90 transition-colors"
-          >
-            Join Waitlist
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onLogin}
+              className="px-3 py-1.5 text-sm text-gray-300 hover:text-white transition-colors"
+            >
+              Login
+            </button>
+            <button
+              onClick={() => setShowWaitlist(true)}
+              className="px-3 py-1.5 text-sm bg-proxi-accent text-black font-medium rounded-lg hover:bg-proxi-accent/90 transition-colors"
+            >
+              Join Waitlist
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -76,19 +84,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
             <button
-              onClick={() => setShowWaitlist(true)}
+              onClick={onLogin}
               className="w-full sm:w-auto px-6 py-3 bg-proxi-accent text-black font-semibold rounded-xl hover:bg-proxi-accent/90 transition-all flex items-center justify-center gap-2"
             >
-              Join Waitlist
+              Login
               <ArrowRight className="w-4 h-4" />
             </button>
-            <a
-              href="#demo"
+            <button
+              onClick={() => setShowWaitlist(true)}
               className="w-full sm:w-auto px-6 py-3 bg-gray-800 text-white font-semibold rounded-xl hover:bg-gray-700 transition-all flex items-center justify-center gap-2"
             >
-              <Play className="w-4 h-4" />
-              Watch 3-Minute Demo
-            </a>
+              Join Waitlist
+            </button>
           </div>
         </div>
       </section>
