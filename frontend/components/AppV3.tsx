@@ -93,10 +93,9 @@ export const AppV3: React.FC = () => {
     markActiveGoalFailed,
   } = useGeminiLive(true, audioEnabled, currentMode);
 
-  // Auto-connect voice on page load (desktop only)
+  // Auto-connect voice on page load when authenticated
   useEffect(() => {
-    const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
-    if (!isCapacitor && isAuthenticated) {
+    if (isAuthenticated) {
       liveConnect();
     }
   }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps

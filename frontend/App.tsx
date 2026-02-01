@@ -130,12 +130,9 @@ const App: React.FC = () => {
     }
   }, [liveConnected, micMuted, isLiveSpeaking]);
 
-  // Auto-connect voice on page load (desktop only - mobile doesn't support voice)
+  // Auto-connect voice on page load
   useEffect(() => {
-    const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
-    if (!isCapacitor) {
-      liveConnect();
-    }
+    liveConnect();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Convert liveChatLogs to trace format for display when using voice
@@ -398,14 +395,7 @@ const App: React.FC = () => {
       );
     }
     if (authView === 'login') {
-      // On mobile, hide back button (no landing page for app)
-      const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
-      return <LoginPage onLogin={login} onBack={isCapacitor ? undefined : () => setAuthView('landing')} />;
-    }
-    // Skip landing page on mobile - go straight to login
-    const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
-    if (isCapacitor) {
-      return <LoginPage onLogin={login} onBack={undefined} />;
+      return <LoginPage onLogin={login} onBack={() => setAuthView('landing')} />;
     }
     return <LandingPage onLogin={() => setAuthView('login')} />;
   }

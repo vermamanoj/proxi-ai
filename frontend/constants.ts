@@ -1,12 +1,8 @@
 import { FunctionDeclaration, Type } from "@google/genai";
 
-// API Base URL
-// - Browser/Docker: empty (Vite proxy handles it)
-// - Mobile (Capacitor): uses production URL
-const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
-export const API_BASE = isCapacitor 
-  ? 'https://proxi.audista.com'  // Mobile app - direct to prod
-  : '';                           // Browser - use Vite proxy
+// API Base URL - empty means use Vite proxy (browser/Docker)
+// For PWA on mobile, the service worker handles offline caching
+export const API_BASE = '';
 
 // System instruction when backend is enabled - relay mode
 export const SYSTEM_INSTRUCTION_RELAY = `
