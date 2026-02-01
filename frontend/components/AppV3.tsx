@@ -273,61 +273,22 @@ export const AppV3: React.FC = () => {
 
   const currentModeConfig = MODES.find(m => m.value === currentMode) || MODES[1];
 
-  // Extract mission goals from logs (like V1) - combines brainLogs + liveLogs
-  const missionGoals: Goal[] = useMemo(() => {
-    // First try missionState.goals (from useProxiBrain hook)
-    if (missionState?.goals?.length > 0) {
-      return missionState.goals.map(g => ({
+  // Extract mission goals - use missionState.goals from hook (already parsed there)
+  const missionGoals: Goal[] = missionState?.goals?.length > 0 
+    ? missionState.goals.map(g => ({
         id: g.id,
         title: g.title,
         description: g.description,
         status: g.status,
         result: g.result
-      }));
-    }
-    
-    // Fallback: parse logs for plan metadata (V1 approach)
-    const goalUpdates: Record<string, { status: Goal['status']; result?: string }> = {};
-    let latestPlan: any[] | null = null;
-    
-    const allLogs = [...brainLogs, ...liveLogs];
-    
-    for (const log of allLogs) {
-      if (log.metadata?.goalUpdate) {
-        const update = log.metadata.goalUpdate;
-        goalUpdates[String(update.goal_id)] = { status: update.status, result: update.result };
-      }
-      if (log.metadata?.plan) {
-        latestPlan = log.metadata.plan;
-      }
-    }
-    
-    if (latestPlan) {
-      return latestPlan.map((g: any) => {
-        const update = goalUpdates[String(g.id)];
-        return {
-          id: g.id,
-          title: g.title,
-          description: g.description,
-          status: update?.status || g.status || 'pending',
-          result: update?.result
-        };
-      });
-    }
-    
-    // Final fallback: single goal from missionState
-    if (missionState?.active && missionState?.goal) {
-      return [{
+      }))
+    : (missionState?.active && missionState?.goal ? [{
         id: 'current-mission',
         title: missionState.goal,
         status: missionState.phase === 'success' ? 'complete' : 
                 missionState.phase === 'failed' ? 'failed' : 
                 missionState.phase === 'executing' ? 'active' : 'pending',
-      }];
-    }
-    
-    return [];
-  }, [missionState, brainLogs, liveLogs]);
+      }] : []);
 
   return (
     <div className="h-[100dvh] bg-proxi-black text-gray-200 flex font-mono overflow-hidden">
@@ -619,6 +580,17 @@ export const AppV3: React.FC = () => {
                     title="Stop"
                   >
                     <Square className="w-5 h-5" />
+                  </button>
+                )}
+
+                {/* Continue Button (stalled/failed recovery) */}
+                {(missionState?.phase === 'stalled' || missionState?.phase === 'failed') && !isProcessing && (
+                  <button
+                    type="button"
+                    onClick={() => sendCommand('Please continue where you left off')}
+                    className="px-3 py-2 bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 rounded-xl text-sm hover:bg-yellow-500/30 transition-colors"
+                  >
+                    Continue
                   </button>
                 )}
               </div>

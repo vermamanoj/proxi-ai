@@ -322,3 +322,76 @@ A hierarchical agent system where a Supervisor LLM orchestrates multiple special
 
 *For deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md)*  
 *For usage guide, see [USER_GUIDE.md](../USER_GUIDE.md)*
+
+
+## fututre plan - multi-agent workflow
+
+Multi-Agent Routing Analysis
+Current Architecture (Single Active Agent)
+Frontend                    Backend (Core)                    Agents
+─────────                   ──────────────                    ──────
+[Agent Selector] ──POST──▶ /api/workstations/{id}/activate
+                           │
+                           ▼
+                    set_active_agent(url)  ← GLOBAL VARIABLE
+                    (_active_agent_url)
+                           │
+[Send Message] ───POST───▶ /api/chat
+                           │
+                           ▼
+                    gemini_service.py
+                           │
+                    get_desktop_service()
+                           │
+                           ▼
+                    ProxyDesktopService(_active_agent_url)
+                           │
+                           ▼
+                    HTTP /execute ─────────────────────▶ [Single Agent]
+Key Files:
+
+File	Role
+@e:\data\proxi-ai\backend\services\desktop\factory.py:8	_active_agent_url global
+@e:\data\proxi-ai\backend\main.py:932	set_active_agent(agent_url)
+@e:\data\proxi-ai\backend\services\gemini_service.py:217-224	Gets OS type from active agent
+Changes Needed for Multi-Agent
+Approach A: LLM-Driven Agent Selection (Recommended)
+Let Gemini decide which agent to use based on the task.
+
+Layer	Change	Effort
+Frontend	Multi-select agents (checkboxes instead of radio)	2 hrs
+Backend API	New endpoint: POST /api/chat accepts available_agents: string[]	1 hr
+Gemini Service	Add select_agent tool for LLM to pick agent	3 hrs
+Factory	Pass agent_url per-tool-call instead of global	2 hrs
+System Prompt	Teach LLM about available agents + when to switch	1 hr
+Total Effort: ~9 hours (1-2 days)
+
+Implementation Sketch
+python
+### New tool for LLM
+def select_agent(agent_id: str) -> dict:
+    """Switch to a different agent for subsequent tool calls."""
+    if agent_id not in available_agents:
+        return {"error": f"Agent {agent_id} not available"}
+    set_active_agent(agent_id)
+    return {"success": True, "active_agent": agent_id}
+python
+### System prompt addition
+"""
+You have access to multiple agents:
+- linux-container: Terminal, git, python (Linux)
+- win-desktop: Desktop automation, Office, CRM (Windows)
+ 
+When a task requires capabilities from a different agent:
+1. Use select_agent(agent_id) to switch
+2. Then use the required tools
+"""
+Approach B: Parallel Multi-Agent (Complex)
+Execute tools on multiple agents simultaneously.
+
+Change	Effort
+Modify execute_tool to accept agent_id param	2 hrs
+Update all 48+ tool definitions	4 hrs
+Batch/parallel execution coordinator	4 hrs
+Result aggregation logic	3 hrs
+Frontend multi-result display	3 hrs

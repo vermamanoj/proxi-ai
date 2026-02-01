@@ -118,7 +118,7 @@ Proxi understands the state of your machine.
 |---------|-------------|
 | **Mobile-First Control** | Control your office machine from your phone |
 | **Voice Commands** | Real-time via Gemini Live WebRTC |
-| **48+ Tools** | System, desktop, PowerPoint, integrations |
+| **48+ Tools** | System, desktop, PowerPoint, charts, SmartArt |
 | **Multi-Workstation** | Switch between Windows/Linux agents |
 | **Session Persistence** | Pick up where you left off |
 | **Transparency Protocol** | Agent explains reasoning before every action |
@@ -259,12 +259,12 @@ Proxi never blindly trusts its own output. State-changing actions go through:
 3. **Verify** - Independent system check confirms actual state
 4. **Judge** - Pass, retry, or escalate
 
-### �️ Command Guard (Security Layer)
+### 🛡️ Command Guard (Security Layer)
 - Automatic approval gates for destructive commands (kill, delete, stop)
 - Session-based approval tracking
 - Blocked commands for dangerous operations
 
-### �🖥️ Desktop Control (Ghost Mode)
+### 🖥️ Desktop Control (Ghost Mode)
 - Mouse clicks, drags, scrolling
 - Keyboard typing and hotkeys
 - Screenshot + Vision analysis
@@ -320,7 +320,7 @@ Agent: "Terminating ffmpeg to resolve spike..."
                           ▼
 ┌─────────────────────────────────────────────────────────┐
 │  PROXI CORE (FastAPI) - Port 4000                       │
-│  ├── GeminiService (AI orchestration, 45 tools)        │
+│  ├── GeminiService (AI orchestration, 48+ tools)        │
 │  ├── Orchestrator (Mission tracking, verification)     │
 │  ├── Auth & Sessions (user management)                 │
 │  └── Agent Proxy (routes tools to selected agent)      │
