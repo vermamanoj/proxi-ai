@@ -1,51 +1,70 @@
 {
-  "_comment": "Execution mode configurations - editable without code changes",
-  "_updated": "2026-01-31",
+  "_comment": "Execution mode configurations with modular prompt assembly",
+  "_updated": "2026-02-01",
   
-  "session_history_size": 50,
-  "_session_history_comment": "Max messages to keep in session history (prevents stale command re-execution)",
-  
-  "plan": {
-    "display_name": "Plan 📋",
-    "model": "flash",
-    "verify": false,
-    "max_turns": 3,
-    "max_tool_calls": 0,
-    "timeout": 30,
-    "prompt_suffix": "PLANNING MODE: Create a detailed step-by-step plan for this task. List each action you would take, but DO NOT execute any commands or tools. Format as numbered steps. After planning, wait for user to say 'execute' or 'go ahead' before taking action.",
-    "description": "Planning only - no execution until approved"
+  "global": {
+    "session_history_size": 50,
+    "_comment": "Max messages to keep in session history"
   },
   
-  "quick": {
-    "display_name": "Quick ⚡",
-    "model": "flash",
-    "verify": false,
-    "max_turns": 5,
-    "max_tool_calls": 8,
-    "timeout": 30,
-    "prompt_suffix": "Be concise and direct. You have a maximum of 8 tool calls - plan efficiently. Skip verification for simple tasks.",
-    "description": "Fast execution for simple queries and status checks"
+  "prompt_sections": {
+    "_comment": "Available prompt modules - paths relative to backend/config/",
+    "base": "prompts/base.md",
+    "mission_planning": "prompts/mission_planning.md",
+    "command_guard": "prompts/command_guard.md",
+    "verifiable_agent": "prompts/verifiable_agent.md",
+    "tools_quick_ref": "prompts/tools_quick_ref.md",
+    "powerpoint": "prompts/workflows/powerpoint.md",
+    "forensics": "prompts/workflows/forensics.md"
   },
   
-  "balanced": {
-    "display_name": "Balanced ⚖️",
-    "model": "flash",
-    "verify": "auto",
-    "max_turns": 10,
-    "max_tool_calls": 20,
-    "timeout": 60,
-    "prompt_suffix": "You have up to 20 tool calls available. Plan your investigation methodically.",
-    "description": "Default mode - verification for action tasks"
-  },
-  
-  "thorough": {
-    "display_name": "Thorough 🔬",
-    "model": "pro",
-    "verify": true,
-    "max_turns": 15,
-    "max_tool_calls": 40,
-    "timeout": 90,
-    "prompt_suffix": "You have up to 40 tool calls for deep analysis. Double-check your work. Verify each step before proceeding.",
-    "description": "Deep analysis with full verification for critical operations"
+  "modes": {
+    "plan": {
+      "display_name": "Plan 📋",
+      "description": "Planning only - no execution until approved",
+      "model": "flash",
+      "max_turns": 3,
+      "max_tool_calls": 0,
+      "timeout": 30,
+      "verify": false,
+      "prompt_suffix": "PLANNING MODE: Create step-by-step plan. DO NOT execute tools. Wait for user approval.",
+      "include_sections": ["base", "mission_planning"]
+    },
+    
+    "quick": {
+      "display_name": "Quick ⚡",
+      "description": "Fast execution for simple queries",
+      "model": "flash",
+      "max_turns": 5,
+      "max_tool_calls": 8,
+      "timeout": 30,
+      "verify": false,
+      "prompt_suffix": "Be concise. Max 8 tool calls - prioritize efficiency.",
+      "include_sections": ["base", "command_guard", "tools_quick_ref"]
+    },
+    
+    "balanced": {
+      "display_name": "Balanced ⚖️",
+      "description": "Default mode - verification for action tasks",
+      "model": "flash",
+      "max_turns": 10,
+      "max_tool_calls": 20,
+      "timeout": 60,
+      "verify": "auto",
+      "prompt_suffix": "Up to 20 tool calls. Plan methodically.",
+      "include_sections": ["base", "mission_planning", "command_guard", "verifiable_agent", "tools_quick_ref"]
+    },
+    
+    "thorough": {
+      "display_name": "Thorough 🔬",
+      "description": "Deep analysis with full verification",
+      "model": "pro",
+      "max_turns": 15,
+      "max_tool_calls": 40,
+      "timeout": 90,
+      "verify": true,
+      "prompt_suffix": "Deep analysis mode. Verify each step. Use all available tools.",
+      "include_sections": ["base", "mission_planning", "command_guard", "verifiable_agent", "tools_quick_ref", "powerpoint", "forensics"]
+    }
   }
 }
