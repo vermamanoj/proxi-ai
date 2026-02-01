@@ -687,6 +687,9 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
     cancelAction,
     logSystemError,
     clearSession,
-    stopExecution
+    stopExecution,
+    // Expose setters for loading historic sessions
+    setLastTrace,
+    setSessionId
   };
 };

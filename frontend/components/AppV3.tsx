@@ -17,7 +17,7 @@ import { useWorkstations } from '../hooks/useWorkstations';
 import { ChatView } from './ChatView';
 import { ApprovalModal, ApprovalModalRequest } from './ApprovalModal';
 import { MissionPanelCollapsible, Goal } from './MissionPanelCollapsible';
-import { getSessions, SessionSummary } from '../services/sessionService';
+import { getSessions, getSession, SessionSummary } from '../services/sessionService';
 import { Complexity, TraceStep, MessageSource } from '../types';
 
 // Mode configurations - icons only in header
@@ -76,6 +76,8 @@ export const AppV3: React.FC = () => {
     confirmAction,
     cancelAction,
     pendingAction,
+    setLastTrace,
+    setSessionId,
   } = useProxiBrain(audioEnabled, activeWorkstation?.id || null);
 
   const {
@@ -224,6 +226,40 @@ export const AppV3: React.FC = () => {
     setSidebarOpen(false);
   };
 
+  // Load a historic session into the chat view
+  const handleLoadSession = async (session: SessionSummary) => {
+    try {
+      const fullSession = await getSession(session.id);
+      if (!fullSession || !fullSession.messages) {
+        console.warn('No messages in session:', session.id);
+        return;
+      }
+      
+      // Convert session messages to trace format
+      const traceSteps: TraceStep[] = fullSession.messages.map((msg, idx) => {
+        let stepType: TraceStep['step_type'] = 'llm_thought';
+        if (msg.source === 'user') stepType = 'user_input';
+        else if (msg.source === 'agent') stepType = 'final_response';
+        else if (msg.source === 'tool') stepType = 'tool_result';
+        
+        return {
+          step_type: stepType,
+          content: msg.text,
+          metadata: msg.metadata
+        };
+      });
+      
+      // Load session into the brain hook
+      brainClearSession();
+      setLastTrace(traceSteps);
+      setSessionId(session.id);
+      console.log('[Session] Loaded session:', session.id, traceSteps.length, 'messages');
+      setSidebarOpen(false);
+    } catch (e) {
+      console.error('Failed to load session:', e);
+    }
+  };
+
   const handleApprove = () => {
     confirmAction?.();
     setShowApprovalModal(false);
@@ -337,6 +373,7 @@ export const AppV3: React.FC = () => {
               {sessions.map((session) => (
                 <button
                   key={session.id}
+                  onClick={() => handleLoadSession(session)}
                   className="w-full px-3 py-2 text-left hover:bg-gray-800/50 transition-colors group"
                 >
                   <p className="text-sm text-gray-300 truncate">{session.title || 'Untitled'}</p>
