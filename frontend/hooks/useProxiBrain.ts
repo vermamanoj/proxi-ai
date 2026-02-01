@@ -508,6 +508,7 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
     formData.append('file', processedFile);
     formData.append('prompt', message);
     formData.append('complexity', complexity);
+    if (sessionId) formData.append('session_id', sessionId);
 
     try {
       // Use new streaming vision-action endpoint
@@ -536,11 +537,15 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
               if (data.metadata?.screenshot) {
                 updateTrace({ step_type: 'status_change', content: data.content, metadata: data.metadata });
               }
+            } else if (data.type === 'agent_switch') {
+              // Agent connection notification
+              updateTrace({ step_type: 'status_change', content: data.content, metadata: { phase: 'connected', agent: data.agent } });
             } else if (data.type === 'tool_call_batch') {
               data.calls.forEach((c: any) => updateTrace({ step_type: 'tool_call', content: `${c.name}(${JSON.stringify(c.args)})` }));
             } else if (data.type === 'tool_result') {
               updateTrace({ step_type: 'tool_result', content: data.content, metadata: { name: data.name } });
-            } else if (data.type === 'response') {
+            } else if (data.type === 'response' || data.type === 'final_response') {
+              // Handle both response types from backend
               updateTrace({ step_type: 'final_response', content: data.content });
               addLog(MessageSource.AGENT, data.content);
             } else if (data.type === 'llm_thought') {

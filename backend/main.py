@@ -537,7 +537,8 @@ async def vision_with_action(
     request: Request,
     file: UploadFile = File(...),
     prompt: str = Form("Analyze this image"),
-    complexity: str = Form("deep")
+    complexity: str = Form("deep"),
+    session_id: str = Form(None)
 ):
     """Process image with full agent pipeline. Requires auth."""
     await require_auth(request)
@@ -548,13 +549,14 @@ async def vision_with_action(
         mime_type = file.content_type or 'image/png'
         
         # Create a message that includes the image context for the agent
+        # Note: We store a reference to the image in session history, not the full base64
         enhanced_prompt = f"""The user has uploaded an image and wants you to: {prompt}
 
 The image is provided as base64 data. Use look_at_uploaded_image() to analyze it, then execute the requested actions.
 IMAGE_DATA:{mime_type};base64,{image_base64}"""
         
         return StreamingResponse(
-            gemini_service.route_and_execute_stream(enhanced_prompt, complexity),
+            gemini_service.route_and_execute_stream(enhanced_prompt, complexity, session_id=session_id),
             media_type="application/x-ndjson"
         )
     except Exception as e:

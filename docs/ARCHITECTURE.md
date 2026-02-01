@@ -185,24 +185,78 @@ POST /execute
 
 ---
 
-## 6. Execution Modes (v3.1.0) (section updated on 30-01-2026)
+## 6. Execution Modes & Modular Prompts (v3.5.0)
 
-Proxi supports three execution modes selectable via the frontend Settings panel:
+Proxi supports four execution modes with **modular prompt architecture**.
 
-| Mode | Model | Max Turns | Verification | Use Case |
-|------|-------|-----------|--------------|----------|
-| **Quick** ⚡ | Flash | 5 | Skip | Simple queries, status checks |
-| **Balanced** ⚖️ | Flash | 10 | Auto (action tasks) | Default - most tasks |
-| **Thorough** 🔬 | Pro | 15 | Always | Critical ops, complex multi-step |
+### Mode Configuration
 
-### Mode Configuration (backend)
-```python
-MODE_CONFIGS = {
-    "quick":    {"model": "flash", "verify": False,  "max_turns": 5},
-    "balanced": {"model": "flash", "verify": "auto", "max_turns": 10},
-    "thorough": {"model": "pro",   "verify": True,   "max_turns": 15}
+All mode settings are externalized in `backend/config/modes.json`:
+
+| Mode | Model | Max Tools | Timeout | Prompt Sections |
+|------|-------|-----------|---------|-----------------|
+| **Plan** 📋 | Flash | 0 | 30s | base, mission_planning |
+| **Quick** ⚡ | Flash | 8 | 30s | base, command_guard, tools_quick_ref |
+| **Balanced** ⚖️ | Flash | 20 | 60s | base, mission_planning, command_guard, verifiable_agent, tools_quick_ref |
+| **Thorough** 🔬 | Pro | 40 | 90s | ALL sections |
+
+### Modular Prompt Architecture
+
+System prompts are assembled from `.md` files based on mode:
+
+```
+backend/config/
+├── modes.json                    # Mode settings + section mappings
+└── prompts/
+    ├── base.md                   # Core identity (~35 lines)
+    ├── mission_planning.md       # MISSION/PLAN format
+    ├── command_guard.md          # Approval protocol
+    ├── verifiable_agent.md       # Triple handshake
+    ├── tools_quick_ref.md        # Tool shortcuts
+    └── workflows/
+        ├── powerpoint.md         # PPT automation
+        └── forensics.md          # Investigation flow
+```
+
+### modes.json Structure
+
+```json
+{
+  "global": { "session_history_size": 50 },
+  "prompt_sections": {
+    "base": "prompts/base.md",
+    "mission_planning": "prompts/mission_planning.md",
+    ...
+  },
+  "modes": {
+    "quick": {
+      "display_name": "Quick ⚡",
+      "model": "flash",
+      "max_tool_calls": 8,
+      "timeout": 30,
+      "include_sections": ["base", "command_guard", "tools_quick_ref"]
+    },
+    ...
+  }
 }
 ```
+
+### Template Variables
+
+Prompt `.md` files support these placeholders:
+- `{agent_os}` - Windows/Linux
+- `{shell_type}` - PowerShell/bash
+- `{mode}` - Current execution mode
+- `{max_tool_calls}` - Tool limit for mode
+- `{timeout}` - Timeout in seconds
+- `{prompt_suffix}` - Mode-specific instruction
+- `{windows_cli_tips}` - Windows-only CLI guidance
+
+### Benefits
+- **Edit prompts without code changes** - Just modify `.md` files
+- **Mode-optimized prompts** - Quick mode = lean prompt (faster, cheaper)
+- **Easy A/B testing** - Swap prompt sections via config
+- **Non-engineers can tune** - Plain markdown files
 
 ### Stall Recovery (v3.1.0)
 If the Gemini API stops responding mid-conversation:
