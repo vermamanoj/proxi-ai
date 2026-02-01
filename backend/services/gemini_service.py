@@ -316,9 +316,23 @@ class GeminiService:
                     break
             
             if existing_approval_id:
-                # Return existing approval ID instead of creating a new one
+                # User is retrying after seeing approval request - this means they approved via chat
+                # Execute the command and mark as approved
                 approval_id = existing_approval_id
-                log_system(f"Reusing existing approval {approval_id} for command: {command[:30]}...", "APPROVAL")
+                log_system(f"Chat-approved command executing: {command[:30]}... (approval: {approval_id})", "APPROVAL")
+                
+                # Add to approved commands for session
+                if session_id:
+                    if session_id not in self.approved_commands:
+                        self.approved_commands[session_id] = set()
+                    self.approved_commands[session_id].add(cmd_hash)
+                
+                # Remove from pending
+                if existing_approval_id in self.pending_approvals:
+                    del self.pending_approvals[existing_approval_id]
+                
+                # Execute the command
+                return get_desktop_service().run_terminal_command(command)
             else:
                 # Generate unique approval ID and store as pending
                 approval_id = secrets.token_urlsafe(16)
