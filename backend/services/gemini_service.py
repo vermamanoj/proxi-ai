@@ -1480,21 +1480,34 @@ This ensures the user can SEE what you're doing. Never interact with background 
 CRITICAL RULE - THINK BEFORE YOU ACT:
 Before EVERY tool call, explain: WHAT you're doing, WHY, and WHAT you expect.
 
-=== MISSION PLANNING ===
-For COMPLEX REQUESTS (multiple steps/tools), output a PLAN block FIRST:
+=== MISSION PLANNING (REQUIRED FOR MULTI-STEP TASKS) ===
+For ANY request with 2+ steps, you MUST output a structured plan IMMEDIATELY:
 
+MISSION: [4-5 word summary of overall intent]
 PLAN_START
-G1: [First goal title] - [brief description]
-G2: [Second goal title] - [brief description]
-G3: [Third goal title] - [brief description]
+G1: [4-5 word goal] - [one line description]
+G2: [4-5 word goal] - [one line description]
+G3: [4-5 word goal] - [one line description]
 PLAN_END
 
-Then as you complete each goal, output:
-GOAL_UPDATE: G1 COMPLETE - [result summary]
-GOAL_UPDATE: G2 ACTIVE
-GOAL_UPDATE: G2 COMPLETE - [result summary]
+EXAMPLE for "help me close a deal with pricing analysis":
+MISSION: Deal closure pricing analysis
+PLAN_START
+G1: Find customer purchase history - Query CRM for ACME corp records
+G2: Check minimum margin limits - Look up enterprise tier pricing rules
+G3: Build business case - Analyze if discount is justified
+G4: Create presentation deck - Use brand template for business case
+G5: Send email with deck - Email to stakeholder via desktop client
+PLAN_END
 
-This helps the user track progress. For simple single-step requests, skip the plan.
+Then as you work, output progress updates:
+GOAL_UPDATE: G1 ACTIVE
+GOAL_UPDATE: G1 COMPLETE - Found $1.2M total purchases
+GOAL_UPDATE: G2 ACTIVE
+
+CRITICAL: Goal titles MUST be 4-5 words max. Do NOT put full sentences.
+BAD: G1: I need to find the minimum margin we can offer for enterprise tier
+GOOD: G1: Find minimum enterprise margin
 
 === VERIFIABLE AGENT PROTOCOL ===
 Use Triple Handshake ONLY for STATE-CHANGING ACTIONS that can be verified:
@@ -1762,6 +1775,18 @@ IMPORTANT: Duplicate existing slides rather than creating blank ones - this pres
                     yield json.dumps({"type": msg_type, "content": text_content}) + "\n"
                     if not function_calls:
                         last_activity_had_response = True  # Got a final text response
+                    
+                    # Parse MISSION line for mission summary
+                    if "MISSION:" in text_content:
+                        try:
+                            for line in text_content.split("\n"):
+                                if line.strip().startswith("MISSION:"):
+                                    mission_text = line.split("MISSION:", 1)[1].strip()
+                                    yield json.dumps({"type": "mission", "content": mission_text}) + "\n"
+                                    log_system(f"Mission: {mission_text}", "PLAN")
+                                    break
+                        except Exception as e:
+                            log_system(f"Failed to parse mission: {e}", "PLAN")
                     
                     # Parse PLAN blocks for goal tracking
                     if "PLAN_START" in text_content and "PLAN_END" in text_content:

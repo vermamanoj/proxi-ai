@@ -356,6 +356,11 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                             speak('The model timed out. You can send a follow-up message to continue.');
                         }
                         break;
+                    case 'mission':
+                        // Mission summary - 4-5 word description of overall intent
+                        setMissionState(prev => ({ ...prev, goal: data.content, active: true }));
+                        addLog(MessageSource.SYSTEM, `🎯 Mission: ${data.content}`);
+                        break;
                     case 'plan':
                         // Mission plan with goals - update missionState.goals
                         if (data.goals && Array.isArray(data.goals)) {
@@ -366,7 +371,7 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                                 description: g.description,
                                 status: g.status === 'in_progress' ? 'active' : (g.status || 'pending')
                             }));
-                            setMissionState(prev => ({ ...prev, goals: mappedGoals }));
+                            setMissionState(prev => ({ ...prev, goals: mappedGoals, active: true }));
                         }
                         addLog(MessageSource.SYSTEM, `📋 Mission Plan`, { plan: data.goals });
                         break;
