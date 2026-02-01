@@ -22,6 +22,7 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
     active: false,
     phase: 'idle',
     goal: '',
+    goals: [],
     verification: { status: 'pending' },
     retryCount: 0
   });
@@ -145,6 +146,7 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
         active: true,
         phase: 'planning',
         goal: lastTrace.length === 0 ? message : missionState.goal, // Keep original goal for follow-ups
+        goals: lastTrace.length === 0 ? [] : missionState.goals, // Keep goals for follow-ups
         verification: { status: 'pending' },
         retryCount: 0
     });
@@ -355,11 +357,33 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                         }
                         break;
                     case 'plan':
-                        // Mission plan with goals - add to logs with metadata for MissionPlan UI
+                        // Mission plan with goals - update missionState.goals
+                        if (data.goals && Array.isArray(data.goals)) {
+                            const mappedGoals = data.goals.map((g: any) => ({
+                                id: g.id || g.original_id || String(Math.random()),
+                                original_id: g.original_id,
+                                title: g.title,
+                                description: g.description,
+                                status: g.status === 'in_progress' ? 'active' : (g.status || 'pending')
+                            }));
+                            setMissionState(prev => ({ ...prev, goals: mappedGoals }));
+                        }
                         addLog(MessageSource.SYSTEM, `📋 Mission Plan`, { plan: data.goals });
                         break;
                     case 'goal_update':
-                        // Goal progress update
+                        // Goal progress update - update specific goal in missionState
+                        setMissionState(prev => ({
+                            ...prev,
+                            goals: prev.goals.map(g => {
+                                if (g.id === data.goal_id || g.original_id === data.goal_id) {
+                                    const newStatus = data.status === 'in_progress' ? 'active' : 
+                                                      data.status === 'completed' ? 'complete' : 
+                                                      data.status || g.status;
+                                    return { ...g, status: newStatus, result: data.result || g.result };
+                                }
+                                return g;
+                            })
+                        }));
                         addLog(MessageSource.SYSTEM, `Goal ${data.goal_id}: ${data.status}`, { 
                             goalUpdate: { goal_id: data.goal_id, status: data.status, result: data.result } 
                         });

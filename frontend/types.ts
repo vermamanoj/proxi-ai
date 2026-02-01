@@ -63,10 +63,20 @@ export interface VerificationState {
     reason?: string;
 }
 
+export interface MissionGoal {
+    id: string;
+    original_id?: string;
+    title: string;
+    description?: string;
+    status: 'pending' | 'active' | 'complete' | 'failed';
+    result?: string;
+}
+
 export interface MissionState {
     active: boolean;
     phase: MissionPhase;
     goal: string;
+    goals: MissionGoal[];  // Structured goals from plan
     activeTool?: string;
     verification: VerificationState;
     retryCount: number;
