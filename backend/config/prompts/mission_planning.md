@@ -25,13 +25,27 @@ G5: Send email with deck - Email to stakeholder via desktop client
 PLAN_END
 ```
 
-## Progress Updates
-As you work, output progress updates:
+## Progress Updates (CRITICAL)
+You MUST output progress updates as you work. The UI tracks these!
+
+**Before starting a goal:**
 ```
 GOAL_UPDATE: G1 ACTIVE
-GOAL_UPDATE: G1 COMPLETE - Found $1.2M total purchases
-GOAL_UPDATE: G2 ACTIVE
 ```
+
+**After completing a goal:**
+```
+GOAL_UPDATE: G1 COMPLETE - [brief result]
+```
+
+**At end of task, mark ALL completed goals:**
+```
+GOAL_UPDATE: G1 COMPLETE - Found $1.2M total purchases
+GOAL_UPDATE: G2 COMPLETE - Verified margin limits
+GOAL_UPDATE: G3 COMPLETE - Built business case
+```
+
+If you forget GOAL_UPDATE messages, the UI shows 0/5 progress which confuses users!
 
 ## Critical Rules
 - Goal titles MUST be 4-5 words max

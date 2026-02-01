@@ -40,13 +40,47 @@ export const MissionPanelCollapsible: React.FC<MissionPanelProps> = ({
     });
   };
 
+  // Expand all sections
+  const expandAll = () => {
+    setExpandedSections(new Set(['stepper', 'goals', 'current']));
+  };
+
   // Derived data
   const completedCount = goals.filter(g => g.status === 'complete').length;
   const failedCount = goals.filter(g => g.status === 'failed').length;
   const activeGoal = goals.find(g => g.status === 'active');
   const activeIndex = activeGoal ? goals.findIndex(g => g.id === activeGoal.id) : -1;
+  
+  // Check if all sections are collapsed
+  const allCollapsed = expandedSections.size === 0;
 
   if (!goals || goals.length === 0) return null;
+
+  // Compact single-line view when all collapsed
+  if (allCollapsed) {
+    return (
+      <div className={`bg-gray-900/80 backdrop-blur border border-gray-800 rounded-xl overflow-hidden ${className}`}>
+        <button
+          onClick={expandAll}
+          className="w-full px-3 py-2 flex items-center justify-between hover:bg-gray-800/50 transition-colors"
+        >
+          <div className="flex items-center gap-4 text-xs">
+            <span className="text-gray-400 uppercase tracking-wider font-semibold">Mission</span>
+            <span className="text-gray-500">▸</span>
+            <span className="text-gray-400 uppercase tracking-wider font-semibold">Goals</span>
+            <span className="text-gray-500">▸</span>
+            <span className="text-gray-400 uppercase tracking-wider font-semibold">Steps</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs ${completedCount === goals.length ? 'text-green-400' : 'text-gray-500'}`}>
+              {completedCount}/{goals.length}
+            </span>
+            <ChevronDown className="w-4 h-4 text-gray-500" />
+          </div>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className={`bg-gray-900/80 backdrop-blur border border-gray-800 rounded-xl overflow-hidden ${className}`}>

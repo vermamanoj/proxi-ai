@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { TraceStep } from '../types';
 import { User, Cpu, Wrench, ArrowDown, Terminal, MessageSquare, BrainCircuit, ShieldAlert } from 'lucide-react';
+import { MermaidDiagram } from './MermaidDiagram';
+import { RenderContent } from './RenderContent';
 
 interface TraceViewProps {
   trace: TraceStep[];
@@ -81,7 +83,7 @@ export const TraceView: React.FC<TraceViewProps> = ({ trace, showThoughts = true
                 <div className={`text-sm break-words whitespace-pre-wrap ${
                     step.step_type === 'llm_thought' ? 'text-purple-200 italic' : 'text-gray-300'
                 }`}>
-                    {typeof step.content === 'string' ? step.content : JSON.stringify(step.content)}
+                    <RenderContent content={step.content} />
                 </div>
 
                 {/* Metadata / Args */}
