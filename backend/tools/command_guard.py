@@ -215,8 +215,10 @@ SAFE_PATTERNS: List[Tuple[str, str]] = [
     (r'^sha256sum', "SHA256 checksum"),
     (r'^docker\s+(ps|images|logs|inspect)', "Docker read-only"),
     (r'^git\s+(status|log|diff|branch|show|remote)', "Git read-only"),
-    (r'^npm\s+(list|ls|view|info|search)', "NPM read-only"),
-    (r'^pip\s+(list|show|freeze)', "Pip read-only"),
+    (r'npm\s+(list|ls|view|info|search)', "NPM read-only"),
+    (r'pip\s+(list|show|freeze)', "Pip read-only"),  # Matches ./venv/bin/pip too
+    (r'pip3\s+(list|show|freeze)', "Pip3 read-only"),
+    (r'python3?\s+-c\s+["\']import', "Python import check"),  # Read-only import test
     (r'^python\s+--version', "Python version"),
     (r'^python3\s+--version', "Python3 version"),
     (r'^pip3?\s+--version', "Pip version"),

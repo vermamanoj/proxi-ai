@@ -433,10 +433,14 @@ async def chat(request: ChatRequest, http_request: Request):
                 },
             )
             
-            # Return output to user using same format as production (llm_thought + final_response)
+            # Return output to user as user_command type (matches frontend expectation)
             async def stream_user_command():
-                yield json.dumps({"type": "llm_thought", "content": f"Executing: `{command}`"}) + "\n"
-                yield json.dumps({"type": "final_response", "content": f"```\n{output}\n```"}) + "\n"
+                yield json.dumps({
+                    "type": "user_command",
+                    "status": "executed",
+                    "command": command,
+                    "content": output
+                }) + "\n"
             
             return StreamingResponse(
                 stream_user_command(),
