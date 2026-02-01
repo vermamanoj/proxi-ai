@@ -408,10 +408,11 @@ export const AppV3: React.FC = () => {
           <div className="relative">
             <button
               onClick={() => setShowAgentDropdown(!showAgentDropdown)}
-              className="flex items-center gap-1.5 p-2 bg-gray-800 hover:bg-gray-700 rounded-xl transition-colors"
+              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl transition-colors"
               disabled={workstationsLoading}
             >
               <span className="text-base">{activeWorkstation ? getOsIcon(activeWorkstation.name, activeWorkstation.description) : '💻'}</span>
+              <span className="text-sm text-gray-200 max-w-[100px] truncate">{activeWorkstation?.name || 'Select Agent'}</span>
               <div className={`w-2 h-2 rounded-full ${
                 activeWorkstation?.status === 'online' ? 'bg-green-400' : 
                 activeWorkstation?.status === 'offline' ? 'bg-red-400' : 'bg-gray-500'
@@ -540,10 +541,11 @@ export const AppV3: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowModeDropdown(!showModeDropdown)}
-                    className="p-2.5 rounded-xl transition-colors bg-gray-800 hover:bg-gray-700 text-gray-300"
+                    className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl transition-colors"
                     title={`${currentModeConfig.label}: ${currentModeConfig.description}`}
                   >
-                    {currentModeConfig.icon}
+                    <span className={currentModeConfig.color.split(' ')[0]}>{currentModeConfig.icon}</span>
+                    <span className="text-sm text-gray-200">{currentModeConfig.label}</span>
                   </button>
                   
                   {/* Mode Dropdown (opens upward) */}

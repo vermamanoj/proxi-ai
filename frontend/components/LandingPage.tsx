@@ -39,7 +39,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden overflow-y-auto">
+    <div className="h-screen bg-black text-white overflow-y-scroll">
       {/* Navigation - Sticky */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-lg border-b border-gray-800/50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
