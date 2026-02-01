@@ -8,9 +8,10 @@ import { EvidenceCard, parseEvidenceFromMessage } from './EvidenceCard';
 interface ChatViewProps {
   trace: TraceStep[];
   isProcessing?: boolean;
+  debugMode?: boolean;
 }
 
-export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false }) => {
+export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false, debugMode = false }) => {
   const endRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [expandedTools, setExpandedTools] = useState<Set<number>>(new Set());
@@ -40,12 +41,27 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
     });
   };
 
+  // Filter trace based on debug mode
+  const filteredTrace = React.useMemo(() => {
+    if (debugMode) return trace;
+    // In non-debug mode, hide verbose tool calls and system instructions
+    return trace.filter(step => {
+      // Always show user input and final responses
+      if (step.step_type === 'user_input' || step.step_type === 'final_response') return true;
+      // Show tool calls/results only if they have meaningful content
+      if (step.step_type === 'tool_call' || step.step_type === 'tool_result') return false;
+      // Hide system instructions and thoughts
+      if (step.step_type === 'system_instruction' || step.step_type === 'llm_thought') return false;
+      return true;
+    });
+  }, [trace, debugMode]);
+
   // Group consecutive tool_call + tool_result pairs
   const groupedTrace = React.useMemo(() => {
     const groups: Array<{ type: 'message' | 'tool_group', items: TraceStep[] }> = [];
     let currentToolGroup: TraceStep[] = [];
 
-    trace.forEach((step, idx) => {
+    filteredTrace.forEach((step, idx) => {
       if (step.step_type === 'tool_call' || step.step_type === 'tool_result') {
         currentToolGroup.push(step);
       } else {
@@ -62,7 +78,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false 
     }
     
     return groups;
-  }, [trace]);
+  }, [filteredTrace]);
 
   if (trace.length === 0) {
     return (

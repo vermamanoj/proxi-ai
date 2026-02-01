@@ -51,6 +51,7 @@ export const AppV3: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
+  const [debugMode, setDebugMode] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   
   // Agent selector dropdown
@@ -144,12 +145,12 @@ export const AppV3: React.FC = () => {
     setExecutionMode(currentMode);
   }, [currentMode, setExecutionMode]);
 
-  // Load sessions when sidebar opens
+  // Load sessions on mount and when sidebar opens
   useEffect(() => {
-    if (sidebarOpen && sessions.length === 0) {
+    if (isAuthenticated) {
       loadSessions();
     }
-  }, [sidebarOpen]);
+  }, [isAuthenticated]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -250,9 +251,8 @@ export const AppV3: React.FC = () => {
 
   // Not authenticated - show landing or login
   if (!isAuthenticated) {
-    const isCapacitor = typeof (window as any)?.Capacitor !== 'undefined';
-    if (authView === 'login' || isCapacitor) {
-      return <LoginPage onLogin={authLogin} onBack={isCapacitor ? undefined : () => setAuthView('landing')} />;
+    if (authView === 'login') {
+      return <LoginPage onLogin={authLogin} onBack={() => setAuthView('landing')} />;
     }
     return <LandingPage onLogin={() => setAuthView('login')} />;
   }
@@ -352,6 +352,20 @@ export const AppV3: React.FC = () => {
 
         {/* Sidebar Footer */}
         <div className="p-3 border-t border-gray-800 space-y-1">
+          <button 
+            onClick={() => setDebugMode(!debugMode)}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+              debugMode ? 'bg-yellow-500/20 text-yellow-400' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Terminal className="w-4 h-4" />
+              <span>Debug Mode</span>
+            </div>
+            <div className={`w-8 h-4 rounded-full transition-colors ${debugMode ? 'bg-yellow-500' : 'bg-gray-600'}`}>
+              <div className={`w-3 h-3 rounded-full bg-white mt-0.5 transition-transform ${debugMode ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
+            </div>
+          </button>
           <button 
             onClick={() => setShowAbout(true)}
             className="w-full flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg text-sm"
@@ -466,6 +480,7 @@ export const AppV3: React.FC = () => {
           <ChatView
             trace={displayTrace}
             isProcessing={isProcessing}
+            debugMode={debugMode}
           />
         </div>
 
