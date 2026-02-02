@@ -1,10 +1,23 @@
-# Proxi Agent - Minimal dependencies
-# NO gemini, NO database, NO auth
+# Proxi Agent - Dependencies for Windows desktop automation
+# NO gemini SDK, NO database, NO auth
 
+# Core API
 fastapi==0.109.0
 uvicorn==0.27.0
 pydantic==2.6.0
+
+# System monitoring
 psutil==5.9.8
 
-# Note: This is intentionally minimal for security isolation
-# Agent only needs to execute desktop commands and report health
+# Environment loading
+python-dotenv==1.0.0
+
+# Windows-specific (install on Windows only)
+pywin32>=306; sys_platform == 'win32'
+Pillow>=10.0.0
+
+# Screenshot support
+mss>=9.0.0
+
+# HTTP client (for agent proxy calls)
+httpx>=0.26.0
