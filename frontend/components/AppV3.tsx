@@ -37,9 +37,37 @@ const getOsIcon = (name: string, description?: string) => {
   return '💻';
 };
 
+// Auth wrapper - only renders heavy hooks after login
 export const AppV3: React.FC = () => {
   const { isAuthenticated, isLoading: authLoading, user, login: authLogin, logout } = useAuth();
   const [authView, setAuthView] = useState<'landing' | 'login'>('landing');
+
+  // Auth loading state
+  if (authLoading) {
+    return (
+      <div className="h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-proxi-accent mx-auto mb-4 animate-spin" />
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Not authenticated - show landing or login (NO heavy hooks loaded yet)
+  if (!isAuthenticated) {
+    if (authView === 'login') {
+      return <LoginPage onLogin={authLogin} onBack={() => setAuthView('landing')} />;
+    }
+    return <LandingPage onLogin={() => setAuthView('login')} />;
+  }
+
+  // Authenticated - render main app with all hooks
+  return <AppV3Authenticated user={user} logout={logout} />;
+};
+
+// Main authenticated app - hooks only initialize here
+const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user, logout }) => {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const { activeWorkstation, workstations, setActiveWorkstation, isLoading: workstationsLoading } = useWorkstations();
   
@@ -273,26 +301,6 @@ export const AppV3: React.FC = () => {
     setShowApprovalModal(false);
     setApprovalRequest(null);
   };
-
-  // Auth loading state
-  if (authLoading) {
-    return (
-      <div className="h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-proxi-accent mx-auto mb-4 animate-spin" />
-          <p className="text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Not authenticated - show landing or login
-  if (!isAuthenticated) {
-    if (authView === 'login') {
-      return <LoginPage onLogin={authLogin} onBack={() => setAuthView('landing')} />;
-    }
-    return <LandingPage onLogin={() => setAuthView('login')} />;
-  }
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
