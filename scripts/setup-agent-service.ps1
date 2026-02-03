@@ -43,8 +43,19 @@ if (-not (Test-Path $venvPython)) {
     exit 1
 }
 
-# Create the action - use pythonw.exe for hidden console
-$action = New-ScheduledTaskAction -Execute $venvPython -Argument "-m uvicorn $agentModule --host 0.0.0.0 --port $Port" -WorkingDirectory $ProjectPath
+# Create a launcher script that sets PYTHONPATH (required for imports)
+$launcherPath = Join-Path $ProjectPath "scripts\run-agent.bat"
+$launcherContent = @"
+@echo off
+cd /d $ProjectPath
+set PYTHONPATH=$ProjectPath
+"$venvPython" -m uvicorn $agentModule --host 0.0.0.0 --port $Port
+"@
+$launcherContent | Out-File -FilePath $launcherPath -Encoding ASCII -Force
+Write-Host "  [OK] Created launcher: $launcherPath" -ForegroundColor Gray
+
+# Create the action using the launcher (sets PYTHONPATH)
+$action = New-ScheduledTaskAction -Execute $launcherPath -WorkingDirectory $ProjectPath
 
 # Trigger on logon (runs when any user logs in)
 $triggerLogon = New-ScheduledTaskTrigger -AtLogOn
