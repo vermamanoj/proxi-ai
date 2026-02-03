@@ -35,6 +35,9 @@ backend/auth/magic_links.json
 # Runtime data files (use .example templates)
 backend/registry/workstations.json
 
+# Contact form data
+backend/data/waitlist.json
+
 # OS
 .DS_Store
 Thumbs.db

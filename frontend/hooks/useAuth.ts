@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/httpClient';
+import posthog from 'posthog-js';
 
 interface User {
   username: string;
@@ -73,6 +74,13 @@ export function useAuth() {
       });
       localStorage.setItem('proxi_auth', JSON.stringify(user));
       console.log(`[Auth] Login successful: ${user.username}`);
+      
+      // Identify user in PostHog for analytics
+      posthog.identify(user.username, {
+        name: user.displayName,
+        role: user.role,
+      });
+      
       return true;
     }
     
@@ -83,6 +91,7 @@ export function useAuth() {
   const logout = useCallback(async () => {
     await api.post('/api/auth/logout');
     localStorage.removeItem('proxi_auth');
+    posthog.reset();  // Clear PostHog user identification
     setAuthState({
       isAuthenticated: false,
       user: null,

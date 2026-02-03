@@ -1,10 +1,39 @@
 // index.tsx
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
+import posthog from 'posthog-js';
 import './index.css';
 import App from './App';
 import AppV2 from './components/AppV2';
 import AppV3 from './components/AppV3';
+
+// Initialize PostHog with session recording
+const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY;
+if (POSTHOG_KEY) {
+  posthog.init(POSTHOG_KEY, {
+    api_host: 'https://app.posthog.com',
+    capture_pageview: true,
+    capture_pageleave: true,
+    autocapture: true,
+    // Session recording config
+    disable_session_recording: false,
+    session_recording: {
+      maskAllInputs: false,  // Set true to mask sensitive inputs
+      maskInputOptions: {
+        password: true,  // Always mask passwords
+      },
+    },
+    // Performance
+    loaded: (posthog) => {
+      if (import.meta.env.DEV) {
+        console.log('[PostHog] Initialized');
+      }
+    },
+  });
+}
+
+// Export for use in components
+export { posthog };
 
 // Simple hash router
 // v3 = primary (default landing page after login)
