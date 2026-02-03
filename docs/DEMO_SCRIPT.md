@@ -130,9 +130,19 @@ If something doesn't work perfectly:
 ## Windows Demo Server Setup
 
 ### Prerequisites
-- Windows Server with Python 3.10+, Node.js 18+
+- Windows Server with Python 3.10+
 - Tailscale installed and connected to your tailnet
 - Clone: `git clone https://github.com/vermamanoj/proxi-ai.git C:\data\proxi-ai`
+
+**Install Node.js (required for Electron apps):**
+```powershell
+# Using winget
+winget install OpenJS.NodeJS.LTS
+
+# Restart PowerShell after install, then verify:
+node --version   # Should show v18+ or v20+
+npm --version    # Should show 9+ or 10+
+```
 
 ### Step 1: Setup Agent
 ```powershell
