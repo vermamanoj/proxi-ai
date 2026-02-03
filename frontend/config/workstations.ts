@@ -45,7 +45,7 @@ export const DEFAULT_WORKSTATIONS: Workstation[] = [
     description: 'Windows Server 2022 via Tailscale - GUI automation, Office, legacy apps',
     type: 'vm',
     host: '100.100.100.2', // Tailscale IP - update after setup
-    port: 8080,
+    port: 8081,
     capabilities: ['desktop', 'mouse', 'keyboard', 'screenshot', 'powerpoint', 'browser'],
     status: 'unknown',
     tags: ['windows', 'on-demand', 'gui'],

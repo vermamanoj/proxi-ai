@@ -309,15 +309,25 @@ async def join_waitlist(request: Request):
         if any(e.get("email") == email for e in waitlist):
             return JSONResponse({"detail": "Already on the waitlist!"}, status_code=200)
         
-        # Add new entry
+        # Extract request metadata
+        client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown")
+        if "," in client_ip:
+            client_ip = client_ip.split(",")[0].strip()  # First IP in chain
+        user_agent = request.headers.get("user-agent", "unknown")
+        referrer = request.headers.get("referer", "direct")
+        
+        # Add new entry with enhanced data
         waitlist.append({
             "email": email,
             "timestamp": datetime.datetime.utcnow().isoformat(),
-            "source": "landing_page"
+            "source": "landing_page",
+            "ip": client_ip,
+            "user_agent": user_agent,
+            "referrer": referrer,
         })
         
         WAITLIST_FILE.write_text(json.dumps(waitlist, indent=2))
-        logging.info(f"[Waitlist] New signup: {email}")
+        logging.info(f"[Waitlist] New signup: {email} from {client_ip}")
         
         return JSONResponse({"status": "success", "message": "You're on the list!"})
     except Exception as e:
