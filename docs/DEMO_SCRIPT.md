@@ -144,25 +144,29 @@ node --version   # Should show v18+ or v20+
 npm --version    # Should show 9+ or 10+
 ```
 
-### Step 1: Setup Agent
+### One-Command Setup
+
 ```powershell
-cd C:\data\proxi-ai
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r backend/requirements-agent.txt
+# Full setup: agent + demo apps + auto-start everything
+.\scripts\setup-windows-demo.ps1 -All
+
+# Or step by step:
+.\scripts\setup-windows-demo.ps1                      # Agent only
+.\scripts\setup-windows-demo.ps1 -IncludeDemoApps     # Agent + Electron apps
+.\scripts\setup-windows-demo.ps1 -ScheduleAgent       # Agent + auto-start on login
+.\scripts\setup-windows-demo.ps1 -ScheduleApps        # Schedule demo apps auto-start
+.\scripts\setup-windows-demo.ps1 -Uninstall           # Remove all scheduled tasks
 ```
 
-### Step 2: Setup Electron Demo Apps
-```powershell
-# Install dependencies for both apps
-cd C:\data\proxi-ai\demo-apps\pricing-app
-npm install
+The script automatically:
+- Installs Python if missing (via winget)
+- Installs Node.js if missing (via winget) 
+- Creates Python venv and installs agent dependencies
+- Installs Electron app npm dependencies
+- Schedules auto-start on login (hidden console for agent)
+- Configures auto-restart on failure
 
-cd C:\data\proxi-ai\demo-apps\crm-app
-npm install
-```
-
-### Step 3: Create .env File
+### Create .env File
 ```powershell
 # Create .env in repo root
 @"
@@ -171,7 +175,7 @@ PROXI_AGENT_KEY=your-agent-key
 "@ | Out-File -FilePath C:\data\proxi-ai\.env -Encoding UTF8
 ```
 
-### Step 4: Start Everything Manually (Testing)
+### Manual Start (Testing)
 ```powershell
 # Terminal 1: Agent
 cd C:\data\proxi-ai
@@ -185,26 +189,6 @@ npm start
 # Terminal 3: CRM App
 cd C:\data\proxi-ai\demo-apps\crm-app
 npm start
-```
-
-### Step 5: Auto-Start on Reboot (Production)
-
-**Agent (hidden console):**
-```powershell
-.\scripts\setup-agent-service.ps1 -ProjectPath "C:\data\proxi-ai" -Port 8081
-```
-
-**Electron Apps:**
-```powershell
-# Pricing App
-$action = New-ScheduledTaskAction -Execute "npm" -Argument "start" -WorkingDirectory "C:\data\proxi-ai\demo-apps\pricing-app"
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-Register-ScheduledTask -TaskName "ProxiPricingApp" -Action $action -Trigger $trigger
-
-# CRM App  
-$action = New-ScheduledTaskAction -Execute "npm" -Argument "start" -WorkingDirectory "C:\data\proxi-ai\demo-apps\crm-app"
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-Register-ScheduledTask -TaskName "ProxiCRMApp" -Action $action -Trigger $trigger
 ```
 
 ### Step 6: Register with Core
