@@ -33,8 +33,8 @@ Write-Host "  Proxi Agent Service Setup" -ForegroundColor Cyan
 Write-Host "============================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Verify paths
-$venvPython = Join-Path $ProjectPath "venv\Scripts\pythonw.exe"  # pythonw = no console
+# Verify paths - use python.exe (not pythonw) since uvicorn needs console for subprocess
+$venvPython = Join-Path $ProjectPath "venv\Scripts\python.exe"
 $agentModule = "backend.agent_server:app"
 
 if (-not (Test-Path $venvPython)) {
@@ -43,19 +43,30 @@ if (-not (Test-Path $venvPython)) {
     exit 1
 }
 
-# Create a launcher script that sets PYTHONPATH (required for imports)
-$launcherPath = Join-Path $ProjectPath "scripts\run-agent.bat"
-$launcherContent = @"
+# Create a VBS launcher to run python hidden (pythonw doesn't work with uvicorn)
+$launcherVbs = Join-Path $ProjectPath "scripts\run-agent.vbs"
+$launcherBat = Join-Path $ProjectPath "scripts\run-agent.bat"
+
+# Batch file does the actual work
+$batContent = @"
 @echo off
 cd /d $ProjectPath
 set PYTHONPATH=$ProjectPath
-"$venvPython" -m uvicorn $agentModule --host 0.0.0.0 --port $Port
+"$venvPython" -m uvicorn $agentModule --host 0.0.0.0 --port $Port --no-access-log
 "@
-$launcherContent | Out-File -FilePath $launcherPath -Encoding ASCII -Force
-Write-Host "  [OK] Created launcher: $launcherPath" -ForegroundColor Gray
+$batContent | Out-File -FilePath $launcherBat -Encoding ASCII -Force
 
-# Create the action using the launcher (sets PYTHONPATH)
-$action = New-ScheduledTaskAction -Execute $launcherPath -WorkingDirectory $ProjectPath
+# VBS wrapper hides the console window
+$vbsContent = @"
+Set WshShell = CreateObject("WScript.Shell")
+WshShell.Run chr(34) & "$launcherBat" & chr(34), 0
+Set WshShell = Nothing
+"@
+$vbsContent | Out-File -FilePath $launcherVbs -Encoding ASCII -Force
+Write-Host "  [OK] Created launchers: run-agent.bat + run-agent.vbs" -ForegroundColor Gray
+
+# Create the action using VBS (hides console window)
+$action = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$launcherVbs`"" -WorkingDirectory $ProjectPath
 
 # Trigger on logon (runs when any user logs in)
 $triggerLogon = New-ScheduledTaskTrigger -AtLogOn
