@@ -1,8 +1,8 @@
 # Windows Agent Setup Guide
 
-**Last Updated:** January 30, 2026  
-**Last Commit:** `0376b4d` - Add SoM overlay, combined observation, and local Gemini grounding  
-**Status:** ⚠️ Testing Pending
+**Last Updated:** February 3, 2026  
+**Last Commit:** `7536e45` - Add Windows agent service setup script for auto-start on reboot  
+**Status:** ✅ Production Ready
 
 ## Connecting a Windows Desktop to Proxi Core (Production)
 
@@ -235,16 +235,92 @@ The agent uses `CommandGuard` to filter dangerous commands:
 
 ## Advanced Configuration
 
-### Running as a Windows Service
+### Running Agent as a Windows Service (Auto-Start on Reboot)
+
+**Option A: Scheduled Task (Recommended - No Admin Required)**
+
+```powershell
+# Run the setup script
+.\scripts\setup-agent-service.ps1 -ProjectPath "C:\data\proxi-ai" -Port 8081
+```
+
+This creates a scheduled task that:
+- Starts on login (runs hidden via `pythonw.exe`)
+- Restarts automatically if it crashes
+- No visible console window
+
+**Management Commands:**
+```powershell
+# Stop agent
+Stop-ScheduledTask -TaskName ProxiAgent; Stop-Process -Name pythonw -Force
+
+# Start agent
+Start-ScheduledTask -TaskName ProxiAgent
+
+# Check status
+Get-ScheduledTask -TaskName ProxiAgent | Select State
+
+# Uninstall
+.\scripts\setup-agent-service.ps1 -Uninstall
+```
+
+**Option B: NSSM Service (Admin Required)**
 
 ```powershell
 # Install NSSM (Non-Sucking Service Manager)
 choco install nssm
 
 # Create service
-nssm install ProxiAgent "C:\path\to\python.exe" "-m backend.agent.run_agent"
-nssm set ProxiAgent AppDirectory "C:\path\to\proxi-ai"
+nssm install ProxiAgent "C:\data\proxi-ai\venv\Scripts\pythonw.exe" "-m uvicorn backend.agent_server:app --host 0.0.0.0 --port 8081"
+nssm set ProxiAgent AppDirectory "C:\data\proxi-ai"
 nssm start ProxiAgent
+```
+
+---
+
+### Starting Demo Electron Apps
+
+The demo apps are located in `demo-apps/`:
+
+| App | Path | Description |
+|-----|------|-------------|
+| **Pricing System** | `demo-apps/pricing-app` | Enterprise pricing calculator |
+| **CRM System** | `demo-apps/crm-app` | Customer relationship management |
+
+**Start Electron Apps:**
+```powershell
+# Pricing App
+cd C:\data\proxi-ai\demo-apps\pricing-app
+npm start
+
+# CRM App
+cd C:\data\proxi-ai\demo-apps\crm-app
+npm start
+```
+
+**Auto-Start Electron Apps on Reboot (Scheduled Task):**
+```powershell
+# Create scheduled task for Pricing App
+$action = New-ScheduledTaskAction -Execute "npm" -Argument "start" -WorkingDirectory "C:\data\proxi-ai\demo-apps\pricing-app"
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+Register-ScheduledTask -TaskName "ProxiPricingApp" -Action $action -Trigger $trigger -Description "Proxi Demo - Pricing App"
+
+# Create scheduled task for CRM App
+$action = New-ScheduledTaskAction -Execute "npm" -Argument "start" -WorkingDirectory "C:\data\proxi-ai\demo-apps\crm-app"
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+Register-ScheduledTask -TaskName "ProxiCRMApp" -Action $action -Trigger $trigger -Description "Proxi Demo - CRM App"
+```
+
+**Stop/Manage Electron Apps:**
+```powershell
+# Stop apps
+Stop-ScheduledTask -TaskName ProxiPricingApp
+Stop-ScheduledTask -TaskName ProxiCRMApp
+Get-Process -Name electron | Stop-Process -Force
+
+# Remove scheduled tasks
+Unregister-ScheduledTask -TaskName ProxiPricingApp -Confirm:$false
+Unregister-ScheduledTask -TaskName ProxiCRMApp -Confirm:$false
 ```
 
 ### Multiple Agents
