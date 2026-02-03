@@ -121,9 +121,120 @@ If something doesn't work perfectly:
 
 ## Mock Apps Required
 
-1. **Legacy Pricing Tool** - SAP-like interface with pricing tiers (`demo/pricing-tool.html`)
-2. **Legacy CRM** - Old-school customer database with interactive tabs (`demo/crm.html`)
+1. **Legacy Pricing Tool** - SAP-like Electron app (`demo-apps/pricing-app`)
+2. **Legacy CRM** - Customer database Electron app (`demo-apps/crm-app`)
 3. **Brand Template** - PowerPoint .pptx file in Downloads folder (use any branded template)
+
+---
+
+## Windows Demo Server Setup
+
+### Prerequisites
+- Windows Server with Python 3.10+, Node.js 18+
+- Tailscale installed and connected to your tailnet
+- Clone: `git clone https://github.com/vermamanoj/proxi-ai.git C:\data\proxi-ai`
+
+### Step 1: Setup Agent
+```powershell
+cd C:\data\proxi-ai
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r backend/requirements-agent.txt
+```
+
+### Step 2: Setup Electron Demo Apps
+```powershell
+# Install dependencies for both apps
+cd C:\data\proxi-ai\demo-apps\pricing-app
+npm install
+
+cd C:\data\proxi-ai\demo-apps\crm-app
+npm install
+```
+
+### Step 3: Create .env File
+```powershell
+# Create .env in repo root
+@"
+GEMINI_API_KEY=your-gemini-api-key
+PROXI_AGENT_KEY=your-agent-key
+"@ | Out-File -FilePath C:\data\proxi-ai\.env -Encoding UTF8
+```
+
+### Step 4: Start Everything Manually (Testing)
+```powershell
+# Terminal 1: Agent
+cd C:\data\proxi-ai
+.\venv\Scripts\Activate.ps1
+python -m uvicorn backend.agent_server:app --host 0.0.0.0 --port 8081
+
+# Terminal 2: Pricing App
+cd C:\data\proxi-ai\demo-apps\pricing-app
+npm start
+
+# Terminal 3: CRM App
+cd C:\data\proxi-ai\demo-apps\crm-app
+npm start
+```
+
+### Step 5: Auto-Start on Reboot (Production)
+
+**Agent (hidden console):**
+```powershell
+.\scripts\setup-agent-service.ps1 -ProjectPath "C:\data\proxi-ai" -Port 8081
+```
+
+**Electron Apps:**
+```powershell
+# Pricing App
+$action = New-ScheduledTaskAction -Execute "npm" -Argument "start" -WorkingDirectory "C:\data\proxi-ai\demo-apps\pricing-app"
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+Register-ScheduledTask -TaskName "ProxiPricingApp" -Action $action -Trigger $trigger
+
+# CRM App  
+$action = New-ScheduledTaskAction -Execute "npm" -Argument "start" -WorkingDirectory "C:\data\proxi-ai\demo-apps\crm-app"
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+Register-ScheduledTask -TaskName "ProxiCRMApp" -Action $action -Trigger $trigger
+```
+
+### Step 6: Register with Core
+
+Add to `data/workstations.json` on production server:
+```json
+"win22": {
+  "id": "win22",
+  "name": "Windows Demo Server",
+  "description": "Windows Server with Pricing + CRM apps",
+  "host": "YOUR_TAILSCALE_IP",
+  "port": 8081,
+  "workstation_type": "windows",
+  "capabilities": ["terminal", "screenshot", "desktop", "file_operations"],
+  "is_default": false
+}
+```
+
+Then restart Core: `docker compose restart core`
+
+### Management Commands
+
+| Action | Command |
+|--------|---------|
+| **Stop Agent** | `Stop-ScheduledTask -TaskName ProxiAgent; Stop-Process -Name pythonw -Force` |
+| **Stop Apps** | `Get-Process -Name electron \| Stop-Process -Force` |
+| **Start Agent** | `Start-ScheduledTask -TaskName ProxiAgent` |
+| **Start Apps** | `Start-ScheduledTask -TaskName ProxiPricingApp; Start-ScheduledTask -TaskName ProxiCRMApp` |
+| **Check Agent** | `Invoke-WebRequest http://localhost:8081/health` |
+| **Uninstall Agent** | `.\scripts\setup-agent-service.ps1 -Uninstall` |
+| **Uninstall Apps** | `Unregister-ScheduledTask -TaskName ProxiPricingApp -Confirm:$false; Unregister-ScheduledTask -TaskName ProxiCRMApp -Confirm:$false` |
+
+### Verify Setup
+```powershell
+# Check agent is running
+Invoke-WebRequest http://localhost:8081/health
+
+# Check Electron apps are visible
+Get-Process -Name electron
+```
 
 ---
 
@@ -139,7 +250,7 @@ If something doesn't work perfectly:
 
 ---
 
-*Last Updated: January 27, 2026*
+*Last Updated: February 3, 2026*
 
 ---
 
