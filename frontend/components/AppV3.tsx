@@ -175,12 +175,10 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
     setExecutionMode(currentMode);
   }, [currentMode, setExecutionMode]);
 
-  // Load sessions on mount and when sidebar opens
+  // Load sessions on mount (component only renders when authenticated)
   useEffect(() => {
-    if (isAuthenticated) {
-      loadSessions();
-    }
-  }, [isAuthenticated]);
+    loadSessions();
+  }, []);
 
   // Auto-resize textarea
   useEffect(() => {
