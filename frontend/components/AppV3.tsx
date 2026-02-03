@@ -95,12 +95,13 @@ export const AppV3: React.FC = () => {
     markActiveGoalFailed,
   } = useGeminiLive(true, audioEnabled, currentMode);
 
-  // Auto-connect voice on page load when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      liveConnect();
-    }
-  }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Voice connection is now lazy - user clicks mic button to connect
+  // This speeds up initial page load significantly
+  // useEffect(() => {
+  //   if (isAuthenticated) {
+  //     liveConnect();
+  //   }
+  // }, [isAuthenticated]);
 
   // Convert liveChatLogs to trace format for display
   const liveTrace: TraceStep[] = useMemo(() => {
@@ -613,16 +614,22 @@ export const AppV3: React.FC = () => {
                   )}
                 </div>
 
-                {/* Mic Button */}
+                {/* Mic Button - connects voice on first click, then toggles mute */}
                 <button
                   type="button"
-                  onClick={toggleMicMute}
+                  onClick={() => {
+                    if (!liveConnected) {
+                      liveConnect();
+                    } else {
+                      toggleMicMute();
+                    }
+                  }}
                   className={`p-2.5 rounded-xl transition-colors ${
-                    !micMuted ? 'bg-proxi-accent text-black' : 'bg-gray-800 text-gray-400 hover:text-white'
+                    liveConnected && !micMuted ? 'bg-proxi-accent text-black' : 'bg-gray-800 text-gray-400 hover:text-white'
                   }`}
-                  title={micMuted ? 'Unmute microphone' : 'Mute microphone'}
+                  title={!liveConnected ? 'Connect voice' : micMuted ? 'Unmute microphone' : 'Mute microphone'}
                 >
-                  {micMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                  {!liveConnected ? <Mic className="w-5 h-5" /> : micMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </button>
 
                 {/* Stop Button (TTS / Processing) */}

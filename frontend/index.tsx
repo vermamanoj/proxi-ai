@@ -6,7 +6,10 @@ import App from './App';
 import AppV2 from './components/AppV2';
 import AppV3 from './components/AppV3';
 
-// Simple hash router for A/B/C comparison
+// Simple hash router
+// v3 = primary (default landing page after login)
+// v2 = legacy v1 (admin console, magic links)
+// v1 = temporary/deprecated
 const Router: React.FC = () => {
   const [route, setRoute] = useState(window.location.hash);
 
@@ -16,14 +19,15 @@ const Router: React.FC = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Routes: /#/v2, /#/v3, default = original
-  if (route === '#/v3') {
-    return <AppV3 />;
-  }
+  // Routes: /#/v2 = legacy with admin features, /#/v1 = deprecated
+  // Default = v3 (new primary)
   if (route === '#/v2') {
-    return <AppV2 />;
+    return <App />;  // Old v1 is now v2 (has admin console, magic links)
   }
-  return <App />;
+  if (route === '#/v1') {
+    return <AppV2 />;  // Old v2 is now v1 (deprecated)
+  }
+  return <AppV3 />;  // v3 is now default
 };
 
 // Register service worker for PWA

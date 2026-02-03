@@ -235,92 +235,71 @@ The agent uses `CommandGuard` to filter dangerous commands:
 
 ## Advanced Configuration
 
-### Running Agent as a Windows Service (Auto-Start on Reboot)
+### Complete Demo Server Setup (Recommended)
 
-**Option A: Scheduled Task (Recommended - No Admin Required)**
+Use the all-in-one setup script that handles everything:
 
 ```powershell
-# Run the setup script
-.\scripts\setup-agent-service.ps1 -ProjectPath "C:\data\proxi-ai" -Port 8081
+# Full setup: agent + demo apps + auto-start everything
+.\scripts\setup-windows-demo.ps1 -All
 ```
 
-This creates a scheduled task that:
-- Starts on login (runs hidden via `pythonw.exe`)
-- Restarts automatically if it crashes
-- No visible console window
+**Script Options:**
+| Flag | What it does |
+|------|--------------|
+| (none) | Install agent dependencies only |
+| `-IncludeDemoApps` | Also install Electron demo apps (npm install) |
+| `-ScheduleAgent` | Schedule agent auto-start on login (hidden console) |
+| `-ScheduleApps` | Schedule Electron apps auto-start on login |
+| `-All` | All of the above |
+| `-Uninstall` | Remove all scheduled tasks |
+
+**Auto-Installs:**
+- Python (via winget if missing)
+- Node.js (via winget if missing, when `-IncludeDemoApps`)
+- Agent dependencies (pip install)
+- Electron app dependencies (npm install)
 
 **Management Commands:**
 ```powershell
-# Stop agent
-Stop-ScheduledTask -TaskName ProxiAgent; Stop-Process -Name pythonw -Force
+# Stop all
+Stop-Process -Name pythonw,electron -Force -ErrorAction SilentlyContinue
 
-# Start agent
+# Start all
 Start-ScheduledTask -TaskName ProxiAgent
+Start-ScheduledTask -TaskName ProxiPricingApp
+Start-ScheduledTask -TaskName ProxiCRMApp
 
-# Check status
-Get-ScheduledTask -TaskName ProxiAgent | Select State
+# Check agent health
+Invoke-WebRequest http://localhost:8081/health
 
-# Uninstall
-.\scripts\setup-agent-service.ps1 -Uninstall
-```
-
-**Option B: NSSM Service (Admin Required)**
-
-```powershell
-# Install NSSM (Non-Sucking Service Manager)
-choco install nssm
-
-# Create service
-nssm install ProxiAgent "C:\data\proxi-ai\venv\Scripts\pythonw.exe" "-m uvicorn backend.agent_server:app --host 0.0.0.0 --port 8081"
-nssm set ProxiAgent AppDirectory "C:\data\proxi-ai"
-nssm start ProxiAgent
+# Uninstall all
+.\scripts\setup-windows-demo.ps1 -Uninstall
 ```
 
 ---
 
-### Starting Demo Electron Apps
+### Manual Agent Service Setup (Alternative)
 
-The demo apps are located in `demo-apps/`:
+If you only need the agent (no demo apps):
+
+```powershell
+.\scripts\setup-agent-service.ps1 -ProjectPath "C:\data\proxi-ai" -Port 8081
+```
+
+---
+
+### Demo Electron Apps
 
 | App | Path | Description |
 |-----|------|-------------|
 | **Pricing System** | `demo-apps/pricing-app` | Enterprise pricing calculator |
 | **CRM System** | `demo-apps/crm-app` | Customer relationship management |
 
-**Start Electron Apps:**
+**Manual Start:**
 ```powershell
-# Pricing App
-cd C:\data\proxi-ai\demo-apps\pricing-app
-npm start
-
-# CRM App
-cd C:\data\proxi-ai\demo-apps\crm-app
-npm start
-```
-
-**Auto-Start Electron Apps on Reboot (Scheduled Task):**
-```powershell
-# Create scheduled task for Pricing App
-$action = New-ScheduledTaskAction -Execute "npm" -Argument "start" -WorkingDirectory "C:\data\proxi-ai\demo-apps\pricing-app"
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-Register-ScheduledTask -TaskName "ProxiPricingApp" -Action $action -Trigger $trigger -Description "Proxi Demo - Pricing App"
-
-# Create scheduled task for CRM App
-$action = New-ScheduledTaskAction -Execute "npm" -Argument "start" -WorkingDirectory "C:\data\proxi-ai\demo-apps\crm-app"
-$trigger = New-ScheduledTaskTrigger -AtLogOn
-Register-ScheduledTask -TaskName "ProxiCRMApp" -Action $action -Trigger $trigger -Description "Proxi Demo - CRM App"
-```
-
-**Stop/Manage Electron Apps:**
-```powershell
-# Stop apps
-Stop-ScheduledTask -TaskName ProxiPricingApp
-Stop-ScheduledTask -TaskName ProxiCRMApp
-Get-Process -Name electron | Stop-Process -Force
-
-# Remove scheduled tasks
-Unregister-ScheduledTask -TaskName ProxiPricingApp -Confirm:$false
-Unregister-ScheduledTask -TaskName ProxiCRMApp -Confirm:$false
+cd C:\data\proxi-ai\demo-apps\pricing-app && npm start
+cd C:\data\proxi-ai\demo-apps\crm-app && npm start
 ```
 
 ### Multiple Agents

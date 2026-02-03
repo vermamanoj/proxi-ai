@@ -1,8 +1,8 @@
 # Proxi System Architecture
 
-**Version:** v3.4.0  
-**Last Updated:** January 31, 2026  
-**Last Commit:** `c36b12d` - PWA support, zero-downtime deploy, advanced PPT tools  
+**Version:** v3.5.0  
+**Last Updated:** February 3, 2026  
+**Last Commit:** v3 primary, lazy voice loading  
 **Status:** ⚠️ Testing Pending
 
 ---
@@ -71,6 +71,19 @@ Proxi uses a security-focused split where sensitive data (API keys, user DB) sta
 | **Proxi Core** | 4000 | LLM orchestration, Auth, Sessions, Agent Registry | **Yes** |
 | **Linux Agent** | 4001 | Isolated tool execution (terminal, files) | No |
 | **Windows Agent** | 8081 | Desktop automation (mouse, keyboard, vision) | No |
+
+### Frontend Versions (v3.5.0)
+
+| Route | Component | Purpose |
+|-------|-----------|---------|
+| `/` (default) | `AppV3` | **Primary** - Sidebar layout, lazy voice, optimized for demo |
+| `/#/v2` | `App` | Legacy - Admin console, magic links, session history |
+| `/#/v1` | `AppV2` | Deprecated - Temporary layout |
+
+**Key v3 changes:**
+- Lazy voice connection (click mic to connect, faster page load)
+- Sidebar layout (ChatGPT/Gemini style)
+- Streamlined UI with fewer components
 
 ### Docker Services
 
