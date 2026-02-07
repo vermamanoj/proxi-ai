@@ -233,6 +233,32 @@ SAFE_PATTERNS: List[Tuple[str, str]] = [
     (r'--version$', "Version check (any tool)"),
     (r'-v$', "Version check short"),
     (r'-V$', "Version check short"),
+    
+    # Windows-specific safe commands for Proxi demo
+    (r'^start\s+', "Windows start command"),
+    (r'^Start-Process', "PowerShell start process"),
+    (r'^explorer\.exe', "Windows explorer"),
+    (r'^New-Object\s+-ComObject', "PowerShell COM object"),
+    (r'^Get-CimInstance', "PowerShell CIM query"),
+    (r'^Get-WmiObject', "PowerShell WMI query"),
+    (r'\.lnk["\']?\s*$', "Open shortcut file"),
+    (r'^cmd\s+/c', "CMD wrapper"),
+    (r'MinimizeAll', "Minimize windows"),
+    (r'^Get-ItemProperty', "PowerShell registry read"),
+    (r'^Test-Path', "PowerShell path test"),
+    (r'^Resolve-Path', "PowerShell resolve path"),
+    (r'^Split-Path', "PowerShell split path"),
+    (r'^Join-Path', "PowerShell join path"),
+    (r'CreateShortcut', "Read shortcut target"),
+    (r'WScript\.Shell', "WScript shell object"),
+    (r'Select-Object', "PowerShell select"),
+    (r'Where-Object', "PowerShell where filter"),
+    (r'ForEach-Object', "PowerShell foreach"),
+    (r'Format-Table', "PowerShell format"),
+    (r'Format-List', "PowerShell format"),
+    (r'Out-String', "PowerShell output"),
+    (r'MainWindowTitle', "Get window title"),
+    (r'^Get-Item\s', "PowerShell get item"),
 ]
 
 

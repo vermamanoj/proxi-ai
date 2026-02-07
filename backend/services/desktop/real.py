@@ -28,13 +28,21 @@ except KeyError:
     DESKTOP_AVAILABLE = False
 
 USE_ACCESSIBILITY = False
+ACCESSIBILITY_ERROR = None
 if platform.system() == "Windows":
     try:
         import ctypes
         from pywinauto import Desktop, Application
         USE_ACCESSIBILITY = True
-    except ImportError:
-        pass
+        print("[INIT] pywinauto loaded successfully - UI automation ENABLED", flush=True)
+    except ImportError as e:
+        ACCESSIBILITY_ERROR = str(e)
+        print(f"[WARN] pywinauto not installed: {e}", flush=True)
+        print("[WARN] Window management tools (list_windows, focus_window, scan_ui_tree) DISABLED", flush=True)
+        print("[WARN] Fix: pip install pywinauto pywin32", flush=True)
+    except Exception as e:
+        ACCESSIBILITY_ERROR = str(e)
+        print(f"[ERROR] pywinauto import failed: {e}", flush=True)
 
 # Security: Blocked paths and dangerous patterns
 BLOCKED_PATHS = [
@@ -513,7 +521,8 @@ class RealDesktopService(DesktopInterface):
         if not ok: return msg
         
         if not (self.os_type == "Windows" and USE_ACCESSIBILITY):
-            return "Error: Window focus requires Windows with pywinauto"
+            err_detail = ACCESSIBILITY_ERROR or "pywinauto not installed"
+            return f"Error: Window focus requires Windows with pywinauto. Detail: {err_detail}. Fix: pip install pywinauto pywin32"
         
         try:
             desktop = Desktop(backend="uia")
@@ -564,7 +573,8 @@ class RealDesktopService(DesktopInterface):
         if not ok: return {"error": msg}
         
         if not (self.os_type == "Windows" and USE_ACCESSIBILITY):
-            return {"error": "List windows requires Windows with pywinauto"}
+            err_detail = ACCESSIBILITY_ERROR or "pywinauto not installed"
+            return {"error": f"List windows requires Windows with pywinauto. Detail: {err_detail}. Fix: pip install pywinauto pywin32"}
         
         try:
             desktop = Desktop(backend="uia")
