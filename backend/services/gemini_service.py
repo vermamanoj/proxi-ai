@@ -1420,7 +1420,7 @@ class GeminiService:
             return
         
         # Get or create session history - limit based on config to prevent stale command re-execution
-        history_size = GeminiService.MODE_CONFIGS.get("session_history_size", 6)
+        history_size = GeminiService.MODE_CONFIGS.get("global", {}).get("session_history_size", 50)
         if session_id not in self.sessions:
             self.sessions[session_id] = []
             log_system(f"New session created: {session_id}", "SESSION")

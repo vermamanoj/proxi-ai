@@ -237,6 +237,7 @@ SAFE_PATTERNS: List[Tuple[str, str]] = [
     # Windows-specific safe commands for Proxi demo
     (r'^start\s+', "Windows start command"),
     (r'^Start-Process', "PowerShell start process"),
+    (r'^Invoke-Item', "PowerShell open file/shortcut"),
     (r'^explorer\.exe', "Windows explorer"),
     (r'^New-Object\s+-ComObject', "PowerShell COM object"),
     (r'^Get-CimInstance', "PowerShell CIM query"),
