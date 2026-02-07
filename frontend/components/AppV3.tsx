@@ -451,16 +451,18 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
           {/* Center: Agent Selector */}
           <div className="relative">
             <button
-              onClick={() => setShowAgentDropdown(!showAgentDropdown)}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl transition-colors"
-              disabled={workstationsLoading}
+              onClick={() => setShowAgentDropdown(prev => !prev)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl cursor-pointer select-none"
             >
               <span className="text-base">{activeWorkstation ? getOsIcon(activeWorkstation.name, activeWorkstation.description) : '💻'}</span>
-              <span className="text-sm text-gray-200 max-w-[100px] truncate">{activeWorkstation?.name || 'Select Agent'}</span>
+              <span className="text-sm text-gray-200 max-w-[100px] truncate">
+                {workstationsLoading ? 'Loading...' : (activeWorkstation?.name || 'Select Agent')}
+              </span>
               <div className={`w-2 h-2 rounded-full ${
                 activeWorkstation?.status === 'online' ? 'bg-green-400' : 
                 activeWorkstation?.status === 'offline' ? 'bg-red-400' : 'bg-gray-500'
               }`} />
+              <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${showAgentDropdown ? 'rotate-180' : ''}`} />
             </button>
             
             {/* Agent Dropdown */}
@@ -475,7 +477,7 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
                     return (
                       <button
                         key={ws.id}
-                        onClick={() => { if (!isOffline) { setActiveWorkstation(ws.id); setShowAgentDropdown(false); }}}
+                        onClick={() => { if (!isOffline) { setShowAgentDropdown(false); setActiveWorkstation(ws.id); }}}
                         disabled={isOffline}
                         className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
                           isOffline ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-800'
