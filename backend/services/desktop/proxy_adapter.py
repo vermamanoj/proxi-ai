@@ -126,8 +126,12 @@ class ProxyDesktopService(DesktopInterface):
     
     def list_windows(self) -> list:
         result = self._execute_sync("list_windows")
-        if isinstance(result, dict) and "error" in result:
-            return []
+        if isinstance(result, dict):
+            if "error" in result:
+                return []
+            # Agent returns {"windows": [...]} format
+            if "windows" in result:
+                return result["windows"]
         return result if isinstance(result, list) else []
 
     # --- PowerPoint Tools (proxied to Windows agent) ---

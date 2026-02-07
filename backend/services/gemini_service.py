@@ -1823,7 +1823,13 @@ class GeminiService:
                     yield json.dumps({"type": "tool_result", "name": name, "content": str(res)[:500]}) + "\n"
 
                 # Check if we hit tool limit and need to break outer loop too
-                if total_tool_calls > max_tool_calls:
+                if total_tool_calls >= max_tool_calls:
+                    log_system(f"Tool limit reached: {total_tool_calls}/{max_tool_calls}", "LIMIT")
+                    yield json.dumps({"type": "tool_limit_reached", "tool_calls": total_tool_calls, "max_tool_calls": max_tool_calls}) + "\n"
+                    yield json.dumps({"type": "final_response", "content": f"⏸️ Reached tool limit ({total_tool_calls}/{max_tool_calls}). Progress saved. Say **'continue'** to resume where I left off."}) + "\n"
+                    # Save progress context for continue
+                    progress_summary = f"[PAUSED at tool limit. Completed {total_tool_calls} actions. Last action: {safe_calls[-1]['name'] if safe_calls else 'unknown'}]"
+                    self.sessions[session_id].append({"role": "user", "parts": [progress_summary]})
                     break
                 
                 # Save model's text content to session history for "continue" to work
