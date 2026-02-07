@@ -1,15 +1,13 @@
 # Proxi Agent Deployment Script (Windows)
-# Usage: .\scripts\deploy-agent-windows.ps1 [-Register] [-Diagnose] [-FixDeps] [-CoreUrl <url>]
+# Usage: .\scripts\deploy-agent-windows.ps1 [-Register] [-Diagnose] [-CoreUrl <url>]
 
 param(
     [switch]$Register,                              # Register with Core after starting
     [switch]$Diagnose,                              # Run diagnostics only (don't start agent)
-    [switch]$FixDeps,                               # Install/fix all dependencies
     [string]$CoreUrl = "http://localhost:4000",     # Core server URL
     [string]$AgentName = "windows-agent",           # Agent name for registration
     [string]$AgentDescription = "Windows desktop automation agent",
-    [int]$Port = 8081,                              # Agent port
-    [string]$GeminiApiKey = ""                      # Optional: Set GEMINI_API_KEY in .env
+    [int]$Port = 8081                               # Agent port
 )
 
 $ErrorActionPreference = "Stop"
@@ -103,27 +101,8 @@ except Exception as e:
     
     if ($missing.Count -gt 0) {
         Write-Host ""
-        Write-Host "Run with -FixDeps to install missing packages" -ForegroundColor Cyan
+        Write-Host "Run without -Diagnose to install missing packages from requirements-agent.txt" -ForegroundColor Cyan
     }
-    exit 0
-}
-
-# ============================================
-# FIX DEPS MODE: Install all required packages
-# ============================================
-if ($FixDeps) {
-    Write-Host ""
-    Write-Host "[INFO] Installing all required packages..." -ForegroundColor Blue
-    pip install pyautogui pywinauto pywin32 opencv-python numpy pyperclip google-generativeai python-dotenv fastapi "uvicorn[standard]" psutil httpx requests Pillow
-    
-    if ($GeminiApiKey -and -not (Test-Path ".env")) {
-        @"
-GEMINI_API_KEY=$GeminiApiKey
-"@ | Out-File -FilePath ".env" -Encoding UTF8
-        Write-Host "[INFO] Created .env with GEMINI_API_KEY" -ForegroundColor Green
-    }
-    
-    Write-Host "[SUCCESS] Dependencies installed. Run with -Diagnose to verify." -ForegroundColor Green
     exit 0
 }
 

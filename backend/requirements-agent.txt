@@ -1,9 +1,9 @@
 # Proxi Agent - Dependencies for Windows desktop automation
-# NO gemini SDK, NO database, NO auth
+# Note: google-generativeai is optional (enables local visual grounding via /ground endpoint)
 
 # Core API
 fastapi==0.109.0
-uvicorn==0.27.0
+uvicorn[standard]==0.27.0
 pydantic==2.6.0
 
 # System monitoring
@@ -12,17 +12,24 @@ psutil==5.9.8
 # Environment loading
 python-dotenv==1.0.0
 
-# Windows-specific (install on Windows only)
-pywin32>=306; sys_platform == 'win32'
-Pillow>=10.0.0
-
-# Screenshot support
-mss>=9.0.0
-
 # HTTP client (for agent proxy calls)
 httpx>=0.26.0
+requests>=2.31.0
 
-# Desktop automation (required for screenshot, mouse, keyboard)
+# Screenshot & image processing
+mss>=9.0.0
+Pillow>=10.0.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# Desktop automation (mouse, keyboard, clipboard)
 pyautogui>=0.9.54
 pyperclip>=1.8.2
-opencv-python>=4.8.0
+
+# Windows-specific: Window management (list_windows, focus_window, scan_ui_tree)
+pywinauto>=0.6.8; sys_platform == 'win32'
+pywin32>=306; sys_platform == 'win32'
+
+# Optional: Visual grounding (enables /ground endpoint for ground_and_click)
+# Significantly improves GUI interaction by eliminating round-trips to Core
+google-generativeai>=0.3.0
