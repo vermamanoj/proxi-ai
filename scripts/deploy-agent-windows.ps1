@@ -1,12 +1,15 @@
 # Proxi Agent Deployment Script (Windows)
-# Usage: .\scripts\deploy-agent.ps1 [-Register] [-CoreUrl <url>] [-AgentName <name>]
+# Usage: .\scripts\deploy-agent-windows.ps1 [-Register] [-Diagnose] [-FixDeps] [-CoreUrl <url>]
 
 param(
     [switch]$Register,                              # Register with Core after starting
+    [switch]$Diagnose,                              # Run diagnostics only (don't start agent)
+    [switch]$FixDeps,                               # Install/fix all dependencies
     [string]$CoreUrl = "http://localhost:4000",     # Core server URL
     [string]$AgentName = "windows-agent",           # Agent name for registration
     [string]$AgentDescription = "Windows desktop automation agent",
-    [int]$Port = 8081                               # Agent port
+    [int]$Port = 8081,                              # Agent port
+    [string]$GeminiApiKey = ""                      # Optional: Set GEMINI_API_KEY in .env
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,7 +41,93 @@ if (-not (Test-Path "venv")) {
 Write-Host "[INFO] Activating virtual environment..." -ForegroundColor Blue
 & "$ProjectRoot\venv\Scripts\Activate.ps1"
 
-# Install dependencies
+# ============================================
+# DIAGNOSE MODE: Check all dependencies
+# ============================================
+if ($Diagnose) {
+    Write-Host ""
+    Write-Host "============================================" -ForegroundColor Yellow
+    Write-Host "  DEPENDENCY DIAGNOSTICS" -ForegroundColor Yellow
+    Write-Host "============================================" -ForegroundColor Yellow
+    
+    $criticalPackages = @(
+        @{Name="pyautogui"; Import="pyautogui"; Purpose="Mouse/keyboard automation"},
+        @{Name="pywinauto"; Import="pywinauto"; Purpose="Window management, UI tree"},
+        @{Name="opencv-python"; Import="cv2"; Purpose="Screenshot processing"},
+        @{Name="google-generativeai"; Import="google.generativeai"; Purpose="Visual grounding"},
+        @{Name="psutil"; Import="psutil"; Purpose="System metrics"},
+        @{Name="fastapi"; Import="fastapi"; Purpose="Agent HTTP server"}
+    )
+    
+    $missing = @()
+    foreach ($pkg in $criticalPackages) {
+        $result = python -c "import importlib.util; print('OK' if importlib.util.find_spec('$($pkg.Import)') else 'MISSING')" 2>&1
+        if ($result -eq "OK") {
+            Write-Host "  ✅ $($pkg.Name) - $($pkg.Purpose)" -ForegroundColor Green
+        } else {
+            Write-Host "  ❌ $($pkg.Name) MISSING - $($pkg.Purpose)" -ForegroundColor Red
+            $missing += $pkg.Name
+        }
+    }
+    
+    # Test pywinauto window enumeration
+    Write-Host ""
+    Write-Host "Testing window enumeration..." -ForegroundColor Yellow
+    $windowTest = python -c "
+try:
+    from pywinauto import Desktop
+    d = Desktop(backend='uia')
+    w = d.windows(visible_only=True)
+    print(f'OK:{len(w)} windows')
+except Exception as e:
+    print(f'FAIL:{e}')
+" 2>&1
+    if ($windowTest -match "^OK:") {
+        Write-Host "  ✅ Window enumeration: $windowTest" -ForegroundColor Green
+    } else {
+        Write-Host "  ❌ Window enumeration: $windowTest" -ForegroundColor Red
+    }
+    
+    # Check .env
+    Write-Host ""
+    if (Test-Path ".env") {
+        $envContent = Get-Content ".env" -Raw
+        if ($envContent -match "GEMINI_API_KEY=\S+") {
+            Write-Host "  ✅ GEMINI_API_KEY configured in .env" -ForegroundColor Green
+        } else {
+            Write-Host "  ⚠️ GEMINI_API_KEY not set in .env (ground_and_click won't work)" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "  ⚠️ No .env file found" -ForegroundColor Yellow
+    }
+    
+    if ($missing.Count -gt 0) {
+        Write-Host ""
+        Write-Host "Run with -FixDeps to install missing packages" -ForegroundColor Cyan
+    }
+    exit 0
+}
+
+# ============================================
+# FIX DEPS MODE: Install all required packages
+# ============================================
+if ($FixDeps) {
+    Write-Host ""
+    Write-Host "[INFO] Installing all required packages..." -ForegroundColor Blue
+    pip install pyautogui pywinauto pywin32 opencv-python numpy pyperclip google-generativeai python-dotenv fastapi "uvicorn[standard]" psutil httpx requests Pillow
+    
+    if ($GeminiApiKey -and -not (Test-Path ".env")) {
+        @"
+GEMINI_API_KEY=$GeminiApiKey
+"@ | Out-File -FilePath ".env" -Encoding UTF8
+        Write-Host "[INFO] Created .env with GEMINI_API_KEY" -ForegroundColor Green
+    }
+    
+    Write-Host "[SUCCESS] Dependencies installed. Run with -Diagnose to verify." -ForegroundColor Green
+    exit 0
+}
+
+# Install dependencies from requirements file
 Write-Host "[INFO] Installing agent dependencies..." -ForegroundColor Blue
 pip install -q -r backend/requirements-agent.txt
 
