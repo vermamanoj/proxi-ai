@@ -125,11 +125,6 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
 
   // Voice connection is now lazy - user clicks mic button to connect
   // This speeds up initial page load significantly
-  // useEffect(() => {
-  //   if (isAuthenticated) {
-  //     liveConnect();
-  //   }
-  // }, [isAuthenticated]);
 
   // Convert liveChatLogs to trace format for display
   const liveTrace: TraceStep[] = useMemo(() => {

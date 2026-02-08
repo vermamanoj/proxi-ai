@@ -102,8 +102,8 @@ export const ApprovalModal: React.FC<ApprovalModalProps> = ({
         onClick={onDeny}
       />
 
-      {/* Modal - responsive: nearly full width on mobile, max-w-lg on desktop */}
-      <div className={`relative w-[calc(100%-2rem)] sm:w-full sm:max-w-lg rounded-2xl border ${config.borderClass} ${config.bgClass} bg-gray-900 shadow-2xl animate-in zoom-in-95 fade-in duration-200`}>
+      {/* Modal - responsive: nearly full width on mobile, max-w-lg on desktop, with max-height */}
+      <div className={`relative w-[calc(100%-2rem)] sm:w-full sm:max-w-lg max-h-[85vh] flex flex-col rounded-2xl border ${config.borderClass} ${config.bgClass} bg-gray-900 shadow-2xl animate-in zoom-in-95 fade-in duration-200`}>
         {/* Header */}
         <div className={`px-6 py-4 border-b ${config.borderClass} flex items-center gap-4`}>
           <div className={`w-12 h-12 rounded-xl ${config.iconBg} flex items-center justify-center`}>
@@ -130,8 +130,8 @@ export const ApprovalModal: React.FC<ApprovalModalProps> = ({
           </button>
         </div>
 
-        {/* Content */}
-        <div className="px-6 py-5 space-y-4">
+        {/* Content - scrollable on mobile */}
+        <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1 min-h-0">
           <p className="text-gray-300 text-sm">
             {isBlocked 
               ? 'This action has been blocked for safety reasons:'
@@ -139,15 +139,27 @@ export const ApprovalModal: React.FC<ApprovalModalProps> = ({
             }
           </p>
 
-          {/* Command display */}
+          {/* Command display - truncated with expand option */}
           <div className="bg-black rounded-xl p-4 border border-gray-800">
             <div className="flex items-center gap-2 text-gray-500 text-xs mb-2">
               <Terminal className="w-3.5 h-3.5" />
               <span>Command</span>
             </div>
-            <code className="text-proxi-accent text-sm font-mono break-all">
-              {request.command}
-            </code>
+            {request.command.length > 200 ? (
+              <details>
+                <summary className="text-proxi-accent text-sm font-mono cursor-pointer">
+                  {request.command.substring(0, 150)}...
+                  <span className="text-gray-500 text-xs ml-2">(tap to expand)</span>
+                </summary>
+                <code className="text-proxi-accent text-sm font-mono break-all block mt-2 max-h-32 overflow-y-auto">
+                  {request.command}
+                </code>
+              </details>
+            ) : (
+              <code className="text-proxi-accent text-sm font-mono break-all">
+                {request.command}
+              </code>
+            )}
           </div>
 
           {/* Risk reason */}
@@ -172,8 +184,8 @@ export const ApprovalModal: React.FC<ApprovalModalProps> = ({
           )}
         </div>
 
-        {/* Footer */}
-        <div className={`px-6 py-4 border-t ${config.borderClass} space-y-3`}>
+        {/* Footer - always visible at bottom */}
+        <div className={`px-6 py-4 border-t ${config.borderClass} space-y-3 shrink-0`}>
           {/* Timer */}
           {!isBlocked && (
             <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">

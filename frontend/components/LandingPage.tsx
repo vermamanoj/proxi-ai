@@ -73,9 +73,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           </div>
           
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 leading-tight tracking-tight">
-            From Advice to Action.
-            <br />
-            <span className="text-proxi-accent">Finally.</span>
+            Remote systems control AI.
+            <span className="text-proxi-accent">With safety and trust.</span>
           </h1>
           
           <p className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto mb-8">
