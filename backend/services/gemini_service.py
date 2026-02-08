@@ -1574,6 +1574,7 @@ class GeminiService:
             # Tracking variables
             last_activity_had_response = False  # Track if we got a proper response
             total_tool_calls = 0  # Track total tool executions across all turns
+            hit_tool_limit = False  # Track if we exited due to tool limit
             
             for turn in range(max_turns):
                 # Check for cancellation at start of each turn
@@ -1815,6 +1816,38 @@ class GeminiService:
                             mission_id, reason = match.group(1), match.group(2)
                             yield json.dumps({"type": "escalation", "mission_id": mission_id, "reason": reason}) + "\n"
                     
+                    # Intercept GOAL_UPDATE from tool results (e.g., Slack messages)
+                    if "GOAL_UPDATE:" in res_str:
+                        import re
+                        for line in res_str.split("\n"):
+                            if "GOAL_UPDATE:" in line:
+                                try:
+                                    update_part = line.split("GOAL_UPDATE:")[1].strip()
+                                    parts = update_part.split(" ", 1)
+                                    original_id = parts[0]
+                                    rest = parts[1] if len(parts) > 1 else ""
+                                    # Convert G1 -> 1, S1 -> x.1
+                                    if original_id.startswith("G"):
+                                        goal_id = original_id[1:]
+                                    elif original_id.startswith("S"):
+                                        goal_id = f"x.{original_id[1:]}"
+                                    else:
+                                        goal_id = original_id
+                                    # Parse status
+                                    if "COMPLETE" in rest.upper():
+                                        status = "completed"
+                                        result = rest.split("-", 1)[1].strip() if "-" in rest else rest
+                                    elif "FAILED" in rest.upper():
+                                        status = "failed"
+                                        result = rest.split("-", 1)[1].strip() if "-" in rest else rest
+                                    else:
+                                        status = "active"
+                                        result = rest
+                                    yield json.dumps({"type": "goal_update", "goal_id": goal_id, "status": status, "result": result}) + "\n"
+                                    log_system(f"Goal update from tool: {original_id} -> {goal_id} ({status})", "PLAN")
+                                except Exception as e:
+                                    log_system(f"Failed to parse goal update from tool result: {e}", "PLAN")
+                    
                     # Build response
                     response_parts.append(protos.Part(function_response=protos.FunctionResponse(
                         name=function_calls[i].name,
@@ -1826,10 +1859,10 @@ class GeminiService:
                 if total_tool_calls >= max_tool_calls:
                     log_system(f"Tool limit reached: {total_tool_calls}/{max_tool_calls}", "LIMIT")
                     yield json.dumps({"type": "tool_limit_reached", "tool_calls": total_tool_calls, "max_tool_calls": max_tool_calls}) + "\n"
-                    yield json.dumps({"type": "final_response", "content": f"⏸️ Reached tool limit ({total_tool_calls}/{max_tool_calls}). Progress saved. Say **'continue'** to resume where I left off."}) + "\n"
                     # Save progress context for continue
                     progress_summary = f"[PAUSED at tool limit. Completed {total_tool_calls} actions. Last action: {safe_calls[-1]['name'] if safe_calls else 'unknown'}]"
                     self.sessions[session_id].append({"role": "user", "parts": [progress_summary]})
+                    hit_tool_limit = True
                     break
                 
                 # Save model's text content to session history for "continue" to work
@@ -1851,7 +1884,8 @@ class GeminiService:
                 response = await self._send_with_retry(chat, response_parts, timeout_seconds=mode_timeout)
 
             # Ensure we always yield a final response if model only returned tools
-            if accumulated_content and not last_activity_had_response:
+            # Skip if we hit tool limit (already sent tool_limit_reached event)
+            if accumulated_content and not last_activity_had_response and not hit_tool_limit:
                 # Model finished with tools but no final text - generate completion message
                 summary = f"✅ Completed {total_tool_calls} actions successfully."
                 yield json.dumps({"type": "final_response", "content": summary}) + "\n"

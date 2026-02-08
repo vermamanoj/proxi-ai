@@ -331,12 +331,15 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                         console.log('[USER_COMMAND] Received:', data);
                         if (data.status === 'blocked') {
                             addLog(MessageSource.SYSTEM, `🔒 ${data.content}`);
+                            updateTrace({ step_type: 'final_response', content: `🔒 ${data.content}` });
                         } else if (data.status === 'executed') {
                             const output = typeof data.content === 'string' 
                                 ? data.content 
                                 : (data.content?.output || JSON.stringify(data.content));
                             console.log('[USER_COMMAND] Adding log with output:', output.substring(0, 100));
-                            addLog(MessageSource.AGENT, `✅ \`${data.command}\`\n\`\`\`\n${output}\n\`\`\``);
+                            const formattedOutput = `✅ \`${data.command}\`\n\`\`\`\n${output}\n\`\`\``;
+                            addLog(MessageSource.AGENT, formattedOutput);
+                            updateTrace({ step_type: 'final_response', content: formattedOutput });
                         }
                         setMissionState(prev => ({ ...prev, phase: 'idle', active: false }));
                         setStatus('idle');
@@ -429,6 +432,13 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                         setMissionState(prev => ({ ...prev, phase: 'stalled', active: false }));
                         setStatus('idle');
                         speak('The model stopped responding. You can send a follow-up message to continue.');
+                        break;
+                    case 'tool_limit_reached':
+                        // Tool call limit reached - show continue button
+                        addLog(MessageSource.SYSTEM, `⏸️ Tool limit reached (${data.tool_calls}/${data.max_tool_calls}). Click Continue to resume.`);
+                        updateTrace({ step_type: 'status_change', content: `Tool limit: ${data.tool_calls}/${data.max_tool_calls}`, metadata: { phase: 'stalled' } });
+                        setMissionState(prev => ({ ...prev, phase: 'stalled', active: false }));
+                        setStatus('idle');
                         break;
                 }
             } catch (e) {
@@ -656,6 +666,15 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
     setSessionTimestamp(0); 
     setLastTrace([]); 
     setLogs([]);
+    // Reset mission state for new session
+    setMissionState({
+      active: false,
+      phase: 'idle',
+      goal: '',
+      goals: [],
+      verification: { status: 'pending' },
+      retryCount: 0
+    });
     addLog(MessageSource.SYSTEM, "New session started.");
   };
 
