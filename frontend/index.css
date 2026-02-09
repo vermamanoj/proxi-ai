@@ -18,7 +18,6 @@
   --th-code-bg: 0 0 0;
   --th-overlay: 0 0 0;
   --th-scrollbar: #333;
-  --th-shadow: 0 0 0 / 0.3;
   color-scheme: dark;
 }
 
@@ -37,7 +36,6 @@
   --th-code-bg: 241 245 249;
   --th-overlay: 100 116 139;
   --th-scrollbar: #cbd5e1;
-  --th-shadow: 0 0 0 / 0.08;
   color-scheme: light;
 }
 
