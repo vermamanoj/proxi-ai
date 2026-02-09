@@ -12,16 +12,28 @@ interface MagicLink {
   created_at: string;
 }
 
+interface LoginEvent {
+  timestamp: string;
+  username: string;
+  role: string;
+  login_type: string;
+  magic_link_label: string;
+  ip_address: string;
+  user_agent: string;
+}
+
 interface AdminPanelProps {
   onClose: () => void;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const [links, setLinks] = useState<MagicLink[]>([]);
+  const [loginEvents, setLoginEvents] = useState<LoginEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'links' | 'events'>('links');
   
   // Form state
   const [newLink, setNewLink] = useState({
@@ -33,6 +45,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
   useEffect(() => {
     fetchLinks();
+    fetchLoginEvents();
   }, []);
 
   const fetchLinks = async () => {
@@ -53,6 +66,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       setError('Failed to connect to server');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchLoginEvents = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/login-events`, {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLoginEvents(data.events || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch login events:', e);
     }
   };
 
@@ -147,7 +174,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
             </div>
           )}
 
+          {/* Tabs */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setActiveTab('links')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'links' 
+                  ? 'bg-proxi-accent text-black' 
+                  : 'bg-gray-800 text-gray-400 hover:text-white'
+              }`}
+            >
+              <Link2 className="w-4 h-4 inline mr-1" />
+              Magic Links
+            </button>
+            <button
+              onClick={() => setActiveTab('events')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'events' 
+                  ? 'bg-proxi-accent text-black' 
+                  : 'bg-gray-800 text-gray-400 hover:text-white'
+              }`}
+            >
+              <Clock className="w-4 h-4 inline mr-1" />
+              Login Events
+              {loginEvents.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded">
+                  {loginEvents.length}
+                </span>
+              )}
+            </button>
+          </div>
+
           {/* Magic Links Section */}
+          {activeTab === 'links' && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-2">
@@ -309,16 +368,70 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
               </div>
             )}
           </div>
+          )}
+
+          {/* Login Events Section */}
+          {activeTab === 'events' && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-2 mb-3">
+                <Clock className="w-4 h-4" />
+                Recent Login Events
+              </h3>
+              {loginEvents.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No login events recorded yet</p>
+                  <p className="text-xs mt-1">Events will appear when judges use magic links</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {loginEvents.map((event, idx) => (
+                    <div key={idx} className="p-3 bg-gray-800/50 border border-gray-700 rounded-lg">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${
+                              event.login_type === 'magic_link' 
+                                ? 'bg-blue-500/20 text-blue-400' 
+                                : 'bg-gray-500/20 text-gray-400'
+                            }`}>
+                              {event.login_type === 'magic_link' ? '🔗 Magic Link' : '🔑 Password'}
+                            </span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded ${
+                              event.role === 'admin' ? 'bg-red-500/20 text-red-400' :
+                              event.role === 'judge' ? 'bg-green-500/20 text-green-400' :
+                              'bg-gray-500/20 text-gray-400'
+                            }`}>
+                              {event.role}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-300 font-medium">
+                            {event.magic_link_label || event.username}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                            <span>{new Date(event.timestamp).toLocaleString()}</span>
+                            {event.ip_address && <span>IP: {event.ip_address}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Quick Reference */}
-          <div className="p-3 bg-gray-800/50 rounded-lg border border-gray-700">
-            <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">Quick Reference</h4>
-            <div className="text-xs text-gray-500 space-y-1">
-              <p><strong className="text-gray-400">Hackathon Duration:</strong> Feb 10-27, 2026 (17 days = 408 hours)</p>
-              <p><strong className="text-gray-400">Recommended:</strong> 168h expiry, 50 uses for judges</p>
-              <p><strong className="text-gray-400">Link Format:</strong> {window.location.origin}?magic=TOKEN</p>
+          {activeTab === 'links' && (
+            <div className="p-3 bg-gray-800/50 rounded-lg border border-gray-700">
+              <h4 className="text-xs font-semibold text-gray-400 uppercase mb-2">Quick Reference</h4>
+              <div className="text-xs text-gray-500 space-y-1">
+                <p><strong className="text-gray-400">Hackathon Duration:</strong> Feb 10-27, 2026 (17 days = 408 hours)</p>
+                <p><strong className="text-gray-400">Recommended:</strong> 168h expiry, 50 uses for judges</p>
+                <p><strong className="text-gray-400">Link Format:</strong> {window.location.origin}?magic=TOKEN</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>

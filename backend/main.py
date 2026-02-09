@@ -230,9 +230,12 @@ async def validate_magic_link(token: str):
     })
 
 @app.post("/api/auth/magic-link/{token}/redeem")
-async def redeem_magic_link(token: str):
+async def redeem_magic_link(token: str, request: Request):
     """Redeem a magic link and get a session."""
-    session = auth_service.redeem_magic_link(token)
+    # Get client info for tracking
+    ip_address = request.client.host if request.client else ""
+    user_agent = request.headers.get("user-agent", "")[:200]  # Truncate
+    session = auth_service.redeem_magic_link(token, ip_address, user_agent)
     if not session:
         return JSONResponse({"error": "Invalid or expired link"}, status_code=401)
     
@@ -282,6 +285,19 @@ async def revoke_magic_link(token: str, request: Request):
     if auth_service.revoke_magic_link(token):
         return JSONResponse({"status": "revoked"})
     return JSONResponse({"error": "Link not found"}, status_code=404)
+
+@app.get("/api/auth/login-events")
+async def get_login_events(request: Request):
+    """Get recent login events (admin only)."""
+    session_id = request.cookies.get("session_id")
+    if session_id:
+        user = auth_service.get_user_for_session(session_id)
+        if not user or user.role != "admin":
+            return JSONResponse({"error": "Admin access required"}, status_code=403)
+    else:
+        return JSONResponse({"error": "Authentication required"}, status_code=401)
+    
+    return JSONResponse({"events": auth_service.get_login_events()})
 
 # --- Waitlist Endpoint (public, no auth) ---
 WAITLIST_FILE = Path("data/waitlist.json")

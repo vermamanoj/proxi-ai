@@ -17,6 +17,7 @@ import { useWorkstations } from '../hooks/useWorkstations';
 import { ChatView } from './ChatView';
 import { ApprovalModal, ApprovalModalRequest } from './ApprovalModal';
 import { MissionPanelCollapsible, Goal } from './MissionPanelCollapsible';
+import { AdminPanel } from './AdminPanel';
 import { getSessions, getSession, SessionSummary } from '../services/sessionService';
 import { Complexity, TraceStep, MessageSource } from '../types';
 
@@ -78,6 +79,7 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
   // Sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [debugMode, setDebugMode] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(false);
@@ -412,6 +414,16 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
             <Info className="w-4 h-4" />
             <span>About Proxi</span>
           </button>
+          {/* Admin Panel - only for admin users */}
+          {user?.role === 'admin' && (
+            <button 
+              onClick={() => setShowAdminPanel(true)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-proxi-accent hover:text-proxi-accent/80 hover:bg-gray-800 rounded-lg text-sm"
+            >
+              <Shield className="w-4 h-4" />
+              <span>Admin Panel</span>
+            </button>
+          )}
           <button 
             onClick={logout}
             className="w-full flex items-center gap-2 px-3 py-2 text-red-400 hover:text-red-300 hover:bg-gray-800 rounded-lg text-sm"
@@ -793,6 +805,11 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
             </div>
           </div>
         </div>
+      )}
+
+      {/* ADMIN PANEL MODAL */}
+      {showAdminPanel && (
+        <AdminPanel onClose={() => setShowAdminPanel(false)} />
       )}
     </div>
   );

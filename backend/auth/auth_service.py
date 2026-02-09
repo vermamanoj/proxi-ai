@@ -56,6 +56,17 @@ class MagicLink:
         return datetime.utcnow() < self.expires_at and self.uses_remaining > 0
 
 
+@dataclass
+class LoginEvent:
+    timestamp: str
+    username: str
+    role: str
+    login_type: str  # "password", "magic_link"
+    magic_link_label: str = ""
+    ip_address: str = ""
+    user_agent: str = ""
+
+
 class AuthService:
     """
     Simple authentication service with local user storage.
@@ -66,9 +77,11 @@ class AuthService:
         self.session_timeout = timedelta(minutes=session_timeout_minutes)
         self.sessions: Dict[str, Session] = {}
         self.magic_links: Dict[str, MagicLink] = {}
+        self.login_events: list = []  # Track login events
         self._load_users()
         self._load_magic_links()
         self._load_sessions()
+        self._load_login_events()
     
     def _default_users_file(self) -> str:
         """Get default path for users file."""
@@ -82,6 +95,10 @@ class AuthService:
     def _sessions_file(self) -> str:
         """Get path for sessions file."""
         return str(Path(self.users_file).parent / "sessions.json")
+    
+    def _login_events_file(self) -> str:
+        """Get path for login events file."""
+        return str(Path(self.users_file).parent / "login_events.json")
     
     def _load_sessions(self):
         """Load sessions from JSON file."""
@@ -123,6 +140,47 @@ class AuthService:
                 }
         with open(sessions_file, 'w') as f:
             json.dump(data, f, indent=2)
+    
+    def _load_login_events(self):
+        """Load login events from JSON file."""
+        events_file = self._login_events_file()
+        if os.path.exists(events_file):
+            try:
+                with open(events_file, 'r') as f:
+                    self.login_events = json.load(f)
+                print(f"[AUTH] Loaded {len(self.login_events)} login events")
+            except Exception as e:
+                print(f"[AUTH] Error loading login events: {e}")
+                self.login_events = []
+    
+    def _save_login_events(self):
+        """Save login events to JSON file."""
+        events_file = self._login_events_file()
+        os.makedirs(os.path.dirname(events_file), exist_ok=True)
+        # Keep only last 100 events
+        self.login_events = self.login_events[-100:]
+        with open(events_file, 'w') as f:
+            json.dump(self.login_events, f, indent=2)
+    
+    def log_login_event(self, username: str, role: str, login_type: str, 
+                        magic_link_label: str = "", ip_address: str = "", user_agent: str = ""):
+        """Log a login event for tracking."""
+        event = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "username": username,
+            "role": role,
+            "login_type": login_type,
+            "magic_link_label": magic_link_label,
+            "ip_address": ip_address,
+            "user_agent": user_agent
+        }
+        self.login_events.append(event)
+        self._save_login_events()
+        print(f"[AUTH] Login event: {login_type} - {username} ({role}) from {ip_address}")
+    
+    def get_login_events(self, limit: int = 50) -> list:
+        """Get recent login events."""
+        return list(reversed(self.login_events[-limit:]))
     
     def _load_magic_links(self):
         """Load magic links from JSON file."""
@@ -396,10 +454,10 @@ class AuthService:
         
         return link
     
-    def redeem_magic_link(self, token: str) -> Optional[Session]:
+    def redeem_magic_link(self, token: str, ip_address: str = "", user_agent: str = "") -> Optional[Session]:
         """
         Redeem a magic link and create a session.
-        Decrements uses_remaining.
+        Decrements uses_remaining and logs the event.
         """
         link = self.validate_magic_link(token)
         if not link:
@@ -410,7 +468,7 @@ class AuthService:
         self._save_magic_links()
         
         # Create a session for this magic link user
-        session = self.create_session(link.username)
+        session = self.create_session(link.username, ip_address, user_agent)
         
         # Store role info in a special way (we'll create a virtual user)
         if link.username not in self.users:
@@ -421,6 +479,16 @@ class AuthService:
                 role=link.role,
                 created_at=datetime.utcnow().isoformat()
             )
+        
+        # Log the login event
+        self.log_login_event(
+            username=link.username,
+            role=link.role,
+            login_type="magic_link",
+            magic_link_label=link.label,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
         
         print(f"[AUTH] Magic link redeemed: {link.label or link.username} ({link.uses_remaining} uses left)")
         return session
