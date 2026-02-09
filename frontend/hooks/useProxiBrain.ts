@@ -268,6 +268,10 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                         break;
                     case 'tool_result':
                         updateTrace({ step_type: 'tool_result', content: data.name, metadata: { output: data.content } });
+                        // Save diagram results to logs so they persist in session history
+                        if (data.content?.includes('ATTACK_PATH_DIAGRAM') || data.content?.includes('```mermaid')) {
+                            addLog(MessageSource.AGENT, data.content, { type: 'diagram', tool: data.name });
+                        }
                         // Track verification results
                         if (data.name === 'assign_mission') {
                             setMissionState(prev => ({ ...prev, phase: 'executing' }));

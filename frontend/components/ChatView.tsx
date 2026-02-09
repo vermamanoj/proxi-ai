@@ -4,6 +4,7 @@ import { TraceStep } from '../types';
 import { User, BrainCircuit, Wrench, Terminal, MessageSquare, ChevronDown, ChevronUp, CheckCircle2, XCircle, Loader2, Monitor } from 'lucide-react';
 import { ScreenshotBubble } from './ScreenshotBubble';
 import { EvidenceCard, parseEvidenceFromMessage } from './EvidenceCard';
+import { RenderContent } from './RenderContent';
 
 interface ChatViewProps {
   trace: TraceStep[];
@@ -48,21 +49,41 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
     return trace.filter(step => {
       // Always show user input and final responses
       if (step.step_type === 'user_input' || step.step_type === 'final_response') return true;
-      // Show tool calls/results only if they have meaningful content
-      if (step.step_type === 'tool_call' || step.step_type === 'tool_result') return false;
+      // Hide tool calls, but show tool_results that contain diagrams
+      if (step.step_type === 'tool_call') return false;
+      if (step.step_type === 'tool_result') {
+        const content = String(step.metadata?.output || step.content || '');
+        // Show if it contains mermaid diagram
+        if (content.includes('ATTACK_PATH_DIAGRAM') || content.includes('```mermaid')) return true;
+        return false;
+      }
       // Hide system instructions and thoughts
       if (step.step_type === 'system_instruction' || step.step_type === 'llm_thought') return false;
       return true;
     });
   }, [trace, debugMode]);
 
-  // Group consecutive tool_call + tool_result pairs
+  // Check if a tool_result contains a diagram
+  const isDiagramResult = (step: TraceStep): boolean => {
+    if (step.step_type !== 'tool_result') return false;
+    const content = String(step.metadata?.output || step.content || '');
+    return content.includes('ATTACK_PATH_DIAGRAM') || content.includes('```mermaid');
+  };
+
+  // Group consecutive tool_call + tool_result pairs (but keep diagram results as messages)
   const groupedTrace = React.useMemo(() => {
-    const groups: Array<{ type: 'message' | 'tool_group', items: TraceStep[] }> = [];
+    const groups: Array<{ type: 'message' | 'tool_group' | 'diagram', items: TraceStep[] }> = [];
     let currentToolGroup: TraceStep[] = [];
 
     filteredTrace.forEach((step, idx) => {
-      if (step.step_type === 'tool_call' || step.step_type === 'tool_result') {
+      // Diagram results should be rendered as standalone messages
+      if (isDiagramResult(step)) {
+        if (currentToolGroup.length > 0) {
+          groups.push({ type: 'tool_group', items: [...currentToolGroup] });
+          currentToolGroup = [];
+        }
+        groups.push({ type: 'diagram', items: [step] });
+      } else if (step.step_type === 'tool_call' || step.step_type === 'tool_result') {
         currentToolGroup.push(step);
       } else {
         if (currentToolGroup.length > 0) {
@@ -96,6 +117,23 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
   return (
     <div ref={containerRef} onScroll={handleScroll} className="h-full overflow-y-auto p-4 space-y-4">
       {groupedTrace.map((group, groupIdx) => {
+        // Render diagram results with RenderContent
+        if (group.type === 'diagram') {
+          const step = group.items[0];
+          const diagramContent = String(step.metadata?.output || step.content || '');
+          return (
+            <div key={groupIdx} className="flex justify-start">
+              <div className="max-w-[95%] rounded-2xl px-4 py-3 bg-gray-900 border border-gray-800 text-gray-200 rounded-bl-sm">
+                <div className="flex items-center gap-2 mb-2 text-xs opacity-70">
+                  <Terminal className="w-3 h-3" />
+                  <span className="uppercase tracking-wider">diagram</span>
+                </div>
+                <RenderContent content={diagramContent} />
+              </div>
+            </div>
+          );
+        }
+
         if (group.type === 'tool_group') {
           // Render collapsed tool group
           const isExpanded = expandedTools.has(groupIdx);
@@ -115,7 +153,11 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
                     <Loader2 className="w-3 h-3 text-yellow-500 animate-spin" />
                   )}
                   <span className="text-gray-400">
-                    {toolCalls.map(t => t.content?.toString().split('(')[0] || 'tool').join(', ')}
+                    {toolCalls.map(t => {
+                      const name = t.content?.toString().split('(')[0] || 'tool';
+                      // Convert snake_case to readable text
+                      return name.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+                    }).join(', ')}
                   </span>
                   {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 </div>

@@ -1,5 +1,5 @@
 // Proxi Service Worker for PWA
-const CACHE_NAME = 'proxi-v1';
+const CACHE_NAME = 'proxi-v2';
 const OFFLINE_URL = '/offline.html';
 
 // Assets to cache on install
@@ -31,7 +31,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: network-first for API, cache-first for assets
+// Fetch: network-first for navigation/HTML, cache-first for static assets
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -44,7 +44,29 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache-first
+  // Navigation requests (HTML): network-first to prevent stale content
+  if (request.mode === 'navigate' || request.destination === 'document') {
+    event.respondWith(
+      fetch(request).then((response) => {
+        // Cache the fresh response
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, clone);
+          });
+        }
+        return response;
+      }).catch(() => {
+        // Offline fallback
+        return caches.match(request).then((cached) => {
+          return cached || caches.match(OFFLINE_URL);
+        });
+      })
+    );
+    return;
+  }
+
+  // Static assets (JS/CSS/images): cache-first for performance
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
@@ -59,10 +81,7 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       }).catch(() => {
-        // Offline fallback for navigation
-        if (request.mode === 'navigate') {
-          return caches.match(OFFLINE_URL);
-        }
+        // No fallback for static assets
       });
     })
   );
