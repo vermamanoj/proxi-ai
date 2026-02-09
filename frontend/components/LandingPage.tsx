@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Zap, Play, Shield, CheckCircle2, Monitor, Terminal, Lock, Unlock, X, Loader2, Smartphone, ArrowRight } from 'lucide-react';
+import { Zap, Play, Shield, CheckCircle2, Monitor, Terminal, Lock, Unlock, X, Loader2, Smartphone, ArrowRight, Eye, Brain, Wrench, FileText, Cloud, Send, HandMetal } from 'lucide-react';
 
 interface LandingPageProps {
   onLogin: () => void;
@@ -201,48 +201,144 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         </div>
       </section>
 
-      {/* HOW PROXI THINKS - GEMINI 3 */}
+      {/* POWERED BY GEMINI */}
       <section id="demo" className="py-16 sm:py-20 px-4 sm:px-6">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-full text-blue-400 text-xs mb-4">
-            <span>Powered by Gemini 3</span>
+            <span>Powered by Gemini 2.5 Flash</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold mb-8">
-            How Proxi Thinks
+          <h2 className="text-2xl sm:text-3xl font-bold mb-3">
+            Why Gemini Changes Everything
           </h2>
+          <p className="text-gray-400 mb-8 max-w-2xl">
+            No hardcoded scripts. No brittle selectors. Proxi reasons through what it sees.
+          </p>
 
-          <div className="bg-gradient-to-br from-blue-900/20 to-gray-900/50 rounded-2xl border border-blue-800/30 p-6 sm:p-8">
-            <div className="mb-6">
-              <p className="text-sm text-gray-500 mb-2">You ask:</p>
-              <p className="text-lg sm:text-xl text-white font-medium">
-                "What's the approved minimum margin for this customer?"
+          <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
+            {/* Multimodal Vision */}
+            <div className="bg-gradient-to-br from-blue-900/20 to-gray-900/50 rounded-2xl border border-blue-800/30 p-5 sm:p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center">
+                  <Eye className="w-5 h-5 text-blue-400" />
+                </div>
+                <h3 className="font-semibold">Multimodal Vision</h3>
+              </div>
+              <p className="text-gray-400 text-sm">
+                Reads live screenshots like a human — understands UI layout, text, error messages, and context without hardcoded selectors.
               </p>
             </div>
-            
-            <div className="space-y-3 text-gray-400">
-              <div className="flex items-start gap-3">
-                <span className="text-proxi-accent font-mono text-sm">1.</span>
-                <span>Proxi opens the CRM</span>
+
+            {/* Native Reasoning */}
+            <div className="bg-gradient-to-br from-purple-900/20 to-gray-900/50 rounded-2xl border border-purple-800/30 p-5 sm:p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-purple-500/10 rounded-xl flex items-center justify-center">
+                  <Brain className="w-5 h-5 text-purple-400" />
+                </div>
+                <h3 className="font-semibold">On-the-Fly Reasoning</h3>
               </div>
-              <div className="flex items-start gap-3">
-                <span className="text-proxi-accent font-mono text-sm">2.</span>
-                <span>Navigates to pricing tabs</span>
+              <p className="text-gray-400 text-sm">
+                Decides next action based on visual feedback. Adapts when buttons move, dialogs appear, or errors happen unexpectedly.
+              </p>
+            </div>
+
+            {/* Native Tool Use */}
+            <div className="bg-gradient-to-br from-green-900/20 to-gray-900/50 rounded-2xl border border-green-800/30 p-5 sm:p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center">
+                  <Wrench className="w-5 h-5 text-green-400" />
+                </div>
+                <h3 className="font-semibold">Native Function Calling</h3>
               </div>
-              <div className="flex items-start gap-3">
-                <span className="text-proxi-accent font-mono text-sm">3.</span>
-                <span>Checks policy documents</span>
+              <p className="text-gray-400 text-sm">
+                Executes desktop tools directly via Gemini's native tool-use. No LangChain wrappers, no prompt hacks — just clean execution.
+              </p>
+            </div>
+
+            {/* Long Context */}
+            <div className="bg-gradient-to-br from-orange-900/20 to-gray-900/50 rounded-2xl border border-orange-800/30 p-5 sm:p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 bg-orange-500/10 rounded-xl flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-orange-400" />
+                </div>
+                <h3 className="font-semibold">Long Context Memory</h3>
               </div>
-              <div className="flex items-start gap-3">
-                <span className="text-proxi-accent font-mono text-sm">4.</span>
-                <span className="text-green-400">Confirms the answer with a screenshot ✓</span>
+              <p className="text-gray-400 text-sm">
+                Maintains full workflow history across complex multi-step tasks. Picks up where it left off, remembers what it saw.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section className="py-16 sm:py-20 px-4 sm:px-6 bg-gray-900/30">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3">
+            How It Works
+          </h2>
+          <p className="text-gray-400 text-center mb-10 sm:mb-12">
+            Command from your phone. Execute on your desktop. Stay in control.
+          </p>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            {/* Step 1: Command */}
+            <div className="bg-black/50 rounded-2xl border border-gray-800 p-5 text-center">
+              <div className="w-12 h-12 bg-proxi-accent/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Smartphone className="w-6 h-6 text-proxi-accent" />
               </div>
+              <h3 className="font-semibold mb-2">Command</h3>
+              <p className="text-gray-400 text-sm">
+                Send natural language requests from your phone — anywhere, anytime.
+              </p>
+            </div>
+
+            {/* Step 2: Execute */}
+            <div className="bg-black/50 rounded-2xl border border-gray-800 p-5 text-center">
+              <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Monitor className="w-6 h-6 text-blue-400" />
+              </div>
+              <h3 className="font-semibold mb-2">Execute</h3>
+              <p className="text-gray-400 text-sm">
+                Proxi agent controls your desktop — apps, browsers, terminals, legacy systems.
+              </p>
+            </div>
+
+            {/* Step 3: Approve */}
+            <div className="bg-black/50 rounded-2xl border border-gray-800 p-5 text-center">
+              <div className="w-12 h-12 bg-yellow-500/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <HandMetal className="w-6 h-6 text-yellow-400" />
+              </div>
+              <h3 className="font-semibold mb-2">Approve</h3>
+              <p className="text-gray-400 text-sm">
+                Sensitive actions pause for your approval. Dangerous commands are blocked.
+              </p>
+            </div>
+
+            {/* Step 4: Verify */}
+            <div className="bg-black/50 rounded-2xl border border-gray-800 p-5 text-center">
+              <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-6 h-6 text-green-400" />
+              </div>
+              <h3 className="font-semibold mb-2">Verify</h3>
+              <p className="text-gray-400 text-sm">
+                Screenshots and files sent back to your phone as proof of completion.
+              </p>
+            </div>
+          </div>
+
+          {/* Mobile-first callout */}
+          <div className="mt-8 bg-gradient-to-r from-proxi-accent/10 to-transparent rounded-xl border border-proxi-accent/20 p-4 sm:p-6 flex flex-col sm:flex-row items-center gap-4">
+            <Send className="w-8 h-8 text-proxi-accent shrink-0" />
+            <div>
+              <p className="text-gray-300 font-medium">Share files both ways</p>
+              <p className="text-gray-500 text-sm">Send screenshots from your phone to the desktop. Receive results, exports, and confirmations back.</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* OS-AWARE EXECUTION */}
-      <section className="py-16 sm:py-20 px-4 sm:px-6 bg-gray-900/30">
+      <section className="py-16 sm:py-20 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-bold text-center mb-3">
             OS-Aware Intelligence
