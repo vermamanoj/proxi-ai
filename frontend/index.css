@@ -2,6 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme CSS Variables - Dark (default) */
+:root,
+[data-theme="dark"] {
+  --th-base: 10 10 10;
+  --th-surface: 17 24 39;
+  --th-surface-alt: 31 41 55;
+  --th-hover: 55 65 81;
+  --th-text: 229 231 235;
+  --th-text-sec: 156 163 175;
+  --th-text-muted: 107 114 128;
+  --th-border: 31 41 55;
+  --th-accent: 0 240 255;
+  --th-input: 31 41 55;
+  --th-code-bg: 0 0 0;
+  --th-overlay: 0 0 0;
+  --th-scrollbar: #333;
+  --th-shadow: 0 0 0 / 0.3;
+  color-scheme: dark;
+}
+
+/* Theme CSS Variables - Light */
+[data-theme="light"] {
+  --th-base: 255 255 255;
+  --th-surface: 248 250 252;
+  --th-surface-alt: 241 245 249;
+  --th-hover: 226 232 240;
+  --th-text: 15 23 42;
+  --th-text-sec: 71 85 105;
+  --th-text-muted: 100 116 139;
+  --th-border: 203 213 225;
+  --th-accent: 8 145 178;
+  --th-input: 255 255 255;
+  --th-code-bg: 241 245 249;
+  --th-overlay: 100 116 139;
+  --th-scrollbar: #cbd5e1;
+  --th-shadow: 0 0 0 / 0.08;
+  color-scheme: light;
+}
+
 /* Custom styles moved from index.html */
 * {
   -webkit-tap-highlight-color: transparent;
@@ -13,11 +52,12 @@ html, body, #root {
 }
 
 body {
-  background-color: #0a0a0a;
-  color: #e0e0e0;
+  background-color: rgb(var(--th-base));
+  color: rgb(var(--th-text));
   font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 /* Hide scrollbar but allow scroll */
@@ -27,8 +67,8 @@ body {
 /* Thin scrollbar for desktop */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: #00f0ff; }
+::-webkit-scrollbar-thumb { background: var(--th-scrollbar); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgb(var(--th-accent)); }
 
 /* Safe area padding utility */
 .pb-safe { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }

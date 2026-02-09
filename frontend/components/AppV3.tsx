@@ -6,7 +6,8 @@ import {
   Send, Camera, X, Loader2, Volume2, VolumeX, LogOut, Plus, 
   Square, Mic, MicOff, ChevronDown, Menu, Settings, MessageSquare,
   Clock, ChevronRight, Zap, Scale, FlaskConical, ClipboardList, Info,
-  Shield, CheckCircle2, Monitor, Terminal, Lock, Unlock, Smartphone
+  Shield, CheckCircle2, Monitor, Terminal, Lock, Unlock, Smartphone,
+  Sun, Moon
 } from 'lucide-react';
 import { useProxiBrain } from '../hooks/useProxiBrain';
 import { useGeminiLive } from '../hooks/useGeminiLive';
@@ -19,6 +20,7 @@ import { ApprovalModal, ApprovalModalRequest } from './ApprovalModal';
 import { MissionPanelCollapsible, Goal } from './MissionPanelCollapsible';
 import { AdminPanel } from './AdminPanel';
 import { getSessions, getSession, SessionSummary } from '../services/sessionService';
+import { useTheme } from '../hooks/useTheme';
 import { Complexity, TraceStep, MessageSource } from '../types';
 
 // Mode configurations - icons only in header
@@ -89,6 +91,7 @@ export const AppV3: React.FC = () => {
 // Main authenticated app - hooks only initialize here
 const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user, logout }) => {
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const { theme, toggleTheme } = useTheme();
   const { activeWorkstation, workstations, setActiveWorkstation, isLoading: workstationsLoading } = useWorkstations();
   
   // Mode state
@@ -351,12 +354,12 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
       }] : []);
 
   return (
-    <div className="h-[100dvh] bg-proxi-black text-gray-200 flex font-mono overflow-hidden">
+    <div className="h-[100dvh] bg-th-base text-th-text flex font-mono overflow-hidden">
       
       {/* SIDEBAR OVERLAY (mobile) */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+          className="fixed inset-0 bg-th-overlay/60 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -364,16 +367,16 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
       {/* LEFT SIDEBAR */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50
-        w-64 bg-gray-900 border-r border-gray-800
+        w-64 bg-th-surface border-r border-th-border
         flex flex-col
         transform transition-transform duration-200
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Sidebar Header */}
-        <div className="p-3 border-b border-gray-800">
+        <div className="p-3 border-b border-th-border">
           <button
             onClick={handleNewSession}
-            className="w-full flex items-center gap-2 px-3 py-2.5 bg-proxi-accent/10 hover:bg-proxi-accent/20 text-proxi-accent rounded-lg transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2.5 bg-th-accent/10 hover:bg-th-accent/20 text-th-accent rounded-lg transition-colors"
           >
             <Plus className="w-4 h-4" />
             <span className="text-sm font-medium">New Chat</span>
@@ -384,24 +387,24 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
         <div className="flex-1 overflow-y-auto">
           {sessionsLoading ? (
             <div className="flex items-center justify-center h-20">
-              <Loader2 className="w-5 h-5 text-gray-500 animate-spin" />
+              <Loader2 className="w-5 h-5 text-th-text-muted animate-spin" />
             </div>
           ) : sessions.length === 0 ? (
-            <div className="p-4 text-center text-gray-600 text-sm">
+            <div className="p-4 text-center text-th-text-muted text-sm">
               <MessageSquare className="w-6 h-6 mx-auto mb-2 opacity-50" />
               <p>No sessions yet</p>
             </div>
           ) : (
             <div className="py-2">
-              <div className="px-3 py-1 text-xs text-gray-500 uppercase tracking-wider">Recent</div>
+              <div className="px-3 py-1 text-xs text-th-text-muted uppercase tracking-wider">Recent</div>
               {sessions.map((session) => (
                 <button
                   key={session.id}
                   onClick={() => handleLoadSession(session)}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-800/50 transition-colors group"
+                  className="w-full px-3 py-2 text-left hover:bg-th-hover/50 transition-colors group"
                 >
-                  <p className="text-sm text-gray-300 truncate">{session.title || 'Untitled'}</p>
-                  <div className="flex items-center gap-1 text-xs text-gray-600 mt-0.5">
+                  <p className="text-sm text-th-text truncate">{session.title || 'Untitled'}</p>
+                  <div className="flex items-center gap-1 text-xs text-th-text-muted mt-0.5">
                     <Clock className="w-3 h-3" />
                     <span>{formatDate(session.updated_at || session.created_at)}</span>
                   </div>
@@ -412,24 +415,24 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
         </div>
 
         {/* Sidebar Footer */}
-        <div className="p-3 border-t border-gray-800 space-y-1">
+        <div className="p-3 border-t border-th-border space-y-1">
           <button 
             onClick={() => setDebugMode(!debugMode)}
             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-              debugMode ? 'bg-yellow-500/20 text-yellow-400' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+              debugMode ? 'bg-yellow-500/20 text-yellow-400' : 'text-th-text-sec hover:text-th-text hover:bg-th-hover'
             }`}
           >
             <div className="flex items-center gap-2">
               <Terminal className="w-4 h-4" />
               <span>Debug Mode</span>
             </div>
-            <div className={`w-8 h-4 rounded-full transition-colors ${debugMode ? 'bg-yellow-500' : 'bg-gray-600'}`}>
+            <div className={`w-8 h-4 rounded-full transition-colors ${debugMode ? 'bg-yellow-500' : 'bg-th-text-muted'}`}>
               <div className={`w-3 h-3 rounded-full bg-white mt-0.5 transition-transform ${debugMode ? 'translate-x-4 ml-0.5' : 'translate-x-0.5'}`} />
             </div>
           </button>
           <button 
             onClick={() => setShowAbout(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg text-sm"
+            className="w-full flex items-center gap-2 px-3 py-2 text-th-text-sec hover:text-th-text hover:bg-th-hover rounded-lg text-sm"
           >
             <Info className="w-4 h-4" />
             <span>About Proxi</span>
@@ -438,7 +441,7 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
           {user?.role === 'admin' && (
             <button 
               onClick={() => setShowAdminPanel(true)}
-              className="w-full flex items-center gap-2 px-3 py-2 text-proxi-accent hover:text-proxi-accent/80 hover:bg-gray-800 rounded-lg text-sm"
+              className="w-full flex items-center gap-2 px-3 py-2 text-th-accent hover:text-th-accent/80 hover:bg-th-hover rounded-lg text-sm"
             >
               <Shield className="w-4 h-4" />
               <span>Admin Panel</span>
@@ -446,7 +449,7 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
           )}
           <button 
             onClick={logout}
-            className="w-full flex items-center gap-2 px-3 py-2 text-red-400 hover:text-red-300 hover:bg-gray-800 rounded-lg text-sm"
+            className="w-full flex items-center gap-2 px-3 py-2 text-red-400 hover:text-red-300 hover:bg-th-hover rounded-lg text-sm"
           >
             <LogOut className="w-4 h-4" />
             <span>Logout</span>
@@ -458,18 +461,18 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-0">
         
         {/* HEADER */}
-        <header className="relative z-10 flex items-center justify-between px-3 py-2 border-b border-gray-800 bg-gray-900/95 backdrop-blur shrink-0">
+        <header className="relative z-10 flex items-center justify-between px-3 py-2 border-b border-th-border bg-th-surface/95 backdrop-blur shrink-0">
           {/* Left: Hamburger + Brand */}
           <div className="flex items-center gap-2">
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg"
+              className="lg:hidden p-1.5 text-th-text-sec hover:text-th-text hover:bg-th-hover rounded-lg"
             >
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-1.5">
               <h1 className="text-xs font-bold tracking-wider">
-                PROXI<span className="text-proxi-accent">.OS</span>
+                PROXI<span className="text-th-accent">.OS</span>
               </h1>
             </div>
           </div>
@@ -478,25 +481,25 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
           <div className="relative">
             <button
               onClick={() => setShowAgentDropdown(prev => !prev)}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl cursor-pointer select-none"
+              className="flex items-center gap-2 px-3 py-2 bg-th-surface-alt hover:bg-th-hover border border-th-border rounded-xl cursor-pointer select-none"
             >
               <span className="text-base">{activeWorkstation ? getOsIcon(activeWorkstation.name, activeWorkstation.description) : '💻'}</span>
-              <span className="text-sm text-gray-200 max-w-[100px] truncate">
+              <span className="text-sm text-th-text max-w-[100px] truncate">
                 {workstationsLoading ? 'Loading...' : (activeWorkstation?.name || 'Select Agent')}
               </span>
               <div className={`w-2 h-2 rounded-full ${
                 activeWorkstation?.status === 'online' ? 'bg-green-400' : 
                 activeWorkstation?.status === 'offline' ? 'bg-red-400' : 'bg-gray-500'
               }`} />
-              <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${showAgentDropdown ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`w-3 h-3 text-th-text-sec transition-transform ${showAgentDropdown ? 'rotate-180' : ''}`} />
             </button>
             
             {/* Agent Dropdown */}
             {showAgentDropdown && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowAgentDropdown(false)} />
-                <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 min-w-[200px] py-1">
-                  <div className="px-3 py-1.5 text-xs text-gray-500 uppercase">Agents</div>
+                <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-th-surface border border-th-border rounded-lg shadow-xl z-50 min-w-[200px] py-1">
+                  <div className="px-3 py-1.5 text-xs text-th-text-muted uppercase">Agents</div>
                   {workstations.map((ws) => {
                     const isOffline = ws.status === 'offline' || ws.status === 'error';
                     const isActive = activeWorkstation?.id === ws.id;
@@ -506,13 +509,13 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
                         onClick={() => { if (!isOffline) { setShowAgentDropdown(false); setActiveWorkstation(ws.id); }}}
                         disabled={isOffline}
                         className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${
-                          isOffline ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-800'
-                        } ${isActive ? 'bg-gray-800' : ''}`}
+                          isOffline ? 'opacity-50 cursor-not-allowed' : 'hover:bg-th-hover'
+                        } ${isActive ? 'bg-th-hover' : ''}`}
                       >
                         <span>{getOsIcon(ws.name, ws.description)}</span>
                         <div className={`w-2 h-2 rounded-full ${ws.status === 'online' ? 'bg-green-400' : 'bg-red-400'}`} />
                         <span className="flex-1 text-left truncate">{ws.name}</span>
-                        {isActive && <span className="text-proxi-accent">✓</span>}
+                        {isActive && <span className="text-th-accent">✓</span>}
                       </button>
                     );
                   })}
@@ -524,8 +527,15 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
           {/* Right: Audio Toggle only (mode moved to input row) */}
           <div className="flex items-center gap-1">
             <button
+              onClick={toggleTheme}
+              className="p-1.5 rounded-lg transition-colors text-th-text-sec hover:text-th-text hover:bg-th-hover"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button
               onClick={() => setAudioEnabled(!audioEnabled)}
-              className={`p-1.5 rounded-lg transition-colors ${audioEnabled ? 'text-proxi-accent' : 'text-gray-500'}`}
+              className={`p-1.5 rounded-lg transition-colors ${audioEnabled ? 'text-th-accent' : 'text-th-text-muted'}`}
               title={audioEnabled ? 'Mute audio' : 'Enable audio'}
             >
               {audioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
@@ -543,7 +553,7 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
 
         {/* Mission Panel (if active) */}
         {missionGoals.length > 0 && (
-          <div className="px-3 py-2 border-b border-gray-800">
+          <div className="px-3 py-2 border-b border-th-border">
             <MissionPanelCollapsible goals={missionGoals} />
           </div>
         )}
@@ -558,14 +568,14 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
         </div>
 
         {/* INPUT AREA */}
-        <footer className="border-t border-gray-800 bg-gray-900/95 backdrop-blur p-3 shrink-0">
+        <footer className="border-t border-th-border bg-th-surface/95 backdrop-blur p-3 shrink-0">
           
           {/* Image Preview Row (above input) */}
           {stagedImages.length > 0 && (
-            <div className="flex gap-2 mb-2 pb-2 border-b border-gray-800 overflow-x-auto">
+            <div className="flex gap-2 mb-2 pb-2 border-b border-th-border overflow-x-auto">
               {stagedImages.map((img, idx) => (
                 <div key={idx} className="relative shrink-0">
-                  <img src={img.preview} className="w-16 h-16 rounded-lg object-cover border border-gray-700" />
+                  <img src={img.preview} className="w-16 h-16 rounded-lg object-cover border border-th-border" />
                   <button
                     onClick={() => removeImage(idx)}
                     className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center"
@@ -592,14 +602,14 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
                 }}
                 placeholder="Ask Proxi..."
                 rows={1}
-                className="w-full px-4 py-3 pr-12 bg-gray-800 border border-gray-700 rounded-xl text-gray-200 placeholder-gray-500 resize-none focus:outline-none focus:border-proxi-accent transition-colors"
+                className="w-full px-4 py-3 pr-12 bg-th-input border border-th-border rounded-xl text-th-text placeholder-th-text-muted resize-none focus:outline-none focus:border-th-accent transition-colors"
                 style={{ minHeight: '48px', maxHeight: '150px' }}
               />
               {/* Camera button inside textarea */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-500 hover:text-gray-300 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-th-text-muted hover:text-th-text transition-colors"
               >
                 <Camera className="w-5 h-5" />
               </button>
@@ -613,34 +623,34 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
                   <button
                     type="button"
                     onClick={() => setShowModeDropdown(!showModeDropdown)}
-                    className="flex items-center gap-2 px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 bg-th-surface-alt hover:bg-th-hover border border-th-border rounded-xl transition-colors"
                     title={`${currentModeConfig.label}: ${currentModeConfig.description}`}
                   >
                     <span className={currentModeConfig.color.split(' ')[0]}>{currentModeConfig.icon}</span>
-                    <span className="text-sm text-gray-200">{currentModeConfig.label}</span>
+                    <span className="text-sm text-th-text">{currentModeConfig.label}</span>
                   </button>
                   
                   {/* Mode Dropdown (opens upward) */}
                   {showModeDropdown && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setShowModeDropdown(false)} />
-                      <div className="absolute bottom-full mb-2 left-0 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 min-w-[180px] py-1">
-                        <div className="px-3 py-1.5 text-xs text-gray-500 uppercase">Execution Mode</div>
+                      <div className="absolute bottom-full mb-2 left-0 bg-th-surface border border-th-border rounded-lg shadow-xl z-50 min-w-[180px] py-1">
+                        <div className="px-3 py-1.5 text-xs text-th-text-muted uppercase">Execution Mode</div>
                         {MODES.map((mode) => (
                           <button
                             key={mode.value}
                             type="button"
                             onClick={() => { setCurrentMode(mode.value); setShowModeDropdown(false); }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-gray-800 ${
-                              currentMode === mode.value ? 'bg-gray-800' : ''
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-th-hover ${
+                              currentMode === mode.value ? 'bg-th-hover' : ''
                             }`}
                           >
                             <span className={mode.color.split(' ')[0]}>{mode.icon}</span>
                             <div className="flex-1 text-left">
-                              <div className="text-gray-200">{mode.label}</div>
-                              <div className="text-xs text-gray-500">{mode.description}</div>
+                              <div className="text-th-text">{mode.label}</div>
+                              <div className="text-xs text-th-text-muted">{mode.description}</div>
                             </div>
-                            {currentMode === mode.value && <span className="text-proxi-accent">✓</span>}
+                            {currentMode === mode.value && <span className="text-th-accent">✓</span>}
                           </button>
                         ))}
                       </div>
@@ -659,7 +669,7 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
                     }
                   }}
                   className={`p-2.5 rounded-xl transition-colors ${
-                    liveConnected && !micMuted ? 'bg-proxi-accent text-black' : 'bg-gray-800 text-gray-400 hover:text-white'
+                    liveConnected && !micMuted ? 'bg-th-accent text-black' : 'bg-th-surface-alt text-th-text-sec hover:text-th-text'
                   }`}
                   title={!liveConnected ? 'Connect voice' : micMuted ? 'Unmute microphone' : 'Mute microphone'}
                 >
@@ -692,14 +702,14 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
 
               {/* Send Button */}
               {isActivelyProcessing ? (
-                <div className="p-2.5 text-proxi-accent">
+                <div className="p-2.5 text-th-accent">
                   <Loader2 className="w-5 h-5 animate-spin" />
                 </div>
               ) : (
                 <button
                   type="submit"
                   disabled={!input.trim() && stagedImages.length === 0}
-                  className="p-2.5 bg-proxi-accent text-black rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-proxi-accent/90 transition-colors"
+                  className="p-2.5 bg-th-accent text-black rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-th-accent/90 transition-colors"
                 >
                   <Send className="w-5 h-5" />
                 </button>

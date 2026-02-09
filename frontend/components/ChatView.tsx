@@ -103,11 +103,11 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
 
   if (trace.length === 0) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-gray-600 p-8">
-        <div className="w-16 h-16 rounded-full border-2 border-gray-800 flex items-center justify-center mb-4">
+      <div className="h-full flex flex-col items-center justify-center text-th-text-muted p-8">
+        <div className="w-16 h-16 rounded-full border-2 border-th-border flex items-center justify-center mb-4">
           <BrainCircuit className="w-8 h-8 opacity-30" />
         </div>
-        <p className="text-sm text-gray-500 text-center">
+        <p className="text-sm text-th-text-muted text-center">
           Ask Proxi to help with system tasks, desktop automation, or incident response.
         </p>
       </div>
@@ -123,7 +123,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
           const diagramContent = String(step.metadata?.output || step.content || '');
           return (
             <div key={groupIdx} className="flex justify-start">
-              <div className="max-w-[95%] rounded-2xl px-4 py-3 bg-gray-900 border border-gray-800 text-gray-200 rounded-bl-sm">
+              <div className="max-w-[95%] rounded-2xl px-4 py-3 bg-th-surface border border-th-border text-th-text rounded-bl-sm">
                 <div className="flex items-center gap-2 mb-2 text-xs opacity-70">
                   <Terminal className="w-3 h-3" />
                   <span className="uppercase tracking-wider">diagram</span>
@@ -144,15 +144,15 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
             <div key={groupIdx} className="ml-4">
               <button
                 onClick={() => toggleToolExpand(groupIdx)}
-                className="flex items-center gap-2 text-xs text-gray-500 hover:text-gray-300 transition-colors w-full"
+                className="flex items-center gap-2 text-xs text-th-text-muted hover:text-th-text-sec transition-colors w-full"
               >
-                <div className={`flex items-center gap-1.5 px-2 py-1 rounded bg-gray-900 border border-gray-800 ${hasResults ? 'border-green-900' : 'border-yellow-900'}`}>
+                <div className={`flex items-center gap-1.5 px-2 py-1 rounded bg-th-surface border border-th-border ${hasResults ? 'border-green-900' : 'border-yellow-900'}`}>
                   {hasResults ? (
                     <CheckCircle2 className="w-3 h-3 text-green-500" />
                   ) : (
                     <Loader2 className="w-3 h-3 text-yellow-500 animate-spin" />
                   )}
-                  <span className="text-gray-400">
+                  <span className="text-th-text-sec">
                     {toolCalls.map(t => {
                       const name = t.content?.toString().split('(')[0] || 'tool';
                       // Convert snake_case to readable text
@@ -164,7 +164,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
               </button>
               
               {isExpanded && (
-                <div className="mt-2 ml-2 space-y-2 border-l border-gray-800 pl-3">
+                <div className="mt-2 ml-2 space-y-2 border-l border-th-border pl-3">
                   {group.items.map((item, idx) => (
                     <div key={idx} className="text-xs">
                       {item.step_type === 'tool_call' ? (
@@ -227,9 +227,9 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
         if (isSeparator) {
           return (
             <div key={groupIdx} className="flex items-center justify-center py-4">
-              <div className="flex-1 h-px bg-gray-800" />
-              <span className="px-4 text-xs text-gray-600 uppercase tracking-wider">New Conversation</span>
-              <div className="flex-1 h-px bg-gray-800" />
+              <div className="flex-1 h-px bg-th-border" />
+              <span className="px-4 text-xs text-th-text-muted uppercase tracking-wider">New Conversation</span>
+              <div className="flex-1 h-px bg-th-border" />
             </div>
           );
         }
@@ -278,7 +278,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
                   ? step.metadata?.status === 'success'
                     ? 'bg-green-900/30 border border-green-800/50 text-green-200'
                     : 'bg-red-900/30 border border-red-800/50 text-red-200'
-                  : 'bg-gray-900 border border-gray-800 text-gray-200 rounded-bl-sm'
+                  : 'bg-th-surface border border-th-border text-th-text rounded-bl-sm'
               }`}
             >
               {/* Icon + Label for non-user messages */}
@@ -332,23 +332,23 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
                         // Style markdown elements
                         p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
                         strong: ({children}) => <strong className="font-semibold text-proxi-accent">{children}</strong>,
-                        em: ({children}) => <em className="text-gray-300">{children}</em>,
+                        em: ({children}) => <em className="text-th-text">{children}</em>,
                         ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
                         ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
                         li: ({children}) => <li className="ml-2">{children}</li>,
                         code: ({children, className}) => {
                           const isBlock = className?.includes('language-');
                           return isBlock ? (
-                            <code className="block bg-black/50 p-2 rounded my-2 font-mono text-xs overflow-x-auto whitespace-pre-wrap">{children}</code>
+                            <code className="block bg-th-code/50 p-2 rounded my-2 font-mono text-xs overflow-x-auto whitespace-pre-wrap">{children}</code>
                           ) : (
-                            <code className="bg-black/30 px-1 rounded font-mono text-proxi-warning">{children}</code>
+                            <code className="bg-th-code/30 px-1 rounded font-mono text-proxi-warning">{children}</code>
                           );
                         },
-                        pre: ({children}) => <pre className="bg-black/50 p-2 rounded my-2 overflow-x-auto">{children}</pre>,
-                        h1: ({children}) => <h1 className="text-lg font-bold text-proxi-accent mb-2">{children}</h1>,
-                        h2: ({children}) => <h2 className="text-base font-bold text-proxi-accent mb-2">{children}</h2>,
-                        h3: ({children}) => <h3 className="text-sm font-bold text-proxi-accent mb-1">{children}</h3>,
-                        blockquote: ({children}) => <blockquote className="border-l-2 border-proxi-accent pl-3 italic text-gray-400">{children}</blockquote>,
+                        pre: ({children}) => <pre className="bg-th-code/50 p-2 rounded my-2 overflow-x-auto">{children}</pre>,
+                        h1: ({children}) => <h1 className="text-lg font-bold text-th-accent mb-2">{children}</h1>,
+                        h2: ({children}) => <h2 className="text-base font-bold text-th-accent mb-2">{children}</h2>,
+                        h3: ({children}) => <h3 className="text-sm font-bold text-th-accent mb-1">{children}</h3>,
+                        blockquote: ({children}) => <blockquote className="border-l-2 border-th-accent pl-3 italic text-th-text-sec">{children}</blockquote>,
                       }}
                     >
                       {isThought ? filterPlanText(step.content) : step.content}
@@ -366,8 +366,8 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
       {/* Processing indicator */}
       {isProcessing && (
         <div className="flex justify-start">
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl rounded-bl-sm px-4 py-3">
-            <div className="flex items-center gap-2 text-gray-400">
+          <div className="bg-th-surface border border-th-border rounded-2xl rounded-bl-sm px-4 py-3">
+            <div className="flex items-center gap-2 text-th-text-sec">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span className="text-sm">Processing...</span>
             </div>
