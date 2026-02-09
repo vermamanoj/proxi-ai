@@ -263,9 +263,10 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
     setStagedImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleNewSession = () => {
+  const handleNewSession = async () => {
+    await brainClearSession();
     liveClearSession();
-    brainClearSession();
+    await loadSessions();
     setSidebarOpen(false);
   };
 

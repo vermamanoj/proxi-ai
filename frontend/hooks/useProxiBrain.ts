@@ -684,6 +684,34 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
 
 
 
+  // Auto-save session periodically (every 30 seconds if there's content)
+  useEffect(() => {
+    if (!sessionId || logs.length < 2) return;
+    
+    const saveInterval = setInterval(async () => {
+      if (sessionId && logs.length > 1) {
+        const firstUserMsg = logs.find(l => l.source === MessageSource.USER);
+        const title = firstUserMsg?.text?.substring(0, 50) || "Session";
+        try {
+          await createSession(sessionId, title);
+          await updateSession(sessionId, {
+            messages: logs.map(l => ({
+              id: l.id,
+              timestamp: l.timestamp.toISOString(),
+              source: l.source,
+              text: l.text,
+              metadata: l.metadata
+            }))
+          } as any);
+        } catch (e) {
+          // Silent fail for auto-save
+        }
+      }
+    }, 30000);
+    
+    return () => clearInterval(saveInterval);
+  }, [sessionId, logs]);
+
   // Cancel/stop active session execution
   const stopExecution = useCallback(async () => {
     if (!sessionId) return;
