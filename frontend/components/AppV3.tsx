@@ -455,10 +455,10 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
       </aside>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-0">
         
         {/* HEADER */}
-        <header className="relative z-30 flex items-center justify-between px-3 py-2 border-b border-gray-800 bg-gray-900/95 backdrop-blur shrink-0">
+        <header className="relative z-10 flex items-center justify-between px-3 py-2 border-b border-gray-800 bg-gray-900/95 backdrop-blur shrink-0">
           {/* Left: Hamburger + Brand */}
           <div className="flex items-center gap-2">
             <button 
