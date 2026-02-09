@@ -205,7 +205,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       <section id="demo" className="py-16 sm:py-20 px-4 sm:px-6">
         <div className="max-w-5xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-full text-blue-400 text-xs mb-4">
-            <span>Powered by Gemini 2.5 Flash</span>
+            <span>Powered by Gemini 3</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">
             Why Gemini Changes Everything
