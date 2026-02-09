@@ -1,5 +1,5 @@
 // Proxi Service Worker for PWA
-const CACHE_NAME = 'proxi-v2';
+const CACHE_NAME = 'proxi-v3';
 const OFFLINE_URL = '/offline.html';
 
 // Assets to cache on install
@@ -29,6 +29,13 @@ self.addEventListener('activate', (event) => {
     })
   );
   self.clients.claim();
+});
+
+// Handle skip waiting message from client
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Fetch: network-first for navigation/HTML, cache-first for static assets
