@@ -468,8 +468,7 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${isProcessing ? 'bg-yellow-500 animate-pulse' : liveConnected ? 'bg-green-500' : 'bg-gray-500'}`} />
-              <h1 className="text-sm font-bold tracking-wider">
+              <h1 className="text-xs font-bold tracking-wider">
                 PROXI<span className="text-proxi-accent">.OS</span>
               </h1>
             </div>
