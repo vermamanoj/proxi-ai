@@ -5,6 +5,7 @@ import { User, BrainCircuit, Wrench, Terminal, MessageSquare, ChevronDown, Chevr
 import { ScreenshotBubble } from './ScreenshotBubble';
 import { EvidenceCard, parseEvidenceFromMessage } from './EvidenceCard';
 import { RenderContent } from './RenderContent';
+import { MermaidDiagram } from './MermaidDiagram';
 
 interface ChatViewProps {
   trace: TraceStep[];
@@ -338,13 +339,23 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
                         li: ({children}) => <li className="ml-2">{children}</li>,
                         code: ({children, className}) => {
                           const isBlock = className?.includes('language-');
+                          // Render mermaid code blocks as interactive diagrams
+                          if (className?.includes('language-mermaid')) {
+                            const chartCode = String(children).replace(/\n$/, '');
+                            return <MermaidDiagram chart={chartCode} />;
+                          }
                           return isBlock ? (
                             <code className="block bg-th-code/50 p-2 rounded my-2 font-mono text-xs overflow-x-auto whitespace-pre-wrap">{children}</code>
                           ) : (
                             <code className="bg-th-code/30 px-1 rounded font-mono text-proxi-warning">{children}</code>
                           );
                         },
-                        pre: ({children}) => <pre className="bg-th-code/50 p-2 rounded my-2 overflow-x-auto">{children}</pre>,
+                        pre: ({children}) => {
+                          // If the child is a MermaidDiagram (from our code handler), don't wrap in pre
+                          const child = React.Children.toArray(children)[0] as React.ReactElement;
+                          if (child?.type === MermaidDiagram) return <>{children}</>;
+                          return <pre className="bg-th-code/50 p-2 rounded my-2 overflow-x-auto">{children}</pre>;
+                        },
                         h1: ({children}) => <h1 className="text-lg font-bold text-th-accent mb-2">{children}</h1>,
                         h2: ({children}) => <h2 className="text-base font-bold text-th-accent mb-2">{children}</h2>,
                         h3: ({children}) => <h3 className="text-sm font-bold text-th-accent mb-1">{children}</h3>,
