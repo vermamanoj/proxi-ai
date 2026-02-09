@@ -354,7 +354,7 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
       }] : []);
 
   return (
-    <div className="h-[100dvh] bg-th-base text-th-text flex font-mono overflow-hidden">
+    <div className="h-[100dvh] bg-th-base text-th-text flex overflow-hidden">
       
       {/* SIDEBAR OVERLAY (mobile) */}
       {sidebarOpen && (
@@ -559,7 +559,7 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
         )}
 
         {/* CHAT AREA */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-hidden font-mono">
           <ChatView
             trace={displayTrace}
             isProcessing={isProcessing}
