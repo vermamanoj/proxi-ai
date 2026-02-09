@@ -1,6 +1,6 @@
 # Security Fixes - January 29, 2026
 
-**Context:** Production app live at proxi.audista.com, hackathon judging Feb 10-27. Must keep demo/demo123 working for judges.
+**Context:** Production app live at proxi.audista.com, hackathon judging Feb 10-27. Must keep demo credentials working for judges.
 
 ---
 
@@ -166,7 +166,7 @@ Remove the localStorage fallback entirely:
 - ❌ Storing user object as auth source
 
 **Testing:**
-1. Login with demo/demo123 → should work
+1. Login with demo/<YOUR_PASSWORD> → should work
 2. Stop backend → refresh page → should show login screen (not bypass)
 3. Start backend → login again → should work
 
@@ -232,12 +232,12 @@ def authenticate(self, username: str, password: str) -> Optional[User]:
 ```
 
 **Hackathon compatibility:**
-- demo/demo123 continues to work (transparent upgrade on first login)
+- demo user credentials continue to work (transparent upgrade on first login)
 - Magic links unaffected (don't use passwords)
 - Judges won't notice any change
 
 **Testing:**
-1. Login with demo/demo123 → should work and upgrade hash
+1. Login with demo/<YOUR_PASSWORD> → should work and upgrade hash
 2. Check users.json → password_hash should be bcrypt format (starts with `$2b$`)
 3. Logout and login again → should work with new hash
 4. Create new user → should use bcrypt from start
@@ -261,7 +261,7 @@ def authenticate(self, username: str, password: str) -> Optional[User]:
 
 ## Testing Checklist (After All Fixes)
 
-- [ ] Login with demo/demo123 works
+- [ ] Login with demo credentials works
 - [ ] Magic links work for judge role
 - [ ] Command approval flow works (approve/deny)
 - [ ] Agent health checks work with PROXI_AGENT_KEY set
@@ -365,7 +365,7 @@ docker-compose down && docker-compose up -d --build  # Rebuild
 
 **User impact:**
 - If backend is down, users see login screen (correct behavior)
-- No change to normal login flow (demo/demo123 still works)
+- No change to normal login flow (demo credentials still work)
 - Session persistence still works via cookies
 
 ### Fix #4: Upgrade Password Hashing ✅ COMPLETED & DEPLOYED
@@ -397,7 +397,7 @@ docker-compose down && docker-compose up -d --build  # Rebuild
 - ✅ Password verification with bcrypt
 - ✅ Docker Core container running successfully
 - ✅ Docker Agent container running successfully
-- ✅ Login API tested: `demo/demo123` → SUCCESS
+- ✅ Login API tested: `demo/<password>` → SUCCESS
 - ✅ Agent health endpoint: Requires X-Agent-Key ✓
 - ✅ All user passwords upgraded to bcrypt format
 
@@ -413,7 +413,7 @@ docker-compose down && docker-compose up -d --build  # Rebuild
 - Work factor: 12 rounds (industry standard)
 
 **Hackathon compatibility:**
-- demo/demo123 continues to work (upgraded on first login)
+- demo user credentials continue to work (upgraded on first login)
 - Magic links unaffected (don't use passwords)
 - Judges won't notice any change
 - Existing users automatically migrated
@@ -435,7 +435,7 @@ docker-compose down && docker-compose up -d --build  # Rebuild
 1. Rebuild Docker containers: `docker-compose down && docker-compose up -d --build`
 2. Test approval flow with destructive command
 3. Test agent health checks with PROXI_AGENT_KEY set
-4. Test login with demo/demo123 (should upgrade hash)
+4. Test login with demo/<YOUR_PASSWORD> (should upgrade hash)
 5. Verify production deployment at proxi.audista.com
 
 ---

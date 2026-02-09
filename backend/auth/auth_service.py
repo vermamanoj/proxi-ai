@@ -296,8 +296,9 @@ class AuthService:
     def _verify_password(self, password: str, hashed: str) -> bool:
         """Verify password against hash. Supports legacy SHA-256 hashes for migration."""
         # Detect legacy SHA-256 hash (64 hex chars)
+        # DEPRECATED: Legacy migration only - all new passwords use bcrypt.
+        # This salt is intentionally public; legacy hashes are upgraded on next login.
         if len(hashed) == 64 and all(c in '0123456789abcdef' for c in hashed):
-            # Legacy SHA-256 hash - verify using old method
             salt = "proxi_hackathon_salt_2026"
             legacy_hash = hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
             return legacy_hash == hashed

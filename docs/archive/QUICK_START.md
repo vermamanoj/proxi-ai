@@ -40,9 +40,11 @@
 
 | Username | Password | Role | Use For |
 |----------|----------|------|---------|
-| `demo` | `demo123` | User | General testing |
-| `judge` | `gemini2026` | Judge | Hackathon judges |
-| `admin` | `proxi_admin_2026` | Admin | Admin functions |
+| `demo` | *(auto-generated on first run)* | User | General testing |
+| `judge` | *(auto-generated on first run)* | Judge | Hackathon judges |
+| `admin` | *(auto-generated on first run)* | Admin | Admin functions |
+
+> Passwords are generated on first run and saved to `backend/auth/INITIAL_CREDENTIALS.txt`. Delete that file after noting them.
 
 ---
 
@@ -139,7 +141,7 @@ sudo nginx -t && sudo systemctl reload nginx
 ```
 □ Open browser to http://<server-ip>:4001
 □ Login page displays
-□ Login with demo/demo123
+□ Login with demo/<YOUR_PASSWORD>
 □ Workstation list shows (may show "offline" - that's OK)
 □ Chat interface opens
 □ Can type message and send
@@ -150,7 +152,7 @@ sudo nginx -t && sudo systemctl reload nginx
 # Test login
 curl -X POST http://localhost:4000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"demo","password":"demo123"}'
+  -d '{"username":"demo","password":"<YOUR_PASSWORD>"}'
 
 # Test workstations
 curl http://localhost:4000/api/workstations
@@ -166,7 +168,7 @@ curl http://localhost:4000/api/health
 ### Setup Before Demo
 1. Have mock apps open (if available)
 2. Open Proxi on phone or mobile browser
-3. Login with `demo` / `demo123`
+3. Login with `demo` / `<YOUR_PASSWORD>`
 
 ### Demo Commands to Try
 1. **"What time is it?"** - Basic response test

@@ -11,7 +11,7 @@ echo "Started at: $(date)"
 DEPLOY_DIR="/var/www/proxi"
 NGINX_CONF="/etc/nginx/sites-available/proxi"
 DOMAIN="proxi.audista.com"
-BACKEND_TAILSCALE_IP="${BACKEND_IP:-100.100.100.2}"  # Set via env or default
+BACKEND_TAILSCALE_IP="${BACKEND_IP:?ERROR: Set BACKEND_IP to your Tailscale IP}"  # No default - must be set explicitly
 
 # Colors for output
 RED='\033[0;31m'

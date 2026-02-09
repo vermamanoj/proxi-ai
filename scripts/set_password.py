@@ -17,13 +17,17 @@ Password is saved to: backend/auth/users.json
 import sys
 import os
 import json
-import hashlib
 from pathlib import Path
 
+try:
+    import bcrypt
+except ImportError:
+    print("Error: bcrypt not installed. Run: pip install bcrypt")
+    sys.exit(1)
+
 def hash_password(password: str) -> str:
-    """Hash password using same method as auth_service."""
-    salt = "proxi_hackathon_salt_2026"
-    return hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+    """Hash password using bcrypt (matches auth_service.py)."""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12)).decode('utf-8')
 
 def find_users_file() -> Path:
     """Find users.json relative to script location."""

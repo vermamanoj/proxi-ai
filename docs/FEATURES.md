@@ -151,7 +151,7 @@
 | 200-word Gemini write-up | 📋 | Template needed |
 | Architecture diagram | ✅ | In ARCHITECTURE.md |
 | Public repository | ✅ | github.com/vermamanoj/proxi-ai |
-| Testing credentials | ✅ | demo/demo123 |
+| Testing credentials | ✅ | Auto-generated on first run (see INITIAL_CREDENTIALS.txt) |
 
 ---
 
@@ -220,7 +220,7 @@
 4. **Harden password storage** 🔴  
    - **Risk:** SHA-256 + static salt vulnerable to offline attacks
    - **File:** `backend/auth/auth_service.py`
-   - **Note:** Keep demo/demo123 for judges; upgrade algorithm only
+   - **Note:** Keep demo credentials for judges; upgrade algorithm only
    - **Effort:** 1 hour
 
 ### ✅ Hackathon Submission (Before Feb 10)
@@ -234,7 +234,7 @@
    - **Effort:** 30 min
 
 7. **Verify production deployment** 📋  
-   - Test proxi.audista.com with demo/demo123
+   - Test proxi.audista.com with demo credentials
    - Verify magic links work for judges
    - **Effort:** 1 hour
 

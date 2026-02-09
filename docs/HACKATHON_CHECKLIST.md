@@ -202,9 +202,11 @@ https://proxi.audista.com/magic?token=GEMINI_JUDGE_2026
 
 | Username | Password | Role |
 |----------|----------|------|
-| `demo` | `demo123` | User |
-| `judge` | `gemini2026` | Judge |
-| `admin` | `proxi_admin_2026` | Admin |
+| `demo` | *(auto-generated on first run)* | User |
+| `judge` | *(auto-generated on first run)* | Judge |
+| `admin` | *(auto-generated on first run)* | Admin |
+
+> See `backend/auth/INITIAL_CREDENTIALS.txt` on first run for generated passwords.
 
 ---
 

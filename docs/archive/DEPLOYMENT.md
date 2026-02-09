@@ -1016,7 +1016,7 @@ Task Scheduler settings:
 # Test API endpoints
 curl -X POST https://proxi.audista.com/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"demo","password":"demo123"}'
+  -d '{"username":"demo","password":"<YOUR_PASSWORD>"}'
 
 # Test vision endpoint (with auth cookie)
 curl -X POST https://proxi.audista.com/api/vision \

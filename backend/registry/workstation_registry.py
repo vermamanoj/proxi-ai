@@ -129,7 +129,7 @@ class WorkstationRegistry:
                 name="Sales Demo Workstation",
                 description="Windows Server with CRM, Pricing Tool, and Office applications",
                 workstation_type=WorkstationType.WINDOWS.value,
-                host="100.100.100.2",  # Tailscale IP - update after setup
+                host="0.0.0.0",  # TODO: Set your Tailscale IP after setup
                 port=8080,
                 capabilities=[
                     "desktop_automation",

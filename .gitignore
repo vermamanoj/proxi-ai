@@ -42,6 +42,9 @@ backend/data/waitlist.json
 .DS_Store
 Thumbs.db
 
+# Output artifacts (generated files, screenshots, reports)
+outputs/
+
 # Deployment
 !deploy/
 !deploy.sh

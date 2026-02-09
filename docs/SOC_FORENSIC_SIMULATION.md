@@ -348,7 +348,7 @@ Gemini: Reports findings with evidence and remediation steps
     "id": "win-desktop",
     "name": "Windows Desktop (Home)",
     "description": "Test win",
-    "host": "100.107.2.119",
+    "host": "100.x.x.x",
     "port": 8081,
     "workstation_type": "windows",
     "capabilities": ["terminal", "screenshot", "desktop", "file_operations"],
