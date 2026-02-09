@@ -73,12 +73,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           </div>
           
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-4 leading-tight tracking-tight">
-            Remote systems control AI.
-            <span className="text-proxi-accent">With safety and trust.</span>
+            Verified Execution for Real Computers.
           </h1>
           
-          <p className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto mb-8">
-            Your AI that executes real work on real computers — with proof and control.
+          <p className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto mb-3">
+            Proxi executes real work on real systems — safely, verifiably, and under human control.
+          </p>
+          
+          <p className="text-base text-gray-500 max-w-xl mx-auto mb-8">
+            When APIs don't exist and trust still matters.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
@@ -103,7 +106,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       <section className="py-12 sm:py-16 px-4 sm:px-6 border-t border-gray-800/50">
         <div className="max-w-3xl mx-auto text-center">
           <p className="text-xl sm:text-2xl text-gray-300 font-light">
-            AI can think. <span className="text-gray-500">Work still needs keyboards.</span>
+            AI can reason. <span className="text-gray-500">Execution still happens behind keyboards.</span>
           </p>
         </div>
       </section>
@@ -120,10 +123,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
               </div>
               <div className="text-center md:text-left">
                 <h2 className="text-2xl sm:text-3xl font-bold mb-3">
-                  Proxi executes on real computers from your phone.
+                  Proxi executes verified actions on real computers — even when you're away from the keyboard.
                 </h2>
                 <p className="text-gray-400">
-                  Controls desktop apps, browsers, terminals. Works with legacy systems without APIs.
+                  Navigates real desktop apps, browsers, and terminals — including legacy systems without APIs.
                   Executes multi-step workflows end-to-end.
                 </p>
               </div>

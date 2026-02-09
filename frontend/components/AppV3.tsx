@@ -272,7 +272,7 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
       });
       
       // Load session into the brain hook
-      brainClearSession();
+      await brainClearSession();
       setLastTrace(traceSteps);
       setSessionId(session.id);
       console.log('[Session] Loaded session:', session.id, traceSteps.length, 'messages');
@@ -716,8 +716,8 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
                   <Zap className="w-8 h-8 text-proxi-accent" />
                   <span className="text-2xl font-bold">PROXI</span>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-bold mb-2">From Advice to Action. Finally.</h2>
-                <p className="text-gray-400">Your AI that executes real work on real computers — with proof and control.</p>
+                <h2 className="text-xl sm:text-2xl font-bold mb-2">Verified Execution for Real Computers.</h2>
+                <p className="text-gray-400">From advice to action — safely, verifiably, and under human control. Command real desktops from your phone, remotely - when APIs can't solve the problem.</p>
               </div>
 
               {/* Problem/Solution */}
