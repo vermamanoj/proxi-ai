@@ -40,16 +40,35 @@ const getOsIcon = (name: string, description?: string) => {
 
 // Auth wrapper - only renders heavy hooks after login
 export const AppV3: React.FC = () => {
-  const { isAuthenticated, isLoading: authLoading, user, login: authLogin, logout } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user, login: authLogin, logout, redeemMagicLink } = useAuth();
   const [authView, setAuthView] = useState<'landing' | 'login'>('landing');
+  const [magicLinkStatus, setMagicLinkStatus] = useState<'checking' | 'invalid' | null>(null);
 
-  // Auth loading state
-  if (authLoading) {
+  // Handle magic link in URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const magicToken = params.get('magic');
+    
+    if (magicToken && !isAuthenticated && !authLoading) {
+      setMagicLinkStatus('checking');
+      redeemMagicLink(magicToken).then((success) => {
+        if (success) {
+          window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+          setMagicLinkStatus(null);
+        } else {
+          setMagicLinkStatus('invalid');
+        }
+      });
+    }
+  }, [isAuthenticated, authLoading]);
+
+  // Auth loading or magic link redemption in progress
+  if (authLoading || magicLinkStatus === 'checking') {
     return (
       <div className="h-screen bg-black flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-proxi-accent mx-auto mb-4 animate-spin" />
-          <p className="text-gray-400">Loading...</p>
+          <p className="text-gray-400">{magicLinkStatus === 'checking' ? 'Validating access link...' : 'Loading...'}</p>
         </div>
       </div>
     );
