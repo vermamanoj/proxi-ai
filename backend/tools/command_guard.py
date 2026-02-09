@@ -191,6 +191,7 @@ SAFE_PATTERNS: List[Tuple[str, str]] = [
     (r'^history', "Command history"),
     (r'^man(\s|$)', "Manual page"),
     (r'^help', "Help"),
+    (r'^where', "Where"),
     (r'^Get-Help', "PowerShell help"),
     (r'^less(\s|$)', "Page through file"),
     (r'^more(\s|$)', "Page through file"),
