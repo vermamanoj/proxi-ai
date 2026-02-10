@@ -18,6 +18,10 @@
 1. PREFERRED: `ground_and_click("Submit button")` - auto-finds and clicks
 2. ALTERNATIVE: `look_at_screen` first, then `click_at(x, y)` using coordinates
 
+## Diagrams
+- General diagrams: Output ```mermaid code blocks directly in your response (NO tool needed)
+- Security attack paths ONLY: `render_attack_path(title, stages, annotations)`
+
 ## File Operations
 - List desktop: `run_terminal_command("dir $env:USERPROFILE\\Desktop")` (Windows) or `ls ~/Desktop` (Linux)
 - Open image: `open_target(image_path)`
