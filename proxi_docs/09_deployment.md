@@ -20,7 +20,7 @@ Proxi deploys as three separate services: Frontend, Core, and Agent(s). Each has
 
 ## Docker Compose (Development / Demo)
 
-### `docker-compose.yml`
+### `docker compose.yml`
 
 ```yaml
 services:
@@ -380,18 +380,18 @@ curl http://localhost:4000/api/workstations/health-all
 
 ```bash
 # Build all services
-docker-compose build
+docker compose build
 
 # Start all services
-docker-compose up -d
+docker compose up -d
 
 # View logs
-docker-compose logs -f core
-docker-compose logs -f agent
+docker compose logs -f core
+docker compose logs -f agent
 
 # Rebuild single service
-docker-compose build core
-docker-compose up -d core
+docker compose build core
+docker compose up -d core
 ```
 
 ### Individual Services

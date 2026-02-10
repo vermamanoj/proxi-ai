@@ -49,7 +49,7 @@ Unlike browser-only automation tools that manipulate the DOM, Proxi operates at 
 ### Infrastructure
 | Component | Technology |
 |-----------|------------|
-| Containerization | Docker + docker-compose |
+| Containerization | Docker + docker compose |
 | Reverse Proxy | Nginx |
 | Networking | Tailscale (mesh VPN for remote agents) |
 | Cloud | Oracle Cloud (Ubuntu) for Core + Frontend |
@@ -115,7 +115,7 @@ proxi-ai/
 ├── scripts/                    # Deployment + setup scripts
 ├── deploy/                     # Nginx config
 ├── proxi_docs/                 # This documentation
-└── docker-compose.yml          # Container orchestration
+└── docker compose.yml          # Container orchestration
 ```
 
 ## Key Metrics

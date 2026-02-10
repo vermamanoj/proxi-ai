@@ -88,4 +88,4 @@ services:
       - core
     restart: unless-stopped
     profiles:
-      - production  # Only start with: docker-compose --profile production up
+      - production  # Only start with: docker compose --profile production up

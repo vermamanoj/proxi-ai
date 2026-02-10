@@ -286,7 +286,7 @@ This split is historical — auth was implemented before the SQLite database was
 
 ### Docker Volume
 
-In docker-compose, the data directory is mounted as a volume:
+In docker compose, the data directory is mounted as a volume:
 
 ```yaml
 volumes:

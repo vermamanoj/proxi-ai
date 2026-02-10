@@ -38,14 +38,14 @@ fi
 
 echo "[1/5] Checking Docker..."
 docker --version || { echo "Docker not installed!"; exit 1; }
-docker-compose --version || docker compose version || { echo "Docker Compose not installed!"; exit 1; }
+docker compose --version || docker compose version || { echo "Docker Compose not installed!"; exit 1; }
 
 echo "[2/5] Creating data directories..."
 mkdir -p data
 mkdir -p nginx
 
 echo "[3/5] Building and starting containers..."
-docker-compose up -d $BUILD_FLAG
+docker compose up -d $BUILD_FLAG
 
 echo "[4/5] Waiting for services to start..."
 sleep 10
@@ -98,5 +98,5 @@ if [ "$SSL_SETUP" = true ]; then
     echo "SSL certificate installed. Update nginx.conf to enable HTTPS."
 fi
 
-echo "To view logs: docker-compose logs -f"
-echo "To stop: docker-compose down"
+echo "To view logs: docker compose logs -f"
+echo "To stop: docker compose down"

@@ -11,7 +11,7 @@ cd soc-forensics
 docker build -t proxi-forensics:v2 .
 
 # 2. Start with Docker Compose (connects to Proxi network)
-docker-compose -f docker-compose.forensic.yml up -d
+docker compose -f docker compose.forensic.yml up -d
 
 # 3. Register with Proxi Core
 docker exec forensic-investigation bash /usr/local/bin/register_forensic_agent.sh

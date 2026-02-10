@@ -37,11 +37,11 @@ function Deploy-Service {
     param([string]$svc, [string]$healthUrl)
     
     Write-Host "`n[$svc] Building new image (app stays up during build)..." -ForegroundColor Yellow
-    docker-compose build $svc
+    docker compose build $svc
     if ($LASTEXITCODE -ne 0) { throw "Build failed" }
     
     Write-Host "[$svc] Quick restart with new image..." -ForegroundColor Yellow
-    docker-compose up -d --no-deps --force-recreate $svc
+    docker compose up -d --no-deps --force-recreate $svc
     
     Write-Host "[$svc] Waiting for health " -NoNewline -ForegroundColor Yellow
     $healthy = Wait-ForHealth $healthUrl
@@ -49,7 +49,7 @@ function Deploy-Service {
     
     if (-not $healthy) {
         Write-Host "[$svc] WARNING: Health check timed out, check logs" -ForegroundColor Red
-        docker-compose logs --tail 20 $svc
+        docker compose logs --tail 20 $svc
     } else {
         Write-Host "[$svc] Deployed successfully!" -ForegroundColor Green
     }
@@ -77,4 +77,4 @@ if ($Service -eq "all") {
 }
 
 Write-Host "`n=== Deployment Complete ===" -ForegroundColor Green
-docker-compose ps
+docker compose ps

@@ -93,11 +93,11 @@ DOCKERFILE
 echo "   ✅ Dockerfile created at $DOCKERFILE_PATH"
 
 # -----------------------------------------------------------------------------
-# 3. Create docker-compose for Linux Agent
+# 3. Create docker compose for Linux Agent
 # -----------------------------------------------------------------------------
-echo "[3/6] Creating docker-compose configuration..."
+echo "[3/6] Creating docker compose configuration..."
 
-COMPOSE_PATH="$PROJECT_ROOT/docker/linux-agent/docker-compose.yml"
+COMPOSE_PATH="$PROJECT_ROOT/docker/linux-agent/docker compose.yml"
 
 cat > "$COMPOSE_PATH" << 'COMPOSE'
 version: '3.8'
@@ -141,7 +141,7 @@ networks:
     driver: bridge
 COMPOSE
 
-echo "   ✅ docker-compose.yml created at $COMPOSE_PATH"
+echo "   ✅ docker compose.yml created at $COMPOSE_PATH"
 
 # -----------------------------------------------------------------------------
 # 4. Check for .env file

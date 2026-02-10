@@ -154,10 +154,10 @@ cp .env.example .env
 nano .env  # Add your GEMINI_API_KEY
 
 # 2. Start all services (Core + Agent + Frontend)
-docker-compose up -d
+docker compose up -d
 
 # 3. Check status
-docker-compose ps
+docker compose ps
 ```
 
 **Services:**

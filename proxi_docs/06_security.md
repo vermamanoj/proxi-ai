@@ -187,7 +187,7 @@ Commands requiring explicit user approval:
 | **User management** | `useradd`, `usermod`, `net user` |
 | **Permissions** | `chmod`, `chown`, `icacls` |
 | **Scheduling** | `crontab -e`, `schtasks /create`, `at` |
-| **Docker operations** | `docker rm`, `docker stop`, `docker-compose down` |
+| **Docker operations** | `docker rm`, `docker stop`, `docker compose down` |
 | **Network config** | `iptables -A`, `netsh interface` |
 | **Registry edits** | `reg add`, `Set-ItemProperty.*Registry` |
 | **Environment changes** | `setx`, `[Environment]::SetEnvironmentVariable` |

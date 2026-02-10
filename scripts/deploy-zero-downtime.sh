@@ -35,10 +35,10 @@ deploy_service() {
     local health_url=$2
     
     echo -e "\n\033[33m[$svc] Building new image (app stays up during build)...\033[0m"
-    docker-compose build "$svc"
+    docker compose build "$svc"
     
     echo -e "\033[33m[$svc] Quick restart with new image...\033[0m"
-    docker-compose up -d --no-deps --force-recreate "$svc"
+    docker compose up -d --no-deps --force-recreate "$svc"
     
     echo -n -e "\033[33m[$svc] Waiting for health \033[0m"
     if wait_for_health "$health_url"; then
@@ -47,7 +47,7 @@ deploy_service() {
     else
         echo ""
         echo -e "\033[31m[$svc] WARNING: Health check timed out, check logs\033[0m"
-        docker-compose logs --tail 20 "$svc"
+        docker compose logs --tail 20 "$svc"
     fi
 }
 
@@ -77,4 +77,4 @@ case "$SERVICE" in
 esac
 
 echo -e "\n\033[32m=== Deployment Complete ===\033[0m"
-docker-compose ps
+docker compose ps

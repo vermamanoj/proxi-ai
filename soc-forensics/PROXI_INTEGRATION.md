@@ -340,7 +340,7 @@ docker rm forensic-investigation
 # (Delete the forensic-linux entry)
 
 # Restart Proxi if needed
-docker-compose restart proxi-core
+docker compose restart proxi-core
 ```
 
 ## Troubleshooting

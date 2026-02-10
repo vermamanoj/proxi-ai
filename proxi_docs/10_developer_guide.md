@@ -66,8 +66,8 @@ python -m uvicorn backend.agent_server:app --host 0.0.0.0 --port 8081 --reload
 ### 5. Docker Compose (Alternative)
 
 ```powershell
-docker-compose build
-docker-compose up -d
+docker compose build
+docker compose up -d
 # Frontend: http://localhost:4002
 # Core: http://localhost:4000
 # Agent: http://localhost:4001
@@ -240,9 +240,9 @@ Then add the mode option to the frontend's mode selector component.
 
 | Log | Location | Content |
 |-----|----------|---------|
-| Core stdout | Terminal / `docker-compose logs core` | All `print()` and `log_system()` output |
+| Core stdout | Terminal / `docker compose logs core` | All `print()` and `log_system()` output |
 | Debug log file | `proxi_debug.log` (repo root or `/app/data/`) | Persistent copy of `log_system()` calls |
-| Agent stdout | Terminal / `docker-compose logs agent` | `[AGENT_EXEC]` entries with timing |
+| Agent stdout | Terminal / `docker compose logs agent` | `[AGENT_EXEC]` entries with timing |
 | Auth logs | `backend/auth/login_events.json` | Login attempts with IP and user-agent |
 
 ### Common Debug Patterns
@@ -266,7 +266,7 @@ print(f"Risk: {result.risk_level}, Reason: {result.reason}")
 **Agent returning errors?**
 ```powershell
 # Check agent logs for [AGENT_EXEC] entries
-docker-compose logs agent | Select-String "AGENT_EXEC"
+docker compose logs agent | Select-String "AGENT_EXEC"
 
 # Test agent directly
 $body = '{"tool_name": "run_terminal_command", "parameters": {"command": "echo hello"}}'

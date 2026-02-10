@@ -35,7 +35,7 @@ docker build -t proxi-forensics:v2 .
 
 ```bash
 # Make sure PROXI_AGENT_KEY is set in your .env file
-docker-compose -f docker-compose.forensic.yml up -d
+docker compose -f docker compose.forensic.yml up -d
 ```
 
 This will:
@@ -279,7 +279,7 @@ docker exec forensic-investigation ps aux | grep fake_miner
 ## Files Created
 
 - `forensic_agent.py` - Minimal Proxi agent server
-- `docker-compose.forensic.yml` - Compose file with network config
+- `docker compose.forensic.yml` - Compose file with network config
 - `register_forensic_agent.sh` - Auto-registration script
 - `AGENT_SETUP.md` - This documentation
 
