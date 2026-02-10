@@ -1193,8 +1193,8 @@ class GeminiService:
         # Build Mermaid flowchart
         lines = ["```mermaid", "flowchart TD"]
         safe_title = title.replace('(', ' ').replace(')', ' ').replace('"', "'")
-        lines.append(f'    title["{safe_title}"]')
-        lines.append("    style title fill:#1a1a2e,stroke:#6366f1,color:#fff")
+        lines.append(f'    CHART_TITLE["{safe_title}"]')
+        lines.append("    style CHART_TITLE fill:#1a1a2e,stroke:#6366f1,color:#fff")
         
         # Node type styles
         type_styles = {
@@ -1206,7 +1206,7 @@ class GeminiService:
             "default": "fill:#6366f1,stroke:#4f46e5,color:#fff"      # Indigo
         }
         
-        prev_id = "title"
+        prev_id = "CHART_TITLE"
         for i, stage in enumerate(stages):
             stage_id = stage.get("id", f"S{i}")
             label = stage.get("label", stage_id)
@@ -1228,7 +1228,7 @@ class GeminiService:
             lines.append(f"    style {stage_id} {style}")
             
             # Connect to previous
-            if prev_id != "title":
+            if prev_id != "CHART_TITLE":
                 lines.append(f"    {prev_id} --> {stage_id}")
             else:
                 lines.append(f"    {prev_id} -.-> {stage_id}")
