@@ -1,7 +1,8 @@
 # Proxi Action Plan
 
 **Created:** Feb 10, 2026  
-**Context:** Public repo (proxi-ai) is hackathon submission. New private repo for post-hackathon features.
+**Updated:** Feb 10, 2026  
+**Context:** Public repo (proxi-ai) is hackathon submission. Private repo (proxi_v2) for post-hackathon features.
 
 ---
 
@@ -87,15 +88,15 @@ These are bugs, security gaps, and quality issues in features that already exist
 
 | # | Fix | Severity | Effort | Files to Change |
 |---|-----|----------|--------|----------------|
-| **A1** | **Session ownership check** — Add user_id verification to all 9 session endpoints (GET/PUT/POST). Fetch session, verify `user_id` matches authenticated user (admins bypass). | 🔴 High | 30 min | `main.py` |
+| **A1** | **Session ownership check** — Add user_id verification to all 9 session endpoints (GET/PUT/POST). Fetch session, verify `user_id` matches authenticated user (admins bypass). | 🔴 High | 30 min | `main.py` | ✅ Done |
 | ~~A2~~ | ~~Standardize admin auth~~ — **Moved to Part B**. Judges are actively using magic links during hackathon judging (Feb 10-27). Cannot risk breaking this flow. | - | - | - |
-| **A3** | **Agent `/capabilities` auth** — Add `Depends(verify_agent_key)` to `/capabilities` endpoint. | 🟡 Medium | 2 min | `agent_server.py` |
-| **A4** | **Agent demo endpoints auth** — Add `Depends(verify_agent_key)` to `/demo/trigger_incident` and `/demo/resolve_incident`. | 🟢 Low | 2 min | `agent_server.py` |
-| **A5** | **Evidence persistence** — `self.evidence_store = {}` (in-memory) → persist to SQLite `work_items` table. Evidence lost on every restart. | 🟡 Medium | 45 min | `gemini_service.py`, `database.py` |
-| **A6** | **ThreadPoolExecutor reuse** — `ProxyDesktopService._execute_sync()` creates a new executor per call. Make it a class-level instance. | 🟢 Low | 15 min | `desktop/proxy.py` |
-| **A7** | **`verify: "auto"` behavior** — Verify that `modes.json` value `"auto"` is handled correctly in code (string `"auto"` is truthy in Python). If it should behave differently from `true`, add explicit handling. | 🟡 Medium | 15 min | `gemini_service.py` |
-| **A8** | **Approval expiry cleanup** — `pending_approvals` dict never cleans up expired entries. Add cleanup on access or periodic sweep. | 🟢 Low | 15 min | `gemini_service.py` |
-| **A9** | **Log rotation** — `proxi_debug.log` grows unbounded. Add `RotatingFileHandler` (e.g., 10MB, 3 backups). | 🟢 Low | 10 min | `main.py` or logging config |
+| **A3** | **Agent `/capabilities` auth** — Add `Depends(verify_agent_key)` to `/capabilities` endpoint. | 🟡 Medium | 2 min | `agent_server.py` | ✅ Done |
+| **A4** | **Agent demo endpoints auth** — Add `Depends(verify_agent_key)` to `/demo/trigger_incident` and `/demo/resolve_incident`. | 🟢 Low | 2 min | `agent_server.py` | ✅ Done |
+| **A5** | **Evidence persistence** — `self.evidence_store = {}` (in-memory) → persist to SQLite `work_items` table. Evidence lost on every restart. | 🟡 Medium | 45 min | `gemini_service.py`, `database.py` | → proxi_v2 |
+| **A6** | **ThreadPoolExecutor reuse** — `ProxyDesktopService._execute_sync()` creates a new executor per call. Make it a class-level instance. | 🟢 Low | 15 min | `desktop/proxy.py` | → proxi_v2 |
+| **A7** | **`verify: "auto"` behavior** — Verify that `modes.json` value `"auto"` is handled correctly in code (string `"auto"` is truthy in Python). If it should behave differently from `true`, add explicit handling. | 🟡 Medium | 15 min | `gemini_service.py` | → proxi_v2 |
+| **A8** | **Approval expiry cleanup** — `pending_approvals` dict never cleans up expired entries. Add cleanup on access or periodic sweep. | 🟢 Low | 15 min | `gemini_service.py` | → proxi_v2 |
+| **A9** | **Log rotation** — `proxi_debug.log` grows unbounded. Add `RotatingFileHandler` (e.g., 10MB, 3 backups). | 🟢 Low | 10 min | `main.py` or logging config | → proxi_v2 |
 
 ### Part B: New Features (New Private Repo)
 
@@ -118,27 +119,34 @@ These are planned but unimplemented capabilities. Build in a new private repo, m
 
 ---
 
-## 3. Recommended Execution Order
+## 3. Additional Fixes (Done in Public Repo)
 
-### Phase 1: Security fixes in public repo (today)
-1. **A1** — Session ownership check (🔴 highest risk)
-2. **A2** — Standardize admin auth
-3. **A3** — Agent `/capabilities` auth
-4. **A4** — Agent demo endpoints auth
-
-### Phase 2: Quality fixes in public repo (this week)
-5. **A5** — Evidence persistence
-6. **A7** — Verify `"auto"` mode behavior
-7. **A6** — ThreadPoolExecutor reuse
-8. **A8** — Approval expiry cleanup
-9. **A9** — Log rotation
-
-### Phase 3: New features in private repo (post-hackathon)
-10. **B1** — RBAC enforcement
-11. **B2** — Per-session agent routing
-12. **B3** — Escalate-to-Human UI
-13. **B4-B12** — Remaining features by priority
+| Fix | Description | Status |
+|-----|-------------|--------|
+| **Deploy health check** | Scripts used `/health` instead of `/api/health` for Core — caused deploy timeouts | ✅ Done |
+| **Agent missing from deploy** | Zero-downtime deploy scripts only built core+frontend, skipped agent container (7+ days stale) | ✅ Done |
+| **Historic session UI bug** | Clicking old session fetched data (visible in network tab) but didn't render. Root cause: `liveTrace` (voice logs) not cleared on load + `sessionTimestamp` not set causing follow-up messages to wipe loaded data | ✅ Done |
+| **`docker-compose` → `docker compose`** | Migrated all scripts/docs from deprecated `docker-compose` to Docker Compose V2 `docker compose` | ✅ Done |
 
 ---
 
-*This plan reflects the split between the public hackathon repo and the planned private development repo.*
+## 4. Execution Status
+
+### Phase 1: Security fixes — ✅ Complete
+- **A1** — Session ownership check ✅
+- **A2** — Standardize admin auth → deferred to proxi_v2 (judges using magic links during hackathon)
+- **A3** — Agent `/capabilities` auth ✅
+- **A4** — Agent demo endpoints auth ✅
+
+### Phase 2: Quality + deploy fixes — Partially done
+- Deploy scripts fixed ✅
+- Historic session UI bug fixed ✅
+- **A5–A9** — Deferred to proxi_v2
+
+### Phase 3: New features in private repo (proxi_v2) — In progress
+- **A2, A5–A9** — Remaining Part A fixes
+- **B1–B12** — New features by priority
+
+---
+
+*Public repo (proxi-ai) is stable for hackathon judging. Development continues in proxi_v2.*
