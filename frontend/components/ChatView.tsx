@@ -269,6 +269,36 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
         };
         const isResponse = step.step_type === 'final_response';
         const isVerification = step.step_type === 'verification';
+        
+        // Shared ReactMarkdown component overrides
+        const mdComponents = {
+          p: ({children}: any) => <p className="mb-2 last:mb-0">{children}</p>,
+          strong: ({children}: any) => <strong className="font-semibold text-proxi-accent">{children}</strong>,
+          em: ({children}: any) => <em className="text-th-text">{children}</em>,
+          ul: ({children}: any) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+          ol: ({children}: any) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+          li: ({children}: any) => <li className="ml-2">{children}</li>,
+          code: ({children, className}: any) => {
+            const isBlock = className?.includes('language-');
+            if (className?.includes('language-mermaid')) {
+              return <MermaidDiagram chart={String(children).replace(/\n$/, '')} />;
+            }
+            return isBlock ? (
+              <code className="block bg-th-code/50 p-2 rounded my-2 font-mono text-xs overflow-x-auto whitespace-pre-wrap">{children}</code>
+            ) : (
+              <code className="bg-th-code/30 px-1 rounded font-mono text-proxi-warning">{children}</code>
+            );
+          },
+          pre: ({children}: any) => {
+            const child = React.Children.toArray(children)[0] as React.ReactElement;
+            if (child?.type === MermaidDiagram) return <>{children}</>;
+            return <pre className="bg-th-code/50 p-2 rounded my-2 overflow-x-auto">{children}</pre>;
+          },
+          h1: ({children}: any) => <h1 className="text-lg font-bold text-th-accent mb-2">{children}</h1>,
+          h2: ({children}: any) => <h2 className="text-base font-bold text-th-accent mb-2">{children}</h2>,
+          h3: ({children}: any) => <h3 className="text-sm font-bold text-th-accent mb-1">{children}</h3>,
+          blockquote: ({children}: any) => <blockquote className="border-l-2 border-th-accent pl-3 italic text-th-text-sec">{children}</blockquote>,
+        };
         const isScreenshot = step.step_type === 'status_change' && step.metadata?.screenshot;
         const isSeparator = step.step_type === 'status_change' && step.metadata?.separator;
 
@@ -375,43 +405,39 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
                       {isThought ? filterPlanText(step.content) : step.content}
                     </span>
                   ) : (
-                    // Markdown for AI responses
-                    <ReactMarkdown
-                      components={{
-                        // Style markdown elements
-                        p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
-                        strong: ({children}) => <strong className="font-semibold text-proxi-accent">{children}</strong>,
-                        em: ({children}) => <em className="text-th-text">{children}</em>,
-                        ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
-                        ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
-                        li: ({children}) => <li className="ml-2">{children}</li>,
-                        code: ({children, className}) => {
-                          const isBlock = className?.includes('language-');
-                          // Render mermaid code blocks as interactive diagrams
-                          if (className?.includes('language-mermaid')) {
-                            const chartCode = String(children).replace(/\n$/, '');
-                            return <MermaidDiagram chart={chartCode} />;
-                          }
-                          return isBlock ? (
-                            <code className="block bg-th-code/50 p-2 rounded my-2 font-mono text-xs overflow-x-auto whitespace-pre-wrap">{children}</code>
-                          ) : (
-                            <code className="bg-th-code/30 px-1 rounded font-mono text-proxi-warning">{children}</code>
-                          );
-                        },
-                        pre: ({children}) => {
-                          // If the child is a MermaidDiagram (from our code handler), don't wrap in pre
-                          const child = React.Children.toArray(children)[0] as React.ReactElement;
-                          if (child?.type === MermaidDiagram) return <>{children}</>;
-                          return <pre className="bg-th-code/50 p-2 rounded my-2 overflow-x-auto">{children}</pre>;
-                        },
-                        h1: ({children}) => <h1 className="text-lg font-bold text-th-accent mb-2">{children}</h1>,
-                        h2: ({children}) => <h2 className="text-base font-bold text-th-accent mb-2">{children}</h2>,
-                        h3: ({children}) => <h3 className="text-sm font-bold text-th-accent mb-1">{children}</h3>,
-                        blockquote: ({children}) => <blockquote className="border-l-2 border-th-accent pl-3 italic text-th-text-sec">{children}</blockquote>,
-                      }}
-                    >
-                      {isThought ? filterPlanText(step.content) : wrapUnfencedMermaid(step.content)}
-                    </ReactMarkdown>
+                    // Markdown for AI responses - extract mermaid blocks first for direct rendering
+                    (() => {
+                      const raw = isThought ? filterPlanText(step.content) : wrapUnfencedMermaid(step.content);
+                      // Split on ```mermaid ... ``` blocks for direct rendering (bypasses react-markdown code handler)
+                      const mermaidBlockRe = /```mermaid\n([\s\S]*?)```/g;
+                      const parts: Array<{type: 'text' | 'mermaid', value: string}> = [];
+                      let last = 0;
+                      let m;
+                      while ((m = mermaidBlockRe.exec(raw)) !== null) {
+                        if (m.index > last) parts.push({type: 'text', value: raw.slice(last, m.index)});
+                        parts.push({type: 'mermaid', value: m[1].replace(/\n$/, '')});
+                        last = m.index + m[0].length;
+                      }
+                      if (last < raw.length) parts.push({type: 'text', value: raw.slice(last)});
+                      // If no mermaid found, render everything as markdown
+                      if (!parts.some(p => p.type === 'mermaid')) {
+                        return (
+                          <ReactMarkdown
+                            components={mdComponents}
+                          >
+                            {raw}
+                          </ReactMarkdown>
+                        );
+                      }
+                      return (
+                        <>
+                          {parts.map((part, pi) => part.type === 'mermaid'
+                            ? <MermaidDiagram key={pi} chart={part.value} />
+                            : part.value.trim() ? <ReactMarkdown key={pi} components={mdComponents}>{part.value}</ReactMarkdown> : null
+                          )}
+                        </>
+                      );
+                    })()
                   ))
                 ) : (
                   JSON.stringify(step.content)
