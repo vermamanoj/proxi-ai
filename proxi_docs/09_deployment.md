@@ -20,7 +20,7 @@ Proxi deploys as three separate services: Frontend, Core, and Agent(s). Each has
 
 ## Docker Compose (Development / Demo)
 
-### `docker compose.yml`
+### `docker-compose.yml`
 
 ```yaml
 services:

@@ -174,7 +174,7 @@ tailscale status  # Verify connection
 
 **4. Install on Docker (Sidecar)**
 ```yaml
-# docker compose.yml
+# docker-compose.yml
 services:
   tailscale:
     image: tailscale/tailscale:latest
@@ -824,7 +824,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8081"]
 
 #### Docker Compose Setup
 ```yaml
-# docker compose.yml
+# docker-compose.yml
 version: '3.8'
 services:
   linux-agent:
@@ -879,7 +879,7 @@ location /api/linux {
 | `deploy-frontend.sh` | `scripts/` | Oracle Ubuntu frontend | Production frontend deploy |
 | `deploy-backend.ps1` | `scripts/` | Windows Server backend | Production Windows deploy |
 | `deploy-linux-agent.sh` | `scripts/` | Linux container agent | Deploy always-on Linux agent |
-| `docker compose.yml` | Root | Full stack (dev mode) | Local development |
+| `docker-compose.yml` | Root | Full stack (dev mode) | Local development |
 
 ### 5.2 Deployment Order
 

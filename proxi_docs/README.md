@@ -30,7 +30,7 @@
 - **Backend Entry**: `backend/main.py` (FastAPI, port 4000/8000)
 - **Agent Entry**: `backend/agent_server.py` (FastAPI, port 8081)
 - **Frontend Entry**: `frontend/App.tsx` (React+Vite, port 4002)
-- **Docker Compose**: `docker compose.yml`
+- **Docker Compose**: `docker-compose.yml`
 
 ## Conventions Used
 

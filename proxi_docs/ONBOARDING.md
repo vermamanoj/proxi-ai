@@ -58,7 +58,7 @@ proxi-ai/                    ← PUBLIC repo (hackathon submission)
 ├── demo-apps/               ← Functional Electron demo apps (CRM, Pricing)
 ├── scripts/                 ← Deployment and setup scripts
 ├── soc-forensics/           ← SOC forensic investigation simulation
-├── docker compose.yml       ← 3-container deployment
+├── docker-compose.yml       ← 3-container deployment
 ├── DEPLOYMENT.md            ← Detailed production deployment guide
 ├── USER_GUIDE.md            ← End-user instructions
 └── CHANGELOG.md             ← Version history

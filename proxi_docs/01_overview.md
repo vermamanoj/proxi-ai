@@ -115,7 +115,7 @@ proxi-ai/
 ├── scripts/                    # Deployment + setup scripts
 ├── deploy/                     # Nginx config
 ├── proxi_docs/                 # This documentation
-└── docker compose.yml          # Container orchestration
+└── docker-compose.yml          # Container orchestration
 ```
 
 ## Key Metrics
