@@ -53,7 +53,7 @@ sleep 10
 # Health checks
 echo "[5/5] Running health checks..."
 
-CORE_HEALTH=$(curl -s http://localhost:4000/health || echo "FAILED")
+CORE_HEALTH=$(curl -s http://localhost:4000/api/health || echo "FAILED")
 if echo "$CORE_HEALTH" | grep -q "online"; then
     echo "  ✓ Core: HEALTHY"
 else

@@ -60,18 +60,19 @@ Write-Host "`nPulling latest code..." -ForegroundColor Yellow
 git pull
 
 $services = @{
-    "core" = "http://localhost:4000/health"
+    "core" = "http://localhost:4000/api/health"
+    "agent" = "http://localhost:4001/health"
     "frontend" = "http://localhost:4002"
 }
 
 if ($Service -eq "all") {
-    foreach ($svc in @("core", "frontend")) {
+    foreach ($svc in @("core", "agent", "frontend")) {
         Deploy-Service $svc $services[$svc]
     }
 } elseif ($services.ContainsKey($Service)) {
     Deploy-Service $Service $services[$Service]
 } else {
-    Write-Host "Unknown service: $Service. Use: core, frontend, or all" -ForegroundColor Red
+    Write-Host "Unknown service: $Service. Use: core, agent, frontend, or all" -ForegroundColor Red
     exit 1
 }
 

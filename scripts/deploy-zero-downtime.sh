@@ -56,20 +56,22 @@ echo -e "\n\033[33mPulling latest code...\033[0m"
 git pull
 
 declare -A services=(
-    ["core"]="http://localhost:4000/health"
+    ["core"]="http://localhost:4000/api/health"
+    ["agent"]="http://localhost:4001/health"
     ["frontend"]="http://localhost:4002"
 )
 
 case "$SERVICE" in
     all)
         deploy_service "core" "${services[core]}"
+        deploy_service "agent" "${services[agent]}"
         deploy_service "frontend" "${services[frontend]}"
         ;;
-    core|frontend)
+    core|agent|frontend)
         deploy_service "$SERVICE" "${services[$SERVICE]}"
         ;;
     *)
-        echo -e "\033[31mUnknown service: $SERVICE. Use: core, frontend, or all\033[0m"
+        echo -e "\033[31mUnknown service: $SERVICE. Use: core, agent, frontend, or all\033[0m"
         exit 1
         ;;
 esac
