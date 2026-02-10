@@ -13,6 +13,54 @@ interface ChatViewProps {
   debugMode?: boolean;
 }
 
+/**
+ * Detect unfenced mermaid syntax in content and wrap it in ```mermaid fences.
+ * LLMs often output raw mermaid (flowchart TD, graph TD, etc.) without code fences.
+ */
+function wrapUnfencedMermaid(content: string): string {
+  // Already has fenced mermaid - skip
+  if (content.includes('```mermaid')) return content;
+
+  // Mermaid diagram start keywords
+  const mermaidStartRe = /^(graph\s+(TD|TB|BT|LR|RL)|flowchart\s+(TD|TB|BT|LR|RL)|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|mindmap)/m;
+  const match = mermaidStartRe.exec(content);
+  if (!match || match.index === undefined) return content;
+
+  const before = content.slice(0, match.index);
+  const fromStart = content.slice(match.index);
+  const lines = fromStart.split('\n');
+
+  // Mermaid-like line: indented, arrows, style, subgraph, end, %%, classDef, empty, or node defs
+  const isMermaidLine = (line: string): boolean => {
+    const t = line.trim();
+    if (t === '') return true; // blank lines inside block
+    if (t.startsWith('%%')) return true;
+    if (/^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|mindmap)\b/.test(t)) return true;
+    if (/^(subgraph|end)\b/.test(t)) return true;
+    if (/^(style|classDef|class)\s/.test(t)) return true;
+    if (/-->|---|\-\.\->|==>|--x|--o|\|/.test(t)) return true;
+    if (/^\w[\w_]*[\[\(\{<]/.test(t)) return true; // node definition
+    if (/^\s+\w/.test(line)) return true; // indented content
+    return false;
+  };
+
+  // Walk lines to find where mermaid ends
+  let endIdx = lines.length;
+  for (let i = 1; i < lines.length; i++) {
+    if (!isMermaidLine(lines[i])) {
+      // Trim trailing blank lines from the block
+      while (endIdx > i && lines[endIdx - 1].trim() === '') endIdx--;
+      endIdx = i;
+      break;
+    }
+  }
+
+  const mermaidBlock = lines.slice(0, endIdx).join('\n');
+  const after = lines.slice(endIdx).join('\n');
+
+  return `${before}\`\`\`mermaid\n${mermaidBlock}\n\`\`\`\n${after}`;
+}
+
 export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false, debugMode = false }) => {
   const endRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -362,7 +410,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ trace, isProcessing = false,
                         blockquote: ({children}) => <blockquote className="border-l-2 border-th-accent pl-3 italic text-th-text-sec">{children}</blockquote>,
                       }}
                     >
-                      {isThought ? filterPlanText(step.content) : step.content}
+                      {isThought ? filterPlanText(step.content) : wrapUnfencedMermaid(step.content)}
                     </ReactMarkdown>
                   ))
                 ) : (

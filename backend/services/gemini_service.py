@@ -1853,7 +1853,11 @@ class GeminiService:
                         name=function_calls[i].name,
                         response={"result": str(res)}
                     )))
-                    yield json.dumps({"type": "tool_result", "name": name, "content": str(res)[:500]}) + "\n"
+                    # Don't truncate diagram content (closing ``` fence gets clipped)
+                    res_preview = str(res)
+                    if '```mermaid' not in res_preview and 'ATTACK_PATH_DIAGRAM' not in res_preview:
+                        res_preview = res_preview[:500]
+                    yield json.dumps({"type": "tool_result", "name": name, "content": res_preview}) + "\n"
 
                 # Check if we hit tool limit and need to break outer loop too
                 if total_tool_calls >= max_tool_calls:
