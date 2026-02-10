@@ -130,6 +130,7 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
     pendingAction,
     setLastTrace,
     setSessionId,
+    setSessionTimestamp,
   } = useProxiBrain(audioEnabled, activeWorkstation?.id || null);
 
   const {
@@ -302,10 +303,15 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
         };
       });
       
-      // Set trace directly - avoid race condition with async brainClearSession
-      // which internally calls setLastTrace([]) that can overwrite our data
+      // Clear live voice logs so they don't contaminate displayTrace
+      // (displayTrace = [...liveTrace, ...lastTrace] with content dedup)
+      liveLoadSession([]);
+      
+      // Set loaded session data into brain trace
       setLastTrace(traceSteps);
       setSessionId(session.id);
+      // Prevent sendCommand from considering session expired and wiping trace
+      setSessionTimestamp(Date.now());
       console.log('[Session] Loaded session:', session.id, traceSteps.length, 'messages');
       setSidebarOpen(false);
     } catch (e) {

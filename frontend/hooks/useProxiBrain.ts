@@ -761,6 +761,7 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
     stopExecution,
     // Expose setters for loading historic sessions
     setLastTrace,
-    setSessionId
+    setSessionId,
+    setSessionTimestamp
   };
 };
