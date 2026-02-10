@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { ZoomIn, X, AlertTriangle } from 'lucide-react';
+import { ZoomIn, X } from 'lucide-react';
 import mermaid from 'mermaid';
 
 interface MermaidDiagramProps {
@@ -14,6 +14,7 @@ function ensureMermaidInit() {
     startOnLoad: false,
     theme: 'dark',
     securityLevel: 'loose',
+    suppressErrorRendering: true,
     flowchart: { htmlLabels: true, curve: 'basis' },
     fontFamily: 'ui-sans-serif, system-ui, sans-serif',
   });
@@ -71,17 +72,24 @@ function sanitizeMermaidSyntax(chart: string): string {
   // 9. Fix unbalanced quotes by removing incomplete ones at end of lines
   sanitized = sanitized.replace(/"([^"\n]*)\n/g, '"$1"\n');
 
-  // 10. Remove backticks that LLMs sometimes add
+  // 10. Rename reserved 'title' node ID (reserved in mermaid v10+, breaks parsing)
+  // Handles old sessions that used 'title' as a node ID before backend fix
+  sanitized = sanitized.replace(/^(\s*)title(\s*\[)/gm, '$1CHART_TITLE$2');
+  sanitized = sanitized.replace(/^(\s*style\s+)title(\s)/gm, '$1CHART_TITLE$2');
+  sanitized = sanitized.replace(/^(\s*)title(\s*-)/gm, '$1CHART_TITLE$2');
+  sanitized = sanitized.replace(/(-->\s*)title(\s*)$/gm, '$1CHART_TITLE$2');
+
+  // 11. Remove backticks that LLMs sometimes add
   sanitized = sanitized.replace(/```mermaid\n?/gi, '');
   sanitized = sanitized.replace(/```\n?/g, '');
 
-  // 11. Fix "Port XXXX" pattern that often causes parse errors
+  // 12. Fix "Port XXXX" pattern that often causes parse errors
   sanitized = sanitized.replace(/Port\s+(\d+)/gi, 'Port $1');
 
-  // 12. Normalize line endings (but preserve indentation for readability)
+  // 13. Normalize line endings (but preserve indentation for readability)
   sanitized = sanitized.replace(/\r\n/g, '\n');
 
-  // 13. Remove empty lines that can cause issues
+  // 14. Remove empty lines that can cause issues
   sanitized = sanitized.replace(/\n\s*\n/g, '\n');
 
   return sanitized.trim();
@@ -122,15 +130,8 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
   if (!chart?.trim()) return null;
 
   if (error) {
-    return (
-      <div className="my-3 bg-red-900/20 border border-red-800 rounded-lg p-3 text-red-400 text-xs">
-        <div className="flex items-center gap-2 mb-2">
-          <AlertTriangle className="w-4 h-4" />
-          <span className="font-semibold">Diagram render failed</span>
-        </div>
-        <pre className="text-xs opacity-70 overflow-x-auto whitespace-pre-wrap">{chart}</pre>
-      </div>
-    );
+    // Silently hide failed diagrams — don't distract from the conversation
+    return null;
   }
 
   return (
