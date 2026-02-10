@@ -12,7 +12,21 @@ interface MermaidDiagramProps {
 function sanitizeMermaidSyntax(chart: string): string {
   let sanitized = chart;
 
-  // 1. Fix parentheses inside double-quoted strings (edge labels)
+  // 1. Strip HTML tags (e.g. <br/>, <small>, </small>) - mermaid.ink can't parse them in labels
+  sanitized = sanitized.replace(/<br\s*\/?>/gi, ' - ');
+  sanitized = sanitized.replace(/<\/?[a-z][a-z0-9]*[^>]*>/gi, '');
+
+  // 2. Remove emoji characters that mermaid.ink may not support
+  sanitized = sanitized.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '');
+
+  // 3. Fix parentheses inside node labels [...] - mermaid interprets () as shape delimiters
+  // Process each line: if it has a node definition like ID[...] or ID["..."], escape parens in label
+  sanitized = sanitized.replace(/^(\s*\w+)\[([^\]]+)\]/gm, (match, id, label) => {
+    const safe = label.replace(/\(/g, ' ').replace(/\)/g, ' ');
+    return `${id}[${safe}]`;
+  });
+
+  // 4. Fix parentheses inside double-quoted strings (edge labels)
   sanitized = sanitized.replace(/"([^"]+)"/g, (match, content) => {
     const cleaned = content
       .replace(/\(/g, ' - ')
@@ -22,38 +36,38 @@ function sanitizeMermaidSyntax(chart: string): string {
     return `"${cleaned}"`;
   });
 
-  // 2. Fix square brackets inside node labels - convert to parentheses
+  // 5. Fix square brackets inside node labels - convert to parentheses
   // Pattern: A[Text [with] brackets] -> A[Text with brackets]
   sanitized = sanitized.replace(/\[([^\]]*)\[([^\]]*)\]([^\]]*)\]/g, '[$1$2$3]');
 
-  // 3. Remove HTML entities that break parsing
+  // 6. Remove HTML entities that break parsing
   sanitized = sanitized.replace(/&[a-z]+;/gi, ' ');
   sanitized = sanitized.replace(/&#\d+;/g, ' ');
 
-  // 4. Fix common arrow typos
+  // 7. Fix common arrow typos
   sanitized = sanitized.replace(/-->/g, '-->');  // Normalize arrows
   sanitized = sanitized.replace(/-\s+->/g, '-->');  // "- ->" -> "-->"
   sanitized = sanitized.replace(/=\s+=>/g, '==>');  // "= =>" -> "==>"
 
-  // 5. Remove problematic characters in node IDs (keep alphanumeric and underscore)
+  // 8. Remove problematic characters in node IDs (keep alphanumeric and underscore)
   // Fix: node-name -> node_name (hyphens in IDs can cause issues)
   sanitized = sanitized.replace(/([A-Za-z])[\-]([A-Za-z])/g, '$1_$2');
 
-  // 6. Fix unbalanced quotes by removing incomplete ones at end of lines
+  // 9. Fix unbalanced quotes by removing incomplete ones at end of lines
   sanitized = sanitized.replace(/"([^"\n]*)\n/g, '"$1"\n');
 
-  // 7. Remove backticks that LLMs sometimes add
+  // 10. Remove backticks that LLMs sometimes add
   sanitized = sanitized.replace(/```mermaid\n?/gi, '');
   sanitized = sanitized.replace(/```\n?/g, '');
 
-  // 8. Fix "Port XXXX" pattern that often causes parse errors
+  // 11. Fix "Port XXXX" pattern that often causes parse errors
   sanitized = sanitized.replace(/Port\s+(\d+)/gi, 'Port $1');
 
-  // 9. Clean up multiple spaces and normalize line endings
+  // 12. Clean up multiple spaces and normalize line endings
   sanitized = sanitized.replace(/[ \t]+/g, ' ');
   sanitized = sanitized.replace(/\r\n/g, '\n');
 
-  // 10. Remove empty lines that can cause issues
+  // 13. Remove empty lines that can cause issues
   sanitized = sanitized.replace(/\n\s*\n/g, '\n');
 
   return sanitized.trim();

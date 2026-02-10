@@ -1192,7 +1192,8 @@ class GeminiService:
         """
         # Build Mermaid flowchart
         lines = ["```mermaid", "flowchart TD"]
-        lines.append(f"    title[{title}]")
+        safe_title = title.replace('(', ' ').replace(')', ' ').replace('"', "'")
+        lines.append(f'    title["{safe_title}"]')
         lines.append("    style title fill:#1a1a2e,stroke:#6366f1,color:#fff")
         
         # Node type styles
@@ -1211,12 +1212,16 @@ class GeminiService:
             label = stage.get("label", stage_id)
             stage_type = stage.get("type", "default")
             
-            # Add annotation if present
+            # Add annotation if present (plain text only - no HTML/emoji for mermaid.ink compat)
             if annotations and stage_id in annotations:
-                label = f"{label}<br/><small>📎 {annotations[stage_id]}</small>"
+                note = str(annotations[stage_id]).replace('(', ' ').replace(')', ' ').replace('"', "'")
+                label = f"{label} | {note}"
             
-            # Define node
-            lines.append(f"    {stage_id}[{label}]")
+            # Escape parens in label (mermaid interprets () as shape delimiters)
+            safe_label = label.replace('(', ' ').replace(')', ' ').replace('"', "'")
+            
+            # Define node with double-quoted label for safety
+            lines.append(f'    {stage_id}["{safe_label}"]')
             
             # Apply style based on type
             style = type_styles.get(stage_type, type_styles["default"])
