@@ -1,28 +1,28 @@
-# Proxi: From Advice to Action. Finally.
+# Proxi — Verified Execution for Real Computers
 
-> **Your AI that executes real work on real computers — with proof and control.**
+> **Proxi executes real work on real systems — safely, verifiably, and under human control.**
+>
+> *When APIs don't exist and trust still matters.*
 
 [![Google Gemini](https://img.shields.io/badge/Powered%20by-Gemini%203-4285F4?logo=google)](https://ai.google.dev/)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?logo=fastapi)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev)
+[![Live Demo](https://img.shields.io/badge/Live-proxi.audista.com-green)](https://proxi.audista.com)
 
 ---
 
 ## The Problem
 
-**AI can think. Work still needs keyboards.**
+**AI can reason. Execution still happens behind keyboards.**
 
-AI assistants stop at suggestions. They tell you *what* to do, but you still have to do it yourself — navigate apps, click buttons, copy data between tools.
+AI assistants stop at suggestions. They tell you *what* to do, but you still have to do it yourself — navigate apps, click buttons, copy data between tools. Especially with legacy systems that have no APIs.
 
 ## The Solution
 
-**Proxi executes on real computers from your phone.**
+**Command from your phone. Execute on your desktop. Stay in control.**
 
-- Controls desktop apps, browsers, terminals
-- Works with legacy systems and tools without APIs
-- Executes multi-step workflows end-to-end
-- Verifies outcomes with screenshots before reporting success
+Proxi navigates real desktop apps, browsers, and terminals — including legacy systems without APIs. It executes multi-step workflows end-to-end and proves completion with visual evidence.
 
 ---
 
@@ -30,38 +30,35 @@ AI assistants stop at suggestions. They tell you *what* to do, but you still hav
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                              📱 YOUR PHONE                                    │
-│                     Voice Commands / Text / Image Upload                      │
-└────────────────────────────────────┬─────────────────────────────────────────┘
+│                              📱 YOUR PHONE                                  │
+│                     Voice Commands / Text / Image Upload                    │
+└────────────────────────────────────┬───────────────────────────────────────┘
                                      │ HTTPS
                                      ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                        ⚡ PROXI CORE (Port 4000)                              │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐              │
-│  │  🧠 Gemini 3    │  │  🔐 Auth &      │  │  📋 Mission     │              │
-│  │  Orchestration  │  │  Sessions       │  │  Tracking       │              │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘              │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐              │
-│  │  🛡️ Command     │  │  🔀 Agent       │  │  ✅ Verifiable  │              │
-│  │  Guard          │  │  Router         │  │  Agent          │              │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘              │
-│                              SAFE ZONE (API Keys, User Data)                 │
-└────────────────────────────────────┬─────────────────────────────────────────┘
+│                        ⚡ PROXI CORE (Port 4000)                            │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐            │
+│  │  🧠 Gemini 3    │  │  🔐 Auth &      │  │  📋 Mission     │            │
+│  │  Orchestration  │  │  Sessions       │  │  Tracking       │            │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘            │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐            │
+│  │  🛡️ Command     │  │  🔀 Agent       │  │  ✅ Verifiable  │            │
+│  │  Guard          │  │  Router         │  │  Agent          │            │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘            │
+│                           SAFE ZONE (API Keys, User Data)                  │
+└────────────────────────────────────┬───────────────────────────────────────┘
                                      │ HTTP /execute
                     ┌────────────────┴────────────────┐
                     ▼                                 ▼
 ┌───────────────────────────────┐   ┌───────────────────────────────┐
-│   🐧 LINUX AGENT (Port 4001)  │   │   🪟 WINDOWS AGENT (Port 8081)│
-│   ┌─────────────────────────┐ │   │   ┌─────────────────────────┐ │
-│   │  Terminal / Git / Python│ │   │   │  Desktop / Office / CRM │ │
-│   │  Docker / DevOps        │ │   │   │  Legacy Enterprise Apps │ │
-│   └─────────────────────────┘ │   └───│  GUI Automation         │ │
-│   ISOLATED (No Keys, No DB)   │       └─────────────────────────┘ │
-└───────────────────────────────┘       ISOLATED (No Keys, No DB)   │
-                                  └───────────────────────────────────┘
+│   🐧 LINUX AGENT (Port 4001) │   │   🪟 WINDOWS AGENT (Port 8081)│
+│   Terminal / Git / Docker     │   │   Desktop / Office / CRM      │
+│   DevOps / Python             │   │   Legacy Apps / GUI Automation│
+│   ISOLATED (No Keys, No DB)  │   │   ISOLATED (No Keys, No DB)  │
+└───────────────────────────────┘   └───────────────────────────────┘
 ```
 
-**Security Split:** If an agent is compromised, only that agent is affected. Core (with API keys, user data) stays safe.
+**Security Split:** Core holds all secrets. Agents execute tools in isolation. If an agent is compromised, Core (with API keys, user data) stays safe.
 
 ---
 
@@ -70,9 +67,9 @@ AI assistants stop at suggestions. They tell you *what* to do, but you still hav
 Most agents claim success. **Proxi proves it.**
 
 ### Verified Execution
-- 📸 **Screenshots as evidence** — Visual proof of completed actions
-- 📱 **Confirmation on mobile** — See results before marking complete
-- ❌ **No "agent said it worked"** — Independent verification
+- 📸 **Screenshots as evidence** — visual proof of completed actions
+- 📱 **Visual confirmation on your phone** — see results before marking complete
+- ❌ **No "agent said it worked"** — independent verification via Triple Handshake
 
 ### Safety & Control (Command Guard)
 
@@ -86,18 +83,16 @@ Most agents claim success. **Proxi proves it.**
 
 ---
 
-## 🧠 How Proxi Thinks (Gemini 3)
+## 🧠 Why Gemini Changes Everything
 
-**Example:** "What's the approved minimum margin for this customer?"
+No hardcoded scripts. No brittle selectors. Proxi reasons through what it sees.
 
-```
-1. Proxi opens the CRM
-2. Navigates to pricing tabs
-3. Checks policy documents
-4. Confirms the answer with a screenshot ✓
-```
-
-This shows **exploration + reasoning + verification** — not blind automation.
+| Capability | How It Works |
+|-----------|-------------|
+| **Multimodal Vision** | Reads live screenshots like a human — understands UI layout, text, error messages |
+| **On-the-Fly Reasoning** | Decides next action based on visual feedback. Adapts when UIs change |
+| **Native Function Calling** | Executes desktop tools via Gemini's native tool-use. No LangChain wrappers |
+| **Long Context Memory** | Maintains full workflow history across complex multi-step tasks |
 
 ---
 
@@ -110,6 +105,8 @@ Proxi understands the state of your machine.
 | 🔓 **Desktop Unlocked** | Full UI control — mouse, keyboard, apps |
 | 🔒 **Desktop Locked** | Terminal fallback — commands still work |
 
+**Share files both ways** — send screenshots from your phone to the desktop, receive results and exports back.
+
 ---
 
 ## ✨ Key Features
@@ -117,17 +114,13 @@ Proxi understands the state of your machine.
 | Feature | Description |
 |---------|-------------|
 | **Mobile-First Control** | Control your office machine from your phone |
-| **Voice Commands** | Real-time via Gemini Live WebRTC |
+| **Voice Commands** | Real-time via Gemini Live Native Audio (WebRTC) |
 | **48+ Tools** | System, desktop, PowerPoint, charts, SmartArt |
 | **Multi-Workstation** | Switch between Windows/Linux agents |
 | **Session Persistence** | Pick up where you left off |
 | **Transparency Protocol** | Agent explains reasoning before every action |
-
----
-
-## 🎯 Real-World Inspiration
-
-The idea came from real moments — like negotiating pricing in a meeting without a laptop, knowing the data was sitting on a computer back at the office.
+| **Image Upload + Action** | Send photos from mobile, agent analyzes AND acts |
+| **SOC Forensics** | Multi-platform security investigation simulation |
 
 ---
 
@@ -143,26 +136,15 @@ The idea came from real moments — like negotiating pricing in a meeting withou
 
 ---
 
+## 🎯 Real-World Inspiration
+
+The idea came from real moments — like negotiating pricing in a meeting without a laptop, knowing the data was sitting on a computer back at the office.
+
+---
+
 ## Quick Start
 
-### Option 1: Windows (Recommended for Desktop Control)
-
-```powershell
-# 1. Clone the repository
-git clone https://github.com/vermamanoj/proxi-ai.git
-cd proxi-ai
-
-# 2. Run setup (as Administrator)
-.\setup_windows.ps1
-
-# 3. Edit .env with your API key
-notepad .env
-
-# 4. Start the server
-.\run_proxi.bat
-```
-
-### Option 2: Docker Compose (Recommended)
+### Docker Compose (Recommended)
 
 ```bash
 # 1. Clone and configure
@@ -182,157 +164,46 @@ docker-compose ps
 | Service | Port | Purpose |
 |---------|------|---------|
 | `core` | 4000 | Orchestration, LLM, Auth |
-| `agent` | 4001 | Isolated tool execution |
+| `agent` | 4001 | Isolated tool execution (Linux) |
 | `frontend` | 4002 | React UI |
 
-### Option 2b: Manual Docker (Individual Containers)
+### Windows Development
 
-```bash
-# Build images
-docker build -t proxi-core -f backend/Dockerfile backend/
-docker build -t proxi-agent -f backend/Dockerfile.agent backend/
+```powershell
+# 1. Clone the repository
+git clone https://github.com/vermamanoj/proxi-ai.git
+cd proxi-ai
 
-# Run Core (needs API key)
-docker run -d --name proxi-core -p 4000:8000 \
-  -e GEMINI_API_KEY=your_key_here \
-  proxi-core
+# 2. Run setup (as Administrator)
+.\setup_windows.ps1
 
-# Run Agent (isolated, no API key needed)
-docker run -d --name proxi-agent -p 4001:8081 proxi-agent
+# 3. Edit .env with your API key
+notepad .env
 
-# Check logs
-docker logs proxi-core --tail 20
-```
-
-### Option 3: Development Mode
-
-```bash
-# Backend (Core)
+# 4. Start backend
 cd backend
 pip install -r requirements.txt
 uvicorn backend.main:app --reload --port 8000
 
-# Frontend (separate terminal)
+# 5. Start frontend (separate terminal)
 cd frontend
 npm install
 npm run dev
 ```
 
----
+### Configuration
 
-## Configuration
-
-Create a `.env` file in the project root:
+Create a `.env` file in the project root (see `.env.example`):
 
 ```ini
-# Required (Core only - Agent doesn't need this)
+# Required
 GEMINI_API_KEY=your_gemini_api_key_here
 
-# Optional integrations
+# Agent authentication
+PROXI_AGENT_KEY=your_shared_secret_here
+
+# Optional
 GITHUB_TOKEN=your_github_token_here
-```
-
-### Architecture (Security Split)
-
-```
-┌─────────────┐         ┌─────────────┐
-│  PROXI CORE │───HTTP──│ PROXI AGENT │
-│  Port 4000  │         │  Port 4001  │
-├─────────────┤         ├─────────────┤
-│ ✓ API Keys  │         │ ✗ No keys   │
-│ ✓ User DB   │         │ ✗ No DB     │
-│ ✓ LLM calls │         │ ✓ Tools only│
-└─────────────┘         └─────────────┘
-   SAFE ZONE            BLAST RADIUS
-```
-
-**Why?** If LLM tool execution is compromised, only Agent is affected. Core (with API keys, user data) stays safe.
-
----
-
-## Features
-
-### 🎯 Verifiable Agent (Triple Handshake)
-Proxi never blindly trusts its own output. State-changing actions go through:
-1. **Assign** - Define goal + verification criteria (process_killed, file_exists)
-2. **Execute** - Run tools with transparency
-3. **Verify** - Independent system check confirms actual state
-4. **Judge** - Pass, retry, or escalate
-
-### 🛡️ Command Guard (Security Layer)
-- Automatic approval gates for destructive commands (kill, delete, stop)
-- Session-based approval tracking
-- Blocked commands for dangerous operations
-
-### 🖥️ Desktop Control (Ghost Mode)
-- Mouse clicks, drags, scrolling
-- Keyboard typing and hotkeys
-- Screenshot + Vision analysis
-- Windows UI automation
-- Window management (focus, list, position)
-
-### 📷 Image Upload + Action
-- Upload images from mobile camera
-- Agent can analyze AND take action on images
-- Save uploaded images to desktop
-- Staged upload UX (preview before submit)
-
-### 📱 Mobile Telepresence
-- Access via any browser
-- Voice commands (Gemini Live)
-- Real-time status streaming
-- Session persistence (5-minute TTL for follow-ups)
-- **Chat/Remote mode toggle** - Chat (voice only) vs Remote (desktop control)
-- Mic and Speaker controls (separate toggles)
-- Collapsible Mission panel with goal progress
-- Collapsible tool outputs in chat
-- Approval modal for destructive commands
-
-### 📊 PowerPoint Automation
-- Get/set active presentation
-- Navigate, duplicate, delete slides
-- Edit text shapes by name
-- Create business documents on-the-fly
-
-### 🔍 Transparency Protocol
-The agent explains reasoning before every action:
-```
-Agent: "I will check system health to assess CPU usage..."
-Tool:  get_system_health() → {'cpu_percent': 99.8}
-Agent: "CPU critical. Identifying culprit process..."
-Tool:  run_terminal_command("top") → ffmpeg at 99.8%
-Agent: "Terminating ffmpeg to resolve spike..."
-```
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  FRONTEND (React + Vite) - Port 4002                    │
-│  ├── Voice Input (Gemini Live WebRTC)                  │
-│  ├── Neural Trace (Real-time thought visualization)    │
-│  ├── Agent Selector (switch target workstations)       │
-│  └── Mission Control (Status dashboard)                │
-└─────────────────────────────────────────────────────────┘
-                          │ HTTPS/WebSocket
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  PROXI CORE (FastAPI) - Port 4000                       │
-│  ├── GeminiService (AI orchestration, 48+ tools)        │
-│  ├── Orchestrator (Mission tracking, verification)     │
-│  ├── Auth & Sessions (user management)                 │
-│  └── Agent Proxy (routes tools to selected agent)      │
-└─────────────────────────────────────────────────────────┘
-                          │ HTTP /execute
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│  PROXI AGENT (Isolated) - Port 4001                     │
-│  ├── DesktopService (tool execution only)              │
-│  ├── No API keys, No DB, No user data                  │
-│  └── Blast radius limited if compromised               │
-└─────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -346,64 +217,75 @@ Agent: "Terminating ffmpeg to resolve spike..."
 | `/api/health` | GET | System health check |
 | `/api/sessions` | GET/POST | Session management |
 | `/api/workstations` | GET | List registered agents |
-| `/api/workstations/{id}/activate` | POST | Set active agent for tools |
-| `/api/workstations/deactivate` | POST | Use local execution |
+| `/api/workstations/{id}/activate` | POST | Set active agent |
+| `/api/vision` | POST | Screenshot + vision analysis |
+| `/api/files/upload` | POST | Upload file to agent |
+| `/api/files/download` | POST | Download file from agent |
 
-### Agent (Port 4001)
+### Agent (Port 4001/8081)
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Agent health status |
 | `/execute` | POST | Execute a tool |
 | `/capabilities` | GET | List available tools |
-
----
-
-## Troubleshooting
-
-### Backend won't start
-```bash
-# Check Python version (need 3.12+)
-python --version
-
-# Reinstall dependencies
-pip install -r backend/requirements.txt
-```
-
-### "API Key Missing" error
-- Ensure `.env` file exists in project root
-- Check encoding (must be UTF-8, not UTF-16)
-- Verify key format: `GEMINI_API_KEY=AIza...`
-
-### Desktop control not working
-- Windows: Run as Administrator
-- Must be in interactive session (not SSH)
-- Ensure agent is running and activated
-
-### Frontend can't connect to backend
-- Verify Core is running: `docker logs proxi-core`
-- Check ports: Core=4000, Agent=4001, Frontend=4002
-- Try `http://localhost:4000/api/health` directly
+| `/ground` | POST | Visual grounding (Windows only) |
 
 ---
 
 ## Documentation
 
+Comprehensive documentation is in the [`proxi_docs/`](./proxi_docs/) folder:
+
 | Document | Description |
 |----------|-------------|
-| [Architecture](./docs/ARCHITECTURE.md) | System design, security split, API contracts |
-| [Deployment](./docs/DEPLOY_OPS.md) | Docker, Tailscale, production setup |
-| [Features](./docs/FEATURES.md) | Implementation status tracker |
-| [Security](./docs/SECURITY_ROADMAP.md) | Security roadmap and hardening |
-| [Hackathon](./docs/HACKATHON_CHECKLIST.md) | Submission checklist |
-| [User Guide](./USER_GUIDE.md) | Usage instructions |
-| [Demo Script](./DEMO_SCRIPT.md) | Hackathon demo scenario |
-| [Changelog](./CHANGELOG.md) | Version history |
+| [Overview](./proxi_docs/01_overview.md) | Project summary, tech stack, value proposition |
+| [Architecture](./proxi_docs/02_architecture.md) | Security-first split design, component flow |
+| [Backend Services](./proxi_docs/03_backend_services.md) | Core services, Gemini orchestration |
+| [Agent System](./proxi_docs/04_agent_system.md) | Agent protocol, desktop services, proxy pattern |
+| [Tools Reference](./proxi_docs/05_tools_reference.md) | All 48+ tools with parameters |
+| [Security](./proxi_docs/06_security.md) | Auth, command guard, threat model |
+| [Prompt Engineering](./proxi_docs/07_prompt_engineering.md) | Modular prompts, modes, model config |
+| [Database](./proxi_docs/08_database.md) | SQLite schema, sessions, missions |
+| [Deployment](./proxi_docs/09_deployment.md) | Docker, production, Windows agent setup |
+| [Developer Guide](./proxi_docs/10_developer_guide.md) | Contributing, code structure, conventions |
+| [Additional Context](./proxi_docs/11_additional_context.md) | Project history, evolution, decisions |
+
+Also see:
+- [User Guide](./USER_GUIDE.md) — End-user usage instructions
+- [Deployment Guide](./DEPLOYMENT.md) — Detailed production deployment
+- [Changelog](./CHANGELOG.md) — Version history
+
+---
+
+## Troubleshooting
+
+| Issue | Fix |
+|-------|-----|
+| **Backend won't start** | Check Python 3.12+: `python --version`. Reinstall: `pip install -r backend/requirements.txt` |
+| **"API Key Missing"** | Ensure `.env` exists in root, UTF-8 encoding, format: `GEMINI_API_KEY=AIza...` |
+| **Desktop control not working** | Windows: Run as Administrator. Must be interactive session (not SSH). |
+| **Frontend can't connect** | Check ports: Core=4000, Agent=4001, Frontend=4002. Try `http://localhost:4000/api/health` |
+| **Agent 401 Unauthorized** | Ensure `PROXI_AGENT_KEY` matches between Core and Agent `.env` files |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **AI** | Gemini 3 Flash/Pro Preview, Vision, Native Audio |
+| **Backend** | Python 3.12, FastAPI, google-generativeai SDK |
+| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS |
+| **Desktop** | PyAutoGUI, PyWinAuto, psutil |
+| **Voice** | Gemini 2.5 Live Native Audio (WebRTC) |
+| **Database** | SQLite (sessions, missions, evidence) |
+| **Deployment** | Docker Compose, Nginx, Cloudflare |
 
 ---
 
 ## License
 
-MIT License - See [LICENSE](./LICENSE) for details.
+MIT License — See [LICENSE](./LICENSE) for details.
 
 ---
 
@@ -414,3 +296,5 @@ Built for the **Google Gemini Hackathon** using:
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [React](https://react.dev/)
 - [PyAutoGUI](https://pyautogui.readthedocs.io/)
+
+**Supports Windows and Linux systems deployed on your infrastructure. Built for real-world constraints.**
