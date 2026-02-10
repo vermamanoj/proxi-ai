@@ -1898,7 +1898,9 @@ class GeminiService:
                 yield json.dumps({"type": "final_response", "content": summary}) + "\n"
                 log_system(f"Generated fallback response: {summary}", "RESPONSE")
             
-            yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
+            # Use 'stalled' phase when limits hit so frontend shows Continue button
+            end_phase = "stalled" if (hit_tool_limit or (not last_activity_had_response and turn >= max_turns - 1)) else "idle"
+            yield json.dumps({"type": "status_change", "phase": end_phase}) + "\n"
 
         except Exception as e:
             log_system(f"HIVE ERROR: {e}", "ERR")
