@@ -84,6 +84,16 @@ async def require_auth(request: Request, require_admin: bool = False) -> dict:
     
     return {"username": user.username, "role": user.role, "display_name": user.display_name}
 
+async def require_session_owner(request: Request, session_id: str) -> tuple:
+    """Verify authenticated user owns the session. Admins bypass. Returns (user_dict, session_dict)."""
+    user = await require_auth(request)
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if user["role"] != "admin" and session.get("user_id") and session["user_id"] != user["username"]:
+        raise HTTPException(status_code=403, detail="Access denied: not your session")
+    return user, session
+
 @app.get("/")
 async def root():
     import platform
@@ -668,17 +678,14 @@ async def create_new_session(request: Request):
 
 @app.get("/api/sessions/{session_id}")
 async def get_session_details(session_id: str, request: Request):
-    """Get a session by ID. Requires auth."""
-    await require_auth(request)
-    session = get_session(session_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    """Get a session by ID. Requires auth + ownership."""
+    _, session = await require_session_owner(request, session_id)
     return session
 
 @app.put("/api/sessions/{session_id}")
 async def update_session_data(session_id: str, request: Request):
-    """Update session data. Requires auth."""
-    await require_auth(request)
+    """Update session data. Requires auth + ownership."""
+    await require_session_owner(request, session_id)
     data = await request.json()
     update_session(
         session_id,
@@ -692,39 +699,39 @@ async def update_session_data(session_id: str, request: Request):
 
 @app.post("/api/sessions/{session_id}/cancel")
 async def cancel_session(session_id: str, request: Request):
-    """Cancel/stop an active session's execution. Requires auth."""
-    await require_auth(request)
+    """Cancel/stop an active session's execution. Requires auth + ownership."""
+    await require_session_owner(request, session_id)
     gemini_service.cancelled_sessions.add(session_id)
     return {"session_id": session_id, "status": "cancellation_requested"}
 
 @app.post("/api/sessions/{session_id}/messages")
 async def add_session_message(session_id: str, request: Request):
-    """Append a message to session history. Requires auth."""
-    await require_auth(request)
+    """Append a message to session history. Requires auth + ownership."""
+    await require_session_owner(request, session_id)
     message = await request.json()
     append_session_message(session_id, message)
     return {"status": "added"}
 
 @app.post("/api/sessions/{session_id}/goals")
 async def add_session_goal(session_id: str, request: Request):
-    """Append a goal to session. Requires auth."""
-    await require_auth(request)
+    """Append a goal to session. Requires auth + ownership."""
+    await require_session_owner(request, session_id)
     goal = await request.json()
     append_session_goal(session_id, goal)
     return {"status": "added"}
 
 @app.put("/api/sessions/{session_id}/goals/{goal_id}")
 async def update_goal_status(session_id: str, goal_id: str, request: Request):
-    """Update a goal's status. Requires auth."""
-    await require_auth(request)
+    """Update a goal's status. Requires auth + ownership."""
+    await require_session_owner(request, session_id)
     data = await request.json()
     update_session_goal(session_id, goal_id, data.get("status"), data.get("result"))
     return {"status": "updated"}
 
 @app.post("/api/sessions/{session_id}/close")
 async def close_session_endpoint(session_id: str, request: Request):
-    """Close a session. Requires auth."""
-    await require_auth(request)
+    """Close a session. Requires auth + ownership."""
+    await require_session_owner(request, session_id)
     close_session(session_id)
     return {"session_id": session_id, "status": "closed"}
 
@@ -735,8 +742,8 @@ IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 @app.post("/api/sessions/{session_id}/images")
 async def upload_session_image(session_id: str, request: Request):
-    """Upload an image for a session. Requires auth."""
-    await require_auth(request)
+    """Upload an image for a session. Requires auth + ownership."""
+    await require_session_owner(request, session_id)
     import base64
     import uuid
     
@@ -770,8 +777,8 @@ async def upload_session_image(session_id: str, request: Request):
 
 @app.get("/api/sessions/{session_id}/images")
 async def list_session_images(session_id: str, request: Request):
-    """Get all images for a session. Requires auth."""
-    await require_auth(request)
+    """Get all images for a session. Requires auth + ownership."""
+    await require_session_owner(request, session_id)
     images = get_session_images(session_id)
     for img in images:
         img["url"] = f"/api/images/{img['image_id']}"

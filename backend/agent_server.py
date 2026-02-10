@@ -627,7 +627,7 @@ ONLY output the JSON, no other text."""
 
 
 @app.get("/capabilities")
-async def get_capabilities():
+async def get_capabilities(_: bool = Depends(verify_agent_key)):
     """List available tools on this agent."""
     ds = get_desktop_service(allow_local=True)
     
@@ -657,7 +657,7 @@ async def get_capabilities():
 # --- Demo Tools (for simulating incidents) ---
 
 @app.post("/demo/trigger_incident")
-async def trigger_incident():
+async def trigger_incident(_: bool = Depends(verify_agent_key)):
     """Simulate a high-CPU incident for demo purposes."""
     ds = get_desktop_service(allow_local=True)
     if hasattr(ds, 'trigger_incident'):
@@ -666,7 +666,7 @@ async def trigger_incident():
     return {"status": "not_supported"}
 
 @app.post("/demo/resolve_incident")
-async def resolve_incident():
+async def resolve_incident(_: bool = Depends(verify_agent_key)):
     """Resolve simulated incident."""
     ds = get_desktop_service(allow_local=True)
     if hasattr(ds, 'resolve_incident'):
