@@ -1,13 +1,9 @@
-import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import mermaid from 'mermaid';
-import { ZoomIn, X } from 'lucide-react';
+import React, { useRef, useState, useMemo } from 'react';
+import { ZoomIn, X, AlertTriangle } from 'lucide-react';
 
 interface MermaidDiagramProps {
   chart: string;
 }
-
-// Track rendered diagrams as data URLs to avoid re-rendering
-const renderedCache = new Map<string, string>();
 
 /**
  * Sanitize mermaid syntax to fix common LLM output issues.
@@ -63,135 +59,79 @@ function sanitizeMermaidSyntax(chart: string): string {
   return sanitized.trim();
 }
 
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'dark',
-  themeVariables: {
-    primaryColor: '#6366f1',
-    primaryTextColor: '#fff',
-    primaryBorderColor: '#4f46e5',
-    lineColor: '#6366f1',
-    secondaryColor: '#1e1b4b',
-    tertiaryColor: '#312e81',
-    background: '#0f0f0f',
-    mainBkg: '#1a1a2e',
-    nodeBorder: '#4f46e5',
-    clusterBkg: '#1a1a2e',
-    clusterBorder: '#4f46e5',
-    titleColor: '#fff',
-    edgeLabelBackground: '#1a1a2e',
-  },
-  flowchart: {
-    curve: 'basis',
-    padding: 15,
-  },
-  sequence: {
-    actorMargin: 50,
-    boxMargin: 10,
-    boxTextMargin: 5,
-  },
-});
+/**
+ * Build a mermaid.ink image URL from chart code.
+ * Uses dark theme and SVG output for crisp rendering.
+ * Image-based approach eliminates client-side mermaid.js crash risk.
+ */
+function buildMermaidInkUrl(chartCode: string): string {
+  // Prepend dark theme directive if not already present
+  let code = chartCode;
+  if (!code.includes('%%{init')) {
+    code = `%%{init: {'theme': 'dark'}}%%\n${code}`;
+  }
+  // Base64 encode (handle UTF-8 properly)
+  const base64 = btoa(unescape(encodeURIComponent(code)));
+  return `https://mermaid.ink/svg/base64:${base64}`;
+}
 
 export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [imageUrl, setImageUrl] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [isZoomed, setIsZoomed] = useState(false);
-  
-  // Stable ID based on chart content hash to prevent re-renders
-  const chartId = useMemo(() => {
-    const trimmed = chart?.trim() || '';
-    let hash = 0;
-    for (let i = 0; i < trimmed.length; i++) {
-      hash = ((hash << 5) - hash) + trimmed.charCodeAt(i);
-      hash |= 0;
-    }
-    return `mermaid-${Math.abs(hash).toString(36)}`;
+
+  // Build image URL from sanitized chart code (memoized to prevent re-fetches)
+  const imageUrl = useMemo(() => {
+    const trimmed = chart?.trim();
+    if (!trimmed) return '';
+    const sanitized = sanitizeMermaidSyntax(trimmed);
+    return buildMermaidInkUrl(sanitized);
   }, [chart]);
 
-  // Convert SVG string to data URL for stable image rendering
-  const svgToDataUrl = useCallback((svgString: string): string => {
-    const encoded = encodeURIComponent(svgString)
-      .replace(/'/g, '%27')
-      .replace(/"/g, '%22');
-    return `data:image/svg+xml,${encoded}`;
-  }, []);
-
-  useEffect(() => {
-    const renderDiagram = async () => {
-      const trimmed = chart?.trim();
-      if (!trimmed) return;
-
-      // Sanitize LLM output to fix common syntax issues
-      const sanitized = sanitizeMermaidSyntax(trimmed);
-
-      // Check cache first to prevent flickering
-      const cached = renderedCache.get(sanitized);
-      if (cached) {
-        setImageUrl(cached);
-        setError(null);
-        return;
-      }
-
-      try {
-        const { svg } = await mermaid.render(chartId, sanitized);
-        const dataUrl = svgToDataUrl(svg);
-        renderedCache.set(sanitized, dataUrl);
-        setImageUrl(dataUrl);
-        setError(null);
-      } catch (err) {
-        console.error('Mermaid render error:', err);
-        setError('Failed to render diagram');
-      } finally {
-        // Clean up orphaned mermaid elements
-        document.querySelectorAll('div[id^="dmermaid-"], div[id^="mermaid-"]').forEach(el => {
-          if (el.parentElement === document.body) {
-            el.remove();
-          }
-        });
-      }
-    };
-
-    renderDiagram();
-  }, [chart, chartId, svgToDataUrl]);
+  if (!imageUrl) return null;
 
   if (error) {
     return (
-      <div className="bg-red-900/20 border border-red-800 rounded p-3 text-red-400 text-xs">
-        <span className="font-semibold">Diagram Error:</span> {error}
-        <pre className="mt-2 text-xs opacity-70 overflow-x-auto">{chart}</pre>
-      </div>
-    );
-  }
-
-  if (!imageUrl) {
-    return (
-      <div className="my-3 p-4 bg-black/30 rounded-lg flex items-center justify-center h-24">
-        <div className="w-5 h-5 border-2 border-proxi-accent border-t-transparent rounded-full animate-spin" />
+      <div className="my-3 bg-red-900/20 border border-red-800 rounded-lg p-3 text-red-400 text-xs">
+        <div className="flex items-center gap-2 mb-2">
+          <AlertTriangle className="w-4 h-4" />
+          <span className="font-semibold">Diagram render failed</span>
+        </div>
+        <pre className="text-xs opacity-70 overflow-x-auto whitespace-pre-wrap">{chart}</pre>
       </div>
     );
   }
 
   return (
     <>
-      {/* Diagram thumbnail with zoom button */}
+      {/* Diagram with loading state */}
       <div 
         ref={containerRef}
         className="my-3 p-4 bg-black/30 rounded-lg overflow-x-auto relative group cursor-pointer"
-        onClick={() => setIsZoomed(true)}
+        onClick={() => !loading && setIsZoomed(true)}
       >
+        {loading && (
+          <div className="flex items-center justify-center h-24">
+            <div className="w-5 h-5 border-2 border-proxi-accent border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
         <img 
           src={imageUrl} 
           alt="Mermaid Diagram" 
-          className="max-w-full h-auto"
+          className={`max-w-full h-auto ${loading ? 'hidden' : ''}`}
           style={{ minHeight: '80px' }}
+          onLoad={() => setLoading(false)}
+          onError={() => { setLoading(false); setError(true); }}
         />
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="p-1.5 bg-gray-800/80 rounded text-gray-300 text-xs flex items-center gap-1">
-            <ZoomIn className="w-3 h-3" />
-            Click to zoom
+        {!loading && (
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="p-1.5 bg-gray-800/80 rounded text-gray-300 text-xs flex items-center gap-1">
+              <ZoomIn className="w-3 h-3" />
+              Click to zoom
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Fullscreen zoom modal */}
