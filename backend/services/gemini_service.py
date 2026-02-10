@@ -193,7 +193,7 @@ class GeminiService:
         
         # Evidence store for "evidence on demand" pattern
         # Claims are presented first, artifacts fetched when user asks
-        self.evidence_store = {}  # {evidence_id: {claim, evidence_type, data, timestamp}}
+        # Persisted to SQLite via database.py (survives restarts)
         
         # Log dev mode status at startup
         dev_mode = os.environ.get("PROXI_DEV_MODE", "").lower() in ("true", "1", "yes")
@@ -1246,16 +1246,12 @@ class GeminiService:
         import time
         import hashlib
         
+        from backend.database import save_evidence as db_save_evidence
+        
         # Generate short evidence ID
         evidence_id = hashlib.md5(f"{claim}{time.time()}".encode()).hexdigest()[:8]
         
-        self.evidence_store[evidence_id] = {
-            "claim": claim,
-            "evidence_type": evidence_type,
-            "data": data[:5000],  # Limit data size
-            "confidence": confidence,
-            "timestamp": time.time()
-        }
+        db_save_evidence(evidence_id, claim, evidence_type, data, confidence)
         
         log_system(f"Evidence stored: {evidence_id} for claim: {claim[:50]}...", "EVIDENCE")
         return f"📎 Evidence #{evidence_id} stored for: {claim} (Type: {evidence_type}, Confidence: {confidence})"
@@ -1270,10 +1266,12 @@ class GeminiService:
         Returns:
             The full evidence details including raw data
         """
-        if evidence_id not in self.evidence_store:
+        from backend.database import get_evidence as db_get_evidence
+        
+        evidence = db_get_evidence(evidence_id)
+        if not evidence:
             return f"Evidence #{evidence_id} not found. Use list_evidence to see available evidence."
         
-        evidence = self.evidence_store[evidence_id]
         return f"""📎 EVIDENCE #{evidence_id}
 **Claim:** {evidence['claim']}
 **Type:** {evidence['evidence_type']}
@@ -1292,14 +1290,17 @@ class GeminiService:
         Returns:
             Summary of all stored evidence
         """
-        if not self.evidence_store:
+        from backend.database import list_evidence as db_list_evidence
+        
+        evidence_items = db_list_evidence()
+        if not evidence_items:
             return "No evidence stored yet. Use store_evidence during investigation to build an evidence trail."
         
         lines = ["📋 **Available Evidence:**\n"]
-        for eid, ev in self.evidence_store.items():
-            lines.append(f"- **#{eid}** ({ev['evidence_type']}, {ev['confidence']}): {ev['claim'][:60]}...")
+        for ev in evidence_items:
+            lines.append(f"- **#{ev['evidence_id']}** ({ev['evidence_type']}, {ev['confidence']}): {ev['claim'][:60]}...")
         
-        lines.append(f"\nTotal: {len(self.evidence_store)} items. Say 'show evidence #ID' to view details.")
+        lines.append(f"\nTotal: {len(evidence_items)} items. Say 'show evidence #ID' to view details.")
         return "\n".join(lines)
 
     async def _execute_with_index(self, index: int, name: str, args: dict, session_id: str = None):

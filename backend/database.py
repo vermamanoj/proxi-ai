@@ -90,6 +90,20 @@ def init_db():
         )
     ''')
     
+    # Evidence Table - For persisting forensic evidence across restarts
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS evidence (
+            evidence_id TEXT PRIMARY KEY,
+            session_id TEXT,
+            claim TEXT,
+            evidence_type TEXT,
+            confidence TEXT,
+            data TEXT,
+            created_at TIMESTAMP,
+            FOREIGN KEY(session_id) REFERENCES sessions(id)
+        )
+    ''')
+    
     conn.commit()
     conn.close()
     log_system("Memory DB Initialized (Verifiable Agent Schema)", "DB")
@@ -319,3 +333,39 @@ def get_image_by_id(image_id: str):
             d['metadata'] = {}
         return d
     return None
+
+# --- Evidence Persistence ---
+
+def save_evidence(evidence_id: str, claim: str, evidence_type: str, data: str, confidence: str = "medium", session_id: str = None):
+    """Persist an evidence item to SQLite."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute(
+        "INSERT OR REPLACE INTO evidence (evidence_id, session_id, claim, evidence_type, confidence, data, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (evidence_id, session_id, claim, evidence_type, confidence, data[:5000], datetime.datetime.now())
+    )
+    conn.commit()
+    conn.close()
+
+def get_evidence(evidence_id: str):
+    """Get a single evidence item by ID."""
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM evidence WHERE evidence_id = ?", (evidence_id,))
+    row = c.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def list_evidence(session_id: str = None):
+    """List all evidence, optionally filtered by session."""
+    conn = get_connection()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    if session_id:
+        c.execute("SELECT * FROM evidence WHERE session_id = ? ORDER BY created_at", (session_id,))
+    else:
+        c.execute("SELECT * FROM evidence ORDER BY created_at")
+    rows = [dict(row) for row in c.fetchall()]
+    conn.close()
+    return rows
