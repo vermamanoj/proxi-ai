@@ -8,6 +8,7 @@ agent is selected.
 
 import aiohttp
 import asyncio
+import concurrent.futures
 import os
 from typing import Any, Optional
 from backend.services.desktop.interface import DesktopInterface
@@ -21,6 +22,8 @@ class ProxyDesktopService(DesktopInterface):
     """
     DesktopService implementation that proxies all calls to a remote agent.
     """
+    
+    _executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
     
     def __init__(self, agent_url: str):
         """
@@ -58,10 +61,8 @@ class ProxyDesktopService(DesktopInterface):
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    future = pool.submit(asyncio.run, _call())
-                    return future.result()
+                future = self._executor.submit(asyncio.run, _call())
+                return future.result()
             else:
                 return loop.run_until_complete(_call())
         except RuntimeError:
