@@ -773,9 +773,19 @@ class GeminiService:
         # Return special marker with file data - handled in streaming loop
         return f"__FILE__:{result.get('filename')}:{result.get('mime_type')}:{result.get('content_base64')}:__DESC__:{description}"
     
+    def _cleanup_expired_approvals(self):
+        """Remove expired approval entries (older than 5 minutes)."""
+        import time
+        expired = [aid for aid, a in self.pending_approvals.items() if time.time() - a["timestamp"] > 300]
+        for aid in expired:
+            del self.pending_approvals[aid]
+        if expired:
+            log_system(f"Cleaned up {len(expired)} expired approval(s)", "APPROVAL")
+    
     def approve_command(self, approval_id: str) -> dict:
         """Approve a pending command and execute it."""
         import time
+        self._cleanup_expired_approvals()
         
         if approval_id not in self.pending_approvals:
             return {"success": False, "error": "Invalid or expired approval ID"}
@@ -807,6 +817,7 @@ class GeminiService:
     
     def deny_command(self, approval_id: str) -> dict:
         """Deny a pending command."""
+        self._cleanup_expired_approvals()
         if approval_id not in self.pending_approvals:
             return {"success": False, "error": "Invalid or expired approval ID"}
         

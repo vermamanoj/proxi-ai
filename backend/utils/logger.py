@@ -21,8 +21,17 @@ def log_system(message: str, category: str = "INFO"):
     # Print directly - uvicorn captures stdout
     print(formatted_msg, file=sys.stdout, flush=True)
     
-    # Write to file for persistence
+    # Write to file for persistence (with size-based rotation)
     try:
+        # Rotate if log exceeds 10MB
+        if DEBUG_LOG_PATH.exists() and DEBUG_LOG_PATH.stat().st_size > 10 * 1024 * 1024:
+            for i in range(2, 0, -1):
+                src = DEBUG_LOG_PATH.with_suffix(f".log.{i}")
+                dst = DEBUG_LOG_PATH.with_suffix(f".log.{i+1}")
+                if src.exists():
+                    src.rename(dst)
+            DEBUG_LOG_PATH.rename(DEBUG_LOG_PATH.with_suffix(".log.1"))
+        
         with open(DEBUG_LOG_PATH, "a", encoding="utf-8") as f:
             f.write(formatted_msg + "\n")
     except Exception:
