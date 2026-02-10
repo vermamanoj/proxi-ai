@@ -1887,13 +1887,16 @@ class GeminiService:
                 # Send results back
                 response = await self._send_with_retry(chat, response_parts, timeout_seconds=mode_timeout)
 
-            # Ensure we always yield a final response if model only returned tools
-            # Skip if we hit tool limit (already sent tool_limit_reached event)
-            if accumulated_content and not last_activity_had_response and not hit_tool_limit:
-                # Model finished with tools but no final text - generate completion message
-                summary = f"✅ Completed {total_tool_calls} actions successfully."
+            # Always send a visible final_response so the user is never left with silence
+            if not last_activity_had_response:
+                if hit_tool_limit:
+                    summary = f"⏸️ I've used all {total_tool_calls} tool calls allowed in this mode. Send a follow-up message or click Continue to keep going."
+                elif turn >= max_turns - 1:
+                    summary = f"⏸️ I've reached the turn limit for this mode ({max_turns} turns, {total_tool_calls} tool calls used). Send a follow-up message or try a higher complexity mode."
+                else:
+                    summary = f"✅ Completed {total_tool_calls} actions."
                 yield json.dumps({"type": "final_response", "content": summary}) + "\n"
-                log_system(f"Generated completion summary after {total_tool_calls} tool calls", "RESPONSE")
+                log_system(f"Generated fallback response: {summary}", "RESPONSE")
             
             yield json.dumps({"type": "status_change", "phase": "idle"}) + "\n"
 
