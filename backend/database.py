@@ -9,7 +9,10 @@ DB_PATH = Path("/app/data/proxi_memory.db") if Path("/app/data").exists() else P
 def get_connection():
     """Get a database connection with WAL mode for concurrent access."""
     conn = sqlite3.connect(DB_PATH, timeout=30.0)
-    conn.execute("PRAGMA journal_mode=WAL")
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+    except sqlite3.OperationalError:
+        log_system("Could not set WAL mode (DB may be read-only)", "WARN")
     conn.execute("PRAGMA busy_timeout=30000")
     return conn
 
