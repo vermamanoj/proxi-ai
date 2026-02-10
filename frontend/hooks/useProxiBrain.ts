@@ -268,8 +268,13 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
                         break;
                     case 'tool_result':
                         updateTrace({ step_type: 'tool_result', content: data.name, metadata: { output: data.content } });
-                        // Save diagram results to logs so they persist in session history
-                        if (data.content?.includes('ATTACK_PATH_DIAGRAM') || data.content?.includes('```mermaid')) {
+                        // Inject diagram as a standalone message for reliable rendering
+                        // Goes through proven ReactMarkdown → MermaidDiagram pipeline
+                        if (data.content?.includes('```mermaid')) {
+                            const mermaidMatch = data.content.match(/```mermaid\n([\s\S]*?)```/);
+                            if (mermaidMatch) {
+                                updateTrace({ step_type: 'final_response', content: '```mermaid\n' + mermaidMatch[1] + '```' });
+                            }
                             addLog(MessageSource.AGENT, data.content, { type: 'diagram', tool: data.name });
                         }
                         // Track verification results
@@ -558,6 +563,11 @@ export const useProxiBrain = (audioEnabled: boolean = true, workstationId: strin
               data.calls.forEach((c: any) => updateTrace({ step_type: 'tool_call', content: `${c.name}(${JSON.stringify(c.args)})` }));
             } else if (data.type === 'tool_result') {
               updateTrace({ step_type: 'tool_result', content: data.content, metadata: { name: data.name } });
+              // Inject diagram as standalone message (same as main path)
+              if (data.content?.includes('```mermaid')) {
+                const m = data.content.match(/```mermaid\n([\s\S]*?)```/);
+                if (m) updateTrace({ step_type: 'final_response', content: '```mermaid\n' + m[1] + '```' });
+              }
             } else if (data.type === 'response' || data.type === 'final_response') {
               // Handle both response types from backend
               updateTrace({ step_type: 'final_response', content: data.content });
