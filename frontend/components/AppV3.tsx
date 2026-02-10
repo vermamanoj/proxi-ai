@@ -283,21 +283,27 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
       }
       
       // Convert session messages to trace format
-      const traceSteps: TraceStep[] = fullSession.messages.map((msg, idx) => {
-        let stepType: TraceStep['step_type'] = 'llm_thought';
-        if (msg.source === 'user') stepType = 'user_input';
-        else if (msg.source === 'agent') stepType = 'final_response';
-        else if (msg.source === 'tool') stepType = 'tool_result';
+      // NOTE: Backend returns UPPERCASE source (USER, AGENT, SYSTEM)
+      const traceSteps: TraceStep[] = fullSession.messages.map((msg) => {
+        const source = (msg.source || '').toUpperCase();
+        let stepType: TraceStep['step_type'] = 'status_change';
+        if (source === 'USER') stepType = 'user_input';
+        else if (source === 'AGENT') stepType = 'final_response';
+        else if (source === 'TOOL') stepType = 'tool_result';
+        else if (source === 'SYSTEM') stepType = 'status_change';
+        
+        // Handle non-string text values (e.g. {"error": "Exit code: 127"})
+        const content = typeof msg.text === 'string' ? msg.text : JSON.stringify(msg.text);
         
         return {
           step_type: stepType,
-          content: msg.text,
+          content,
           metadata: msg.metadata
         };
       });
       
-      // Load session into the brain hook
-      await brainClearSession();
+      // Set trace directly - avoid race condition with async brainClearSession
+      // which internally calls setLastTrace([]) that can overwrite our data
       setLastTrace(traceSteps);
       setSessionId(session.id);
       console.log('[Session] Loaded session:', session.id, traceSteps.length, 'messages');
