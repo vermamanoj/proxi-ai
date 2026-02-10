@@ -69,8 +69,12 @@ function sanitizeMermaidSyntax(chart: string): string {
   // Fix: node-name -> node_name (hyphens in IDs can cause issues)
   sanitized = sanitized.replace(/([A-Za-z])[\-]([A-Za-z])/g, '$1_$2');
 
-  // 9. Fix unbalanced quotes by removing incomplete ones at end of lines
-  sanitized = sanitized.replace(/"([^"\n]*)\n/g, '"$1"\n');
+  // 9. Fix unbalanced quotes — only close lines that have an odd number of "
+  sanitized = sanitized.replace(/^(.*)$/gm, (line) => {
+    const quoteCount = (line.match(/"/g) || []).length;
+    if (quoteCount % 2 !== 0) return line + '"';
+    return line;
+  });
 
   // 10. Rename reserved 'title' node ID (reserved in mermaid v10+, breaks parsing)
   // Handles old sessions that used 'title' as a node ID before backend fix
