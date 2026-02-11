@@ -782,7 +782,7 @@ const App: React.FC = () => {
                   ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
                   : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
               }`}
-              title={!liveConnected ? 'Voice not connected' : micMuted ? 'Unmute Mic' : 'Mute Mic'}
+              title={!liveConnected ? 'Voice disabled for security — use text chat' : micMuted ? 'Unmute Mic' : 'Mute Mic'}
               disabled={!liveConnected}
             >
               {micMuted || !liveConnected ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}

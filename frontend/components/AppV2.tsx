@@ -346,7 +346,7 @@ export const AppV2: React.FC = () => {
                     ? 'bg-red-500/20 text-red-400'
                     : 'bg-green-500/20 text-green-400'
                 }`}
-                title={!liveConnected ? 'Connect Voice' : micMuted ? 'Unmute' : 'Mute'}
+                title={!liveConnected ? 'Voice disabled for security — use text chat' : micMuted ? 'Unmute' : 'Mute'}
               >
                 {micMuted || !liveConnected ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
               </button>

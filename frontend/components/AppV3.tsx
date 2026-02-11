@@ -683,7 +683,7 @@ const AppV3Authenticated: React.FC<{ user: any; logout: () => void }> = ({ user,
                   className={`p-2.5 rounded-xl transition-colors ${
                     liveConnected && !micMuted ? 'bg-th-accent text-black' : 'bg-th-surface-alt text-th-text-sec hover:text-th-text'
                   }`}
-                  title={!liveConnected ? 'Connect voice' : micMuted ? 'Unmute microphone' : 'Mute microphone'}
+                  title={!liveConnected ? 'Voice disabled for security — use text chat' : micMuted ? 'Unmute microphone' : 'Mute microphone'}
                 >
                   {!liveConnected ? <Mic className="w-5 h-5" /> : micMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </button>

@@ -343,8 +343,8 @@ export const useGeminiLive = (backendEnabled: boolean = true, audioOutputEnabled
           // Mobile app - voice mode not supported (API key can't be bundled for security)
           addLog(MessageSource.SYSTEM, '⚠️ Voice mode is not available on mobile. Use text chat instead.');
         } else {
-          // Desktop - missing .env configuration
-          addLog(MessageSource.SYSTEM, '⚠️ Voice mode requires VITE_GEMINI_API_KEY in frontend/.env');
+          // Desktop - voice mode disabled for security (API key not exposed in frontend)
+          addLog(MessageSource.SYSTEM, '🔒 Voice mode disabled for security. Please use text chat — it has the same capabilities.');
         }
         setConnectionStatus('error');
         connectingRef.current = false;
