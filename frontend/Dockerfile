@@ -3,8 +3,8 @@ FROM node:22-alpine
 WORKDIR /app
 
 # Build args for environment variables (Vite embeds at build time)
-ARG VITE_GEMINI_API_KEY
-ENV VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY
+# REMOVED: ARG VITE_GEMINI_API_KEY to prevent API key exposure in frontend bundle
+# Voice mode will gracefully disable without the key (safer for production deployments)
 
 # Copy package definitions first for better caching
 COPY package.json ./
