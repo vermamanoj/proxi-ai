@@ -786,13 +786,20 @@ async def list_session_images(session_id: str, request: Request):
 
 @app.get("/api/images/{image_id}")
 async def get_image(image_id: str, request: Request):
-    """Get an image by ID. Requires auth."""
-    await require_auth(request)
+    """Get an image by ID. Requires auth + session ownership (admin bypass)."""
+    user = await require_auth(request)
     from fastapi.responses import FileResponse
     
     img_meta = get_image_by_id(image_id)
     if not img_meta:
         raise HTTPException(status_code=404, detail="Image not found")
+    
+    # Ownership check: verify user owns the session this image belongs to
+    img_session_id = img_meta.get("session_id")
+    if img_session_id and user["role"] != "admin":
+        session = get_session(img_session_id)
+        if session and session.get("user_id") and session["user_id"] != user["username"]:
+            raise HTTPException(status_code=403, detail="Access denied")
     
     file_path = IMAGES_DIR / f"{image_id}.png"
     if not file_path.exists():

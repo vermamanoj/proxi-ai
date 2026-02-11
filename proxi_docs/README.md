@@ -21,6 +21,7 @@
 | 11 | [Additional Context](11_additional_context.md) | AI models, frontend versions, demo scenarios, mobile, security history |
 | — | [**Onboarding Guide**](ONBOARDING.md) | **Start here** — for new developers and fresh LLM sessions |
 | — | [Action Plan](ACTION_PLAN.md) | API audit results, fixes done, features planned for private repo |
+| — | [Landing Page Plan](LANDING_PAGE_PLAN.md) | Visual content plan — images, videos, screenshots for homepage |
 
 ---
 

@@ -176,8 +176,12 @@ async def root():
 # --- Authentication ---
 
 async def verify_agent_key(x_agent_key: Optional[str] = Header(None)):
-    """Verify the agent API key if one is configured."""
-    if AGENT_API_KEY and x_agent_key != AGENT_API_KEY:
+    """Verify the agent API key. Warns loudly if not configured (fail-loud)."""
+    if not AGENT_API_KEY:
+        import logging
+        logging.warning("⚠️  PROXI_AGENT_KEY not set — agent endpoints are UNPROTECTED. Set PROXI_AGENT_KEY env var.")
+        return True
+    if x_agent_key != AGENT_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid or missing agent key")
     return True
 
